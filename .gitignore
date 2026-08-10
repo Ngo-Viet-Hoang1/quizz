@@ -1,0 +1,47 @@
+specs
+
+# Dependencies
+node_modules
+.pnp
+.pnp.js
+
+# Build outputs
+dist
+.next
+.nuxt
+out
+build
+
+# Turborepo cache
+.turbo
+
+# Generated code (run pnpm codegen to regenerate)
+packages/api-client/index.ts
+packages/api-client/swagger.json
+
+# Environment variables
+.env
+.env.*
+!.env.example
+
+# IDE
+.vscode
+.idea
+*.iml
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Test coverage
+coverage
+*.lcov
+
+# Logs
+*.log
+npm-debug.log*
+pnpm-debug.log*
+yarn-debug.log*
+
+# TypeScript
+*.tsbuildinfo
