@@ -1,0 +1,26 @@
+# Dependencies
+node_modules
+
+# Build outputs
+dist
+.next
+out
+build
+
+# Turborepo cache
+.turbo
+
+# Generated code — chạy pnpm codegen để tạo lại, không format tay
+packages/api-client
+
+# Lock files (không cần format, cực kỳ chậm)
+pnpm-lock.yaml
+package-lock.json
+yarn.lock
+
+# Binary / compiled
+*.min.js
+*.min.css
+
+# Coverage reports
+coverage

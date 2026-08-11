@@ -17,6 +17,8 @@
     "clean": "turbo run clean"
   },
   "devDependencies": {
+    "eslint": "^8",
+    "prettier": "^3.9.6",
     "turbo": "^2.5.4",
     "typescript": "^5.8.3"
   },
