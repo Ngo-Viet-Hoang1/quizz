@@ -7,6 +7,7 @@
     "pnpm": "9.x"
   },
   "scripts": {
+    "prepare": "husky",
     "dev": "turbo run dev",
     "build": "turbo run build",
     "lint": "turbo run lint",
@@ -14,10 +15,14 @@
     "format": "turbo run format",
     "typecheck": "turbo run typecheck",
     "codegen": "turbo run codegen",
-    "clean": "turbo run clean"
+    "clean": "turbo run clean && rm -rf node_modules"
   },
   "devDependencies": {
+    "@commitlint/cli": "^21.2.1",
+    "@commitlint/config-conventional": "^21.2.0",
     "eslint": "^8",
+    "husky": "^9.1.7",
+    "lint-staged": "^17.3.0",
     "prettier": "^3.9.6",
     "turbo": "^2.5.4",
     "typescript": "^5.8.3"
