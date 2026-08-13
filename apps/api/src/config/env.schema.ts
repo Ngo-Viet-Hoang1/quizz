@@ -1,7 +1,7 @@
 import { z } from 'zod';
 
 export const envSchema = z.object({
-  NODE_ENV: z.enum(['development', 'staging', 'production']),
+  NODE_ENV: z.enum(['development', 'staging', 'production', 'test']),
   PORT: z.preprocess((val) => (val === '' ? undefined : val), z.coerce.number().default(4000)),
 
   // Database
