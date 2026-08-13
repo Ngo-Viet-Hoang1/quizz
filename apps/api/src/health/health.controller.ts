@@ -1,4 +1,5 @@
-import { Controller, Get, Post, Body } from '@nestjs/common';
+import { Controller, Get, Post, Body, Inject } from '@nestjs/common';
+import { CACHE_SERVICE, ICacheService } from '@repo/cache';
 import {
   ApiTags,
   ApiOperation,
@@ -25,6 +26,22 @@ export class PingQueryDto {
 @ApiTags('Health')
 @Controller('health')
 export class HealthController {
+  constructor(@Inject(CACHE_SERVICE) private readonly cache: ICacheService) {}
+
+  @Get('cache-test')
+  @ApiOperation({ summary: 'Test route cho Cache Service' })
+  @ApiResponse({ status: 200, description: 'Trả về dữ liệu đã cache' })
+  async testCache(): Promise<{ success: boolean; cached: string }> {
+    const data = await this.cache.getOrSet(
+      'test:health:random',
+      async () => {
+        return `random-${Math.random()}`;
+      },
+      10,
+    );
+    return { success: true, cached: data };
+  }
+
   @Get()
   @ApiOperation({ summary: 'Kiểm tra trạng thái hệ thống' })
   @ApiResponse({ status: 200, description: 'Hệ thống hoạt động bình thường' })
