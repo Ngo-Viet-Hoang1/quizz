@@ -1,27 +1,28 @@
-import { Module, Logger } from '@nestjs/common';
+import { Module } from '@nestjs/common';
 import { MongooseModule } from '@nestjs/mongoose';
 import { ConfigService } from '@nestjs/config';
 import { Connection } from 'mongoose';
+import { Logger } from 'nestjs-pino';
 import { Env } from '../config/env.schema';
 
 @Module({
   imports: [
     MongooseModule.forRootAsync({
-      inject: [ConfigService],
-      useFactory: (configService: ConfigService<Env>) => ({
+      inject: [ConfigService, Logger],
+      useFactory: (configService: ConfigService<Env>, logger: Logger) => ({
         uri: configService.get('MONGODB_URI'),
         maxPoolSize: 10,
         retryWrites: true,
         serverSelectionTimeoutMS: 5000,
         connectionFactory: (connection: Connection) => {
           if (connection.readyState === 1) {
-            new Logger('DatabaseModule').log('MongoDB connected');
+            logger.log('MongoDB connected', 'DatabaseModule');
           }
           connection.on('connected', () => {
-            new Logger('DatabaseModule').log('MongoDB connected');
+            logger.log('MongoDB connected', 'DatabaseModule');
           });
           connection.on('error', (err: Error) => {
-            new Logger('DatabaseModule').error(`MongoDB connection error: ${err.message}`);
+            logger.error('MongoDB connection error', err.message, 'DatabaseModule');
           });
           return connection;
         },

@@ -1,6 +1,7 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { INestApplication, ValidationPipe } from '@nestjs/common';
 import request from 'supertest';
+import { Logger } from 'nestjs-pino';
 import { AppModule } from '../src/app.module';
 import { HttpExceptionFilter } from '../src/common/filters/http-exception.filter';
 import { ResponseInterceptor } from '../src/common/interceptors/response.interceptor';
@@ -15,6 +16,10 @@ describe('AppController (e2e)', () => {
 
     app = moduleFixture.createNestApplication();
     app.setGlobalPrefix('api/v1');
+
+    const logger = app.get(Logger);
+    app.useLogger(logger);
+
     app.useGlobalPipes(
       new ValidationPipe({
         whitelist: true,
@@ -23,7 +28,7 @@ describe('AppController (e2e)', () => {
         transformOptions: { enableImplicitConversion: true },
       }),
     );
-    app.useGlobalFilters(new HttpExceptionFilter());
+    app.useGlobalFilters(new HttpExceptionFilter(logger));
     app.useGlobalInterceptors(new ResponseInterceptor());
 
     await app.init();

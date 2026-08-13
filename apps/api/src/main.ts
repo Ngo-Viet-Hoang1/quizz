@@ -1,15 +1,20 @@
 import { NestFactory } from '@nestjs/core';
 import { ValidationPipe } from '@nestjs/common';
 import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
+import { Logger } from 'nestjs-pino';
 import { AppModule } from './app.module';
 import { HttpExceptionFilter } from './common/filters/http-exception.filter';
 import { ResponseInterceptor } from './common/interceptors/response.interceptor';
 
 async function bootstrap(): Promise<void> {
-  const app = await NestFactory.create(AppModule);
+  const app = await NestFactory.create(AppModule, { bufferLogs: true });
 
   // 1. Global prefix TRƯỚC TIÊN
   app.setGlobalPrefix('api/v1');
+
+  // Resolve and use Pino Logger
+  const logger = app.get(Logger);
+  app.useLogger(logger);
 
   // 2. ValidationPipe global
   app.useGlobalPipes(
@@ -22,7 +27,7 @@ async function bootstrap(): Promise<void> {
   );
 
   // Register global filters & interceptors
-  app.useGlobalFilters(new HttpExceptionFilter());
+  app.useGlobalFilters(new HttpExceptionFilter(logger));
   app.useGlobalInterceptors(new ResponseInterceptor());
 
   // 3. Swagger (sau prefix)
