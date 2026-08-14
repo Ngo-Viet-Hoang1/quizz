@@ -1,21 +1,13 @@
 'use client';
 
 import React from 'react';
+import Link from 'next/link';
 import { useQuiz } from '../lib/quiz-context';
 import { UserRole } from '../lib/mock-store';
-import {
-  Shield,
-  UserCheck,
-  PlusCircle,
-  KeyRound,
-  LogIn,
-  UserPlus,
-  Lock,
-  Search,
-} from 'lucide-react';
+import { Shield, UserCheck, PlusCircle, LogIn, UserPlus, Lock, Search, LogOut } from 'lucide-react';
 
 export function Navbar() {
-  const { activeRole, setActiveRole, currentUser, setAuthModal } = useQuiz();
+  const { activeRole, setActiveRole, currentUser, isAuthenticated, logout } = useQuiz();
 
   const roles: { role: UserRole; label: string; icon: React.ReactNode; color: string }[] = [
     {
@@ -42,7 +34,7 @@ export function Navbar() {
     <header className="sticky top-0 z-40 bg-white/80 dark:bg-zinc-900/80 backdrop-blur-md border-b border-zinc-200 dark:border-zinc-800">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between gap-4">
         {/* Brand Logo */}
-        <div className="flex items-center gap-3">
+        <Link href="/" className="flex items-center gap-3">
           <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-indigo-600 to-violet-500 flex items-center justify-center text-white font-black text-xl shadow-lg shadow-indigo-500/25">
             Q
           </div>
@@ -54,7 +46,7 @@ export function Navbar() {
               v2.0
             </span>
           </div>
-        </div>
+        </Link>
 
         {/* Global Search Bar */}
         <div className="hidden md:flex flex-1 max-w-md items-center relative">
@@ -87,15 +79,6 @@ export function Navbar() {
             ))}
           </div>
 
-          {/* Quick PIN Join button */}
-          <button
-            onClick={() => setAuthModal('pin-join')}
-            className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white text-xs font-bold shadow-md shadow-amber-500/20 transition-all"
-          >
-            <KeyRound className="w-4 h-4" />
-            Nhập Mã PIN
-          </button>
-
           {/* User profile avatar & Auth controls */}
           <div className="flex items-center gap-2 pl-2 border-l border-zinc-200 dark:border-zinc-800">
             {currentUser.isLocked ? (
@@ -120,27 +103,33 @@ export function Navbar() {
 
             {/* Auth Action buttons (UC_01 to UC_04) */}
             <div className="flex items-center gap-1">
-              <button
-                onClick={() => setAuthModal('login')}
-                title="Đăng nhập (UC_02)"
-                className="p-1.5 rounded-lg text-zinc-500 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors"
+              <Link
+                href="/login"
+                title="Màn hình Đăng nhập (UC_02)"
+                className="flex items-center gap-1 px-2.5 py-1.5 rounded-xl bg-indigo-50 dark:bg-indigo-950 text-indigo-600 font-bold text-xs hover:bg-indigo-100 transition-colors"
               >
-                <LogIn className="w-4 h-4" />
-              </button>
-              <button
-                onClick={() => setAuthModal('register')}
-                title="Đăng ký (UC_01)"
-                className="p-1.5 rounded-lg text-zinc-500 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors"
+                <LogIn className="w-3.5 h-3.5" />
+                <span className="hidden sm:inline">Đăng nhập</span>
+              </Link>
+
+              <Link
+                href="/register"
+                title="Màn hình Đăng ký (UC_01)"
+                className="flex items-center gap-1 px-2.5 py-1.5 rounded-xl bg-purple-50 dark:bg-purple-950 text-purple-600 font-bold text-xs hover:bg-purple-100 transition-colors"
               >
-                <UserPlus className="w-4 h-4" />
-              </button>
-              <button
-                onClick={() => setAuthModal('change-password')}
-                title="Đổi mật khẩu (UC_04)"
-                className="p-1.5 rounded-lg text-zinc-500 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors"
-              >
-                <Lock className="w-4 h-4" />
-              </button>
+                <UserPlus className="w-3.5 h-3.5" />
+                <span className="hidden sm:inline">Đăng ký</span>
+              </Link>
+
+              {isAuthenticated && (
+                <button
+                  onClick={logout}
+                  title="Đăng xuất (UC_03)"
+                  className="p-1.5 rounded-xl text-red-500 hover:bg-red-50 dark:hover:bg-red-950 transition-colors"
+                >
+                  <LogOut className="w-4 h-4" />
+                </button>
+              )}
             </div>
           </div>
         </div>

@@ -4,6 +4,7 @@ export interface User {
   id: string;
   name: string;
   email: string;
+  password?: string;
   role: UserRole;
   avatar: string;
   isLocked?: boolean;
@@ -75,24 +76,27 @@ export interface ExamResult {
 export const INITIAL_USERS: User[] = [
   {
     id: 'usr-1',
-    name: 'Nguyễn Văn A',
-    email: 'vana@example.com',
+    name: 'Nguyễn Văn A (Học viên)',
+    email: 'student@example.com',
+    password: '123456',
     role: 'Participant',
     avatar: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150',
     isLocked: false,
   },
   {
     id: 'usr-2',
-    name: 'Trần Thị B (Creator)',
-    email: 'thib@example.com',
+    name: 'Trần Thị B (Tác giả)',
+    email: 'creator@example.com',
+    password: '123456',
     role: 'Creator',
     avatar: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=150',
     isLocked: false,
   },
   {
     id: 'usr-3',
-    name: 'Lê Minh C (Admin)',
+    name: 'Lê Minh C (Quản trị viên)',
     email: 'admin@quizapp.com',
+    password: '123456',
     role: 'Admin',
     avatar: 'https://images.unsplash.com/photo-1570295999919-56ceb5ecca61?w=150',
     isLocked: false,
@@ -101,6 +105,7 @@ export const INITIAL_USERS: User[] = [
     id: 'usr-4',
     name: 'Phạm Đức D (Spammer)',
     email: 'spammer@example.com',
+    password: '123456',
     role: 'Participant',
     avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150',
     isLocked: true,
@@ -115,7 +120,7 @@ export const INITIAL_QUIZZES: Quiz[] = [
       'Bộ câu hỏi trắc nghiệm chuyên sâu về Next.js App Router, React Server Components và State Management.',
     category: 'Lập trình',
     questionCount: 5,
-    creatorName: 'Trần Thị B',
+    creatorName: 'Trần Thị B (Tác giả)',
     creatorId: 'usr-2',
     plays: 1420,
     rating: 4.9,
@@ -170,7 +175,7 @@ export const INITIAL_QUIZZES: Quiz[] = [
     description: 'Thử thách vốn từ vựng và cấu trúc ngữ pháp Tiếng Anh doanh nghiệp chuyên nghiệp.',
     category: 'Ngoại ngữ',
     questionCount: 4,
-    creatorName: 'Nguyễn Văn A',
+    creatorName: 'Nguyễn Văn A (Học viên)',
     creatorId: 'usr-1',
     plays: 890,
     rating: 4.8,
@@ -218,7 +223,7 @@ export const INITIAL_QUIZZES: Quiz[] = [
       'Những câu hỏi đố vui kiến thức chung về văn hóa, lịch sử và danh lam thắng cảnh Việt Nam.',
     category: 'Văn hóa',
     questionCount: 3,
-    creatorName: 'Trần Thị B',
+    creatorName: 'Trần Thị B (Tác giả)',
     creatorId: 'usr-2',
     plays: 2310,
     rating: 4.95,
@@ -261,7 +266,7 @@ export const INITIAL_ROOMS: Room[] = [
     code: '884920',
     name: 'Phòng Thi Thử Lập Trình Frontend 2026',
     creatorId: 'usr-2',
-    creatorName: 'Trần Thị B',
+    creatorName: 'Trần Thị B (Tác giả)',
     quizId: 'qz-1',
     quizTitle: 'Kiến Thức Lập Trình Next.js & React 19',
     participantsCount: 4,
@@ -294,7 +299,7 @@ export const INITIAL_ROOMS: Room[] = [
     code: '120593',
     name: 'Thi Đố Vui Tiếng Anh Nhóm B2',
     creatorId: 'usr-1',
-    creatorName: 'Nguyễn Văn A',
+    creatorName: 'Nguyễn Văn A (Học viên)',
     quizId: 'qz-2',
     quizTitle: 'Tiếng Anh Giao Tiếp Công Sở (B2 - C1)',
     participantsCount: 2,
@@ -342,7 +347,7 @@ export const INITIAL_RESULTS: ExamResult[] = [
     id: 'res-1',
     examId: 'ex-1',
     examTitle: 'Bài Kiểm Tra Đánh Giá Năng Lực React/NextJS Q3-2026',
-    participantName: 'Nguyễn Văn A',
+    participantName: 'Nguyễn Văn A (Học viên)',
     score: 500,
     totalScore: 500,
     percentage: 100,

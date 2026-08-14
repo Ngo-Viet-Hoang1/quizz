@@ -18,9 +18,19 @@ import {
 interface QuizContextType {
   // Auth state & Role switcher
   currentUser: User;
+  isAuthenticated: boolean;
   activeRole: UserRole;
   setActiveRole: (role: UserRole) => void;
   users: User[];
+
+  login: (email: string, pass: string) => { success: boolean; message: string };
+  registerUser: (
+    name: string,
+    email: string,
+    pass: string,
+    role: UserRole,
+  ) => { success: boolean; message: string };
+  logout: () => void;
 
   // Modals state
   authModal:
@@ -67,9 +77,15 @@ interface QuizContextType {
 
 const defaultFallbackContext: QuizContextType = {
   currentUser: INITIAL_USERS[0],
+  isAuthenticated: true,
   activeRole: 'Participant',
   setActiveRole: () => {},
   users: INITIAL_USERS,
+
+  login: () => ({ success: true, message: 'Đăng nhập thành công' }),
+  registerUser: () => ({ success: true, message: 'Đăng ký thành công' }),
+  logout: () => {},
+
   authModal: null,
   setAuthModal: () => {},
   selectedQuizForAction: null,
@@ -101,6 +117,7 @@ const QuizContext = createContext<QuizContextType>(defaultFallbackContext);
 export function QuizProvider({ children }: { children: React.ReactNode }) {
   const [users, setUsers] = useState<User[]>(INITIAL_USERS);
   const [currentUser, setCurrentUser] = useState<User>(INITIAL_USERS[0]);
+  const [isAuthenticated, setIsAuthenticated] = useState<boolean>(true);
   const [activeRole, setActiveRoleState] = useState<UserRole>('Participant');
 
   const [authModal, setAuthModal] = useState<QuizContextType['authModal']>(null);
@@ -120,6 +137,7 @@ export function QuizProvider({ children }: { children: React.ReactNode }) {
     const foundUser = users.find((u) => u.role === role);
     if (foundUser) {
       setCurrentUser(foundUser);
+      setIsAuthenticated(true);
     } else {
       setCurrentUser({
         id: `usr-${Date.now()}`,
@@ -128,7 +146,58 @@ export function QuizProvider({ children }: { children: React.ReactNode }) {
         role,
         avatar: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150',
       });
+      setIsAuthenticated(true);
     }
+  };
+
+  const login = (email: string, pass: string) => {
+    const user = users.find((u) => u.email.toLowerCase() === email.toLowerCase());
+    if (!user) {
+      return { success: false, message: 'Email không tồn tại trong hệ thống!' };
+    }
+    if (user.isLocked) {
+      return { success: false, message: 'Tài khoản này đã bị khóa bởi Quản trị viên!' };
+    }
+    if (user.password && user.password !== pass) {
+      return { success: false, message: 'Mật khẩu không chính xác!' };
+    }
+    setCurrentUser(user);
+    setActiveRoleState(user.role);
+    setIsAuthenticated(true);
+    return { success: true, message: `Chào mừng ${user.name} đã đăng nhập thành công!` };
+  };
+
+  const registerUser = (name: string, email: string, pass: string, role: UserRole) => {
+    const existing = users.find((u) => u.email.toLowerCase() === email.toLowerCase());
+    if (existing) {
+      return { success: false, message: 'Email này đã được sử dụng!' };
+    }
+    const newUser: User = {
+      id: `usr-${Date.now()}`,
+      name,
+      email,
+      password: pass,
+      role,
+      avatar: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150',
+      isLocked: false,
+    };
+    setUsers((prev) => [...prev, newUser]);
+    setCurrentUser(newUser);
+    setActiveRoleState(newUser.role);
+    setIsAuthenticated(true);
+    return { success: true, message: 'Đăng ký tài khoản mới thành công!' };
+  };
+
+  const logout = () => {
+    setIsAuthenticated(false);
+    setCurrentUser({
+      id: 'guest',
+      name: 'Khách (Guest)',
+      email: 'guest@quiz.com',
+      role: 'Guest',
+      avatar: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150',
+    });
+    setActiveRoleState('Guest');
   };
 
   const lockUser = (userId: string) => {
@@ -240,9 +309,13 @@ export function QuizProvider({ children }: { children: React.ReactNode }) {
     <QuizContext.Provider
       value={{
         currentUser,
+        isAuthenticated,
         activeRole,
         setActiveRole,
         users,
+        login,
+        registerUser,
+        logout,
         authModal,
         setAuthModal,
         selectedQuizForAction,
