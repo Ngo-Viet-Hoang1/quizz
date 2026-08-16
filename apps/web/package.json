@@ -1,11 +1,13 @@
 {
-  "name": "web",
+  "name": "@repo/web",
   "version": "0.1.0",
   "private": true,
   "scripts": {
     "dev": "next dev",
     "build": "next build",
-    "start": "next start"
+    "start": "next start",
+    "lint": "eslint src/",
+    "typecheck": "tsc --noEmit"
   },
   "dependencies": {
     "next": "16.3.1",
@@ -13,6 +15,7 @@
     "react-dom": "19.2.8"
   },
   "devDependencies": {
+    "@repo/tsconfig": "workspace:*",
     "@tailwindcss/postcss": "^4",
     "@types/node": "^20",
     "@types/react": "^19",
