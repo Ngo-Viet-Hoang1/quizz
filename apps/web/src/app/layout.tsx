@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
 import { Inter } from 'next/font/google';
+import { Toaster } from 'sonner';
 import './globals.css';
 
 const inter = Inter({
@@ -8,7 +9,7 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
-  title: 'Quiz App',
+  title: 'Quiz Platform',
   description: 'Enterprise Quiz Platform',
 };
 
@@ -18,8 +19,11 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className={`${inter.variable} font-sans antialiased`}>
-      <body className="min-h-screen bg-background text-foreground">{children}</body>
+    <html lang="en" className={`${inter.variable} font-sans antialiased`} suppressHydrationWarning>
+      <body className="min-h-screen bg-background text-foreground">
+        {children}
+        <Toaster position="top-right" richColors />
+      </body>
     </html>
   );
 }
