@@ -61,4 +61,12 @@ export class ApiError extends Error {
   get isValidationError(): boolean {
     return this.code === 'VALIDATION_ERROR';
   }
+
+  get isUnauthorized(): boolean {
+    return this.code === 'UNAUTHORIZED';
+  }
+
+  get isNotFound(): boolean {
+    return this.code === 'NOT_FOUND';
+  }
 }

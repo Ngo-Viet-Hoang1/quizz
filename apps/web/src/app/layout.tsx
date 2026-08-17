@@ -1,3 +1,4 @@
+import { QueryProvider } from '@/shared/lib/query-provider';
 import type { Metadata } from 'next';
 import { Inter } from 'next/font/google';
 import { Toaster } from 'sonner';
@@ -10,7 +11,7 @@ const inter = Inter({
 
 export const metadata: Metadata = {
   title: 'Quiz Platform',
-  description: 'Enterprise Quiz Platform',
+  description: 'Enterprise AI Quiz Platform',
 };
 
 export default function RootLayout({
@@ -21,8 +22,10 @@ export default function RootLayout({
   return (
     <html lang="en" className={`${inter.variable} font-sans antialiased`} suppressHydrationWarning>
       <body className="min-h-screen bg-background text-foreground">
-        {children}
-        <Toaster position="top-right" richColors />
+        <QueryProvider>
+          {children}
+          <Toaster position="top-right" richColors />
+        </QueryProvider>
       </body>
     </html>
   );
