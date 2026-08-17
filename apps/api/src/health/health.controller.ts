@@ -11,7 +11,7 @@ import {
 import { IsString, IsNotEmpty, IsInt, Min, Max, IsOptional } from 'class-validator';
 
 export class PingQueryDto {
-  @ApiProperty({ example: 'hello', description: 'Tin nhắn ping' })
+  @ApiProperty({ example: 'hello', description: 'Ping message payload' })
   @IsString()
   @IsNotEmpty()
   message!: string;
@@ -30,8 +30,8 @@ export class HealthController {
   constructor(@Inject(CACHE_SERVICE) private readonly cache: ICacheService) {}
 
   @Get('cache-test')
-  @ApiOperation({ summary: 'Test route cho Cache Service' })
-  @ApiResponse({ status: 200, description: 'Trả về dữ liệu đã cache' })
+  @ApiOperation({ summary: 'Test route for Cache Service' })
+  @ApiResponse({ status: 200, description: 'Returns cached data' })
   async testCache(): Promise<{ cached: string }> {
     const data = await this.cache.getOrSet(
       'test:health:random',
@@ -44,8 +44,8 @@ export class HealthController {
   }
 
   @Get()
-  @ApiOperation({ summary: 'Kiểm tra trạng thái hệ thống' })
-  @ApiResponse({ status: 200, description: 'Hệ thống hoạt động bình thường' })
+  @ApiOperation({ summary: 'System health check' })
+  @ApiResponse({ status: 200, description: 'System is healthy' })
   getHealth(): { status: string; timestamp: string } {
     return {
       status: 'ok',
@@ -54,9 +54,9 @@ export class HealthController {
   }
 
   @Post('ping')
-  @ApiOperation({ summary: 'Test endpoint cho ValidationPipe' })
-  @ApiResponse({ status: 200, description: 'Xác thực dữ liệu thành công' })
-  @ApiResponse({ status: 400, description: 'Dữ liệu không hợp lệ' })
+  @ApiOperation({ summary: 'Test endpoint for ValidationPipe' })
+  @ApiResponse({ status: 200, description: 'Validation succeeded' })
+  @ApiResponse({ status: 400, description: 'Validation failed' })
   ping(@Body() body: PingQueryDto): PingQueryDto {
     return body;
   }

@@ -259,6 +259,10 @@ importers:
       node-cache:
         specifier: ^5.1.2
         version: 5.1.2
+    devDependencies:
+      '@repo/tsconfig':
+        specifier: workspace:*
+        version: link:../tsconfig
 
   packages/eslint-config:
     dependencies:
@@ -292,6 +296,10 @@ importers:
       minio:
         specifier: ^8.0.2
         version: 8.0.7
+    devDependencies:
+      '@repo/tsconfig':
+        specifier: workspace:*
+        version: link:../tsconfig
 
   packages/tsconfig: {}
 
