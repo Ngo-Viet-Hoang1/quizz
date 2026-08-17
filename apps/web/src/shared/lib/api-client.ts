@@ -48,7 +48,7 @@ apiInstance.interceptors.response.use(
     if (body && body.success === false) {
       const customConfig = response.config as CustomInternalAxiosRequestConfig;
       if (!customConfig?.skipToast && body.code === 'INTERNAL_ERROR') {
-        toast.error(body.message || 'Đã có lỗi xảy ra từ máy chủ');
+        toast.error(body.message || 'An internal server error occurred');
       }
 
       throw new ApiError(body.code, body.message, response.status, body.errors, body.traceId);
@@ -61,7 +61,7 @@ apiInstance.interceptors.response.use(
 
     if (res) {
       if (!customConfig?.skipToast && res.code !== 'VALIDATION_ERROR') {
-        toast.error(res.message || 'Đã có lỗi xảy ra');
+        toast.error(res.message || 'An error occurred');
       }
 
       throw new ApiError(
@@ -73,7 +73,7 @@ apiInstance.interceptors.response.use(
       );
     }
 
-    const networkMsg = error.message || 'Không thể kết nối đến máy chủ';
+    const networkMsg = error.message || 'Unable to connect to the server';
     if (!customConfig?.skipToast) {
       toast.error(networkMsg);
     }
