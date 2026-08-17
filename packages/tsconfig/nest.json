@@ -3,13 +3,9 @@
   "display": "NestJS",
   "extends": "./base.json",
   "compilerOptions": {
-    "target": "ES2022",
-    "lib": ["ES2022"],
     "module": "commonjs",
     "moduleResolution": "node",
     "emitDecoratorMetadata": true,
-    "experimentalDecorators": true,
-    "outDir": "dist",
-    "rootDir": "src"
+    "experimentalDecorators": true
   }
 }
