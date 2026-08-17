@@ -1,8 +1,8 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule as NestConfigModule } from '@nestjs/config';
-import { envSchema } from './env.schema';
+import { Env, envSchema } from './env.schema';
 
-export function validateEnv(config: Record<string, unknown>) {
+export function validateEnv(config: Record<string, unknown>): Env {
   const result = envSchema.safeParse(config);
 
   if (!result.success) {

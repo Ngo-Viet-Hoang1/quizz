@@ -11,7 +11,7 @@ import { RequestContextMiddleware } from './common/middleware/request-context.mi
   imports: [ConfigModule, LoggerModule, DatabaseModule, CacheModule, HealthModule, StorageModule],
 })
 export class AppModule implements NestModule {
-  configure(consumer: MiddlewareConsumer) {
+  configure(consumer: MiddlewareConsumer): void {
     consumer.apply(RequestContextMiddleware).forRoutes('*');
   }
 }
