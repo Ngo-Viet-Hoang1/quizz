@@ -21,19 +21,15 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <ClerkProvider publishableKey={process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY}>
-      <html
-        lang="en"
-        className={`${inter.variable} font-sans antialiased`}
-        suppressHydrationWarning
-      >
-        <body className="min-h-screen bg-background text-foreground">
+    <html lang="en" className={`${inter.variable} font-sans antialiased`} suppressHydrationWarning>
+      <body className="min-h-screen bg-background text-foreground">
+        <ClerkProvider>
           <QueryProvider>
             {children}
             <Toaster position="top-right" richColors />
           </QueryProvider>
-        </body>
-      </html>
-    </ClerkProvider>
+        </ClerkProvider>
+      </body>
+    </html>
   );
 }
