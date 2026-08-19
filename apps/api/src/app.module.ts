@@ -7,6 +7,7 @@ import { LoggerModule } from './logger/logger.module';
 import { StorageModule } from './storage/storage.module';
 import { ClerkModule } from './common/clerk/clerk.module';
 import { UsersModule } from './modules/users/users.module';
+import { WebhooksModule } from './modules/webhooks/webhooks.module';
 import { RequestContextMiddleware } from './common/middleware/request-context.middleware';
 
 @Module({
@@ -19,6 +20,7 @@ import { RequestContextMiddleware } from './common/middleware/request-context.mi
     StorageModule,
     ClerkModule,
     UsersModule,
+    WebhooksModule,
   ],
 })
 export class AppModule implements NestModule {

@@ -38,6 +38,7 @@
     "pino-http": "^11.0.0",
     "reflect-metadata": "^0.1.13",
     "rxjs": "^7.8.1",
+    "svix": "^1.99.1",
     "swagger-ui-express": "^5.0.1",
     "zod": "^4.4.3"
   },

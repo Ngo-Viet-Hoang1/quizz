@@ -8,7 +8,7 @@ import { ResponseInterceptor } from './common/interceptors/response.interceptor'
 import { validationExceptionFactory } from './common/pipes/validation-exception.factory';
 
 async function bootstrap(): Promise<void> {
-  const app = await NestFactory.create(AppModule, { bufferLogs: true });
+  const app = await NestFactory.create(AppModule, { bufferLogs: true, rawBody: true });
 
   app.setGlobalPrefix('api/v1');
 
@@ -30,8 +30,12 @@ async function bootstrap(): Promise<void> {
 
   const config = new DocumentBuilder()
     .setTitle('Quiz API')
+    .setDescription('Enterprise Quiz Platform Backend API')
     .setVersion('1.0')
-    .addBearerAuth()
+    .addBearerAuth(
+      { type: 'http', scheme: 'bearer', bearerFormat: 'JWT', in: 'header' },
+      'clerk-auth',
+    )
     .build();
   const document = SwaggerModule.createDocument(app, config);
   SwaggerModule.setup('api/docs', app, document);

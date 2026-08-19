@@ -29,6 +29,12 @@ export class User {
   })
   status!: 'active' | 'blocked';
 
+  @Prop({ type: [String], default: [] })
+  organizationIds!: string[];
+
+  @Prop({ type: Date, default: null })
+  deletedAt!: Date | null;
+
   createdAt!: Date;
   updatedAt!: Date;
 }
