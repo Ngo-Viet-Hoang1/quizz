@@ -3,6 +3,7 @@ import { ConfigService } from '@nestjs/config';
 import { Webhook } from 'svix';
 import { UsersService } from '../../users/users.service';
 import { OrganizationsService } from '../../organizations/organizations.service';
+import { OrganizationMembersService } from '../../organization-members/organization-members.service';
 import { ClerkWebhookService } from './clerk-webhook.service';
 import { ClerkWebhookEvent, SvixHeaders } from './clerk-webhook.types';
 
@@ -19,6 +20,7 @@ describe('ClerkWebhookService', () => {
   let configService: ConfigService;
   let usersService: UsersService;
   let organizationsService: OrganizationsService;
+  let organizationMembersService: OrganizationMembersService;
 
   beforeEach(() => {
     jest.clearAllMocks();
@@ -38,7 +40,16 @@ describe('ClerkWebhookService', () => {
       handleWebhookEvent: jest.fn(),
     } as unknown as OrganizationsService;
 
-    service = new ClerkWebhookService(configService, usersService, organizationsService);
+    organizationMembersService = {
+      handleWebhookEvent: jest.fn(),
+    } as unknown as OrganizationMembersService;
+
+    service = new ClerkWebhookService(
+      configService,
+      usersService,
+      organizationsService,
+      organizationMembersService,
+    );
   });
 
   const mockRawBody = Buffer.from(JSON.stringify({ type: 'user.created', data: {} }));
@@ -54,6 +65,7 @@ describe('ClerkWebhookService', () => {
       configService,
       usersService,
       organizationsService,
+      organizationMembersService,
     );
 
     expect(() => unconfiguredService.verifyAndParse(mockRawBody, mockHeaders)).toThrow(
@@ -126,5 +138,20 @@ describe('ClerkWebhookService', () => {
 
     await service.dispatch(mockOrgEvent);
     expect(organizationsService.handleWebhookEvent).toHaveBeenCalledWith(mockOrgEvent);
+  });
+
+  it('should dispatch organizationMembership events to organizationMembersService', async () => {
+    const mockMemberEvent: ClerkWebhookEvent = {
+      type: 'organizationMembership.created',
+      data: {
+        id: 'mem_123',
+        organization: { id: 'org_123', name: 'Acme', slug: 'acme' },
+        public_user_data: { user_id: 'user_123' },
+        role: 'org:admin',
+      },
+    };
+
+    await service.dispatch(mockMemberEvent);
+    expect(organizationMembersService.handleWebhookEvent).toHaveBeenCalledWith(mockMemberEvent);
   });
 });

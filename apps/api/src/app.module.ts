@@ -10,6 +10,7 @@ import { UsersModule } from './modules/users/users.module';
 import { OrganizationsModule } from './modules/organizations/organizations.module';
 import { WebhooksModule } from './modules/webhooks/webhooks.module';
 import { RequestContextMiddleware } from './common/middleware/request-context.middleware';
+import { OrganizationMembersModule } from './modules/organization-members/organization-members.module';
 
 @Module({
   imports: [
@@ -22,6 +23,7 @@ import { RequestContextMiddleware } from './common/middleware/request-context.mi
     ClerkModule,
     UsersModule,
     OrganizationsModule,
+    OrganizationMembersModule,
     WebhooksModule,
   ],
 })

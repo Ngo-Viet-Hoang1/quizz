@@ -4,6 +4,7 @@ import { Webhook } from 'svix';
 import { UsersService } from '../../users/users.service';
 import { OrganizationsService } from '../../organizations/organizations.service';
 import { ClerkWebhookEvent, SvixHeaders } from './clerk-webhook.types';
+import { OrganizationMembersService } from '@/modules/organization-members/organization-members.service';
 
 @Injectable()
 export class ClerkWebhookService {
@@ -14,6 +15,7 @@ export class ClerkWebhookService {
     configService: ConfigService,
     private readonly usersService: UsersService,
     private readonly organizationsService: OrganizationsService,
+    private readonly organizationMembersService: OrganizationMembersService,
   ) {
     this.webhookSecret = configService.get<string>('CLERK_WEBHOOK_SECRET') ?? '';
   }
@@ -57,7 +59,10 @@ export class ClerkWebhookService {
       case 'organization.deleted':
         return this.organizationsService.handleWebhookEvent(event);
 
-      // MembersService.handleWebhookEvent(event)
+      case 'organizationMembership.created':
+      case 'organizationMembership.updated':
+      case 'organizationMembership.deleted':
+        return this.organizationMembersService.handleWebhookEvent(event);
 
       default:
         this.logger.debug(`Unhandled Clerk event: ${(event as { type: string }).type}`);
