@@ -11,6 +11,7 @@ import { OrganizationsModule } from './modules/organizations/organizations.modul
 import { WebhooksModule } from './modules/webhooks/webhooks.module';
 import { RequestContextMiddleware } from './common/middleware/request-context.middleware';
 import { OrganizationMembersModule } from './modules/organization-members/organization-members.module';
+import { AuditModule } from './modules/audit/audit.module';
 
 @Module({
   imports: [
@@ -25,6 +26,7 @@ import { OrganizationMembersModule } from './modules/organization-members/organi
     OrganizationsModule,
     OrganizationMembersModule,
     WebhooksModule,
+    AuditModule,
   ],
 })
 export class AppModule implements NestModule {
