@@ -28,17 +28,20 @@ async function bootstrap(): Promise<void> {
   app.useGlobalFilters(new GlobalExceptionFilter());
   app.useGlobalInterceptors(new ResponseInterceptor());
 
-  const config = new DocumentBuilder()
-    .setTitle('Quiz API')
-    .setDescription('Enterprise Quiz Platform Backend API')
-    .setVersion('1.0')
-    .addBearerAuth(
-      { type: 'http', scheme: 'bearer', bearerFormat: 'JWT', in: 'header' },
-      'clerk-auth',
-    )
-    .build();
-  const document = SwaggerModule.createDocument(app, config);
-  SwaggerModule.setup('api/docs', app, document);
+  if (process.env.NODE_ENV !== 'production' || process.env.ENABLE_SWAGGER === 'true') {
+    const config = new DocumentBuilder()
+      .setTitle('Quiz API')
+      .setDescription('Enterprise Quiz Platform Backend API')
+      .setVersion('1.0')
+      .addBearerAuth(
+        { type: 'http', scheme: 'bearer', bearerFormat: 'JWT', in: 'header' },
+        'clerk-auth',
+      )
+      .build();
+    const document = SwaggerModule.createDocument(app, config);
+    SwaggerModule.setup('api/docs', app, document);
+    logger.log('Swagger documentation initialized at /api/docs');
+  }
 
   await app.listen(process.env.PORT ?? 4000);
 }

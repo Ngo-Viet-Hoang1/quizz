@@ -6,7 +6,6 @@
     "module": "commonjs",
     "moduleResolution": "node",
     "emitDecoratorMetadata": true,
-    "experimentalDecorators": true,
-    "types": ["jest", "node"]
+    "experimentalDecorators": true
   }
 }
