@@ -2,6 +2,7 @@ import { UnauthorizedException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Webhook } from 'svix';
 import { UsersService } from '../../users/users.service';
+import { OrganizationsService } from '../../organizations/organizations.service';
 import { ClerkWebhookService } from './clerk-webhook.service';
 import { ClerkWebhookEvent, SvixHeaders } from './clerk-webhook.types';
 
@@ -17,6 +18,7 @@ describe('ClerkWebhookService', () => {
   let service: ClerkWebhookService;
   let configService: ConfigService;
   let usersService: UsersService;
+  let organizationsService: OrganizationsService;
 
   beforeEach(() => {
     jest.clearAllMocks();
@@ -32,7 +34,11 @@ describe('ClerkWebhookService', () => {
       handleWebhookEvent: jest.fn(),
     } as unknown as UsersService;
 
-    service = new ClerkWebhookService(configService, usersService);
+    organizationsService = {
+      handleWebhookEvent: jest.fn(),
+    } as unknown as OrganizationsService;
+
+    service = new ClerkWebhookService(configService, usersService, organizationsService);
   });
 
   const mockRawBody = Buffer.from(JSON.stringify({ type: 'user.created', data: {} }));
@@ -44,7 +50,11 @@ describe('ClerkWebhookService', () => {
 
   it('should throw UnauthorizedException when CLERK_WEBHOOK_SECRET is missing', () => {
     (configService.get as jest.Mock).mockReturnValueOnce(null);
-    const unconfiguredService = new ClerkWebhookService(configService, usersService);
+    const unconfiguredService = new ClerkWebhookService(
+      configService,
+      usersService,
+      organizationsService,
+    );
 
     expect(() => unconfiguredService.verifyAndParse(mockRawBody, mockHeaders)).toThrow(
       UnauthorizedException,
@@ -100,5 +110,21 @@ describe('ClerkWebhookService', () => {
 
     await service.dispatch(mockEvent);
     expect(usersService.handleWebhookEvent).toHaveBeenCalledWith(mockEvent);
+  });
+
+  it('should dispatch organization events to organizationsService', async () => {
+    const mockOrgEvent: ClerkWebhookEvent = {
+      type: 'organization.created',
+      data: {
+        id: 'org_123',
+        name: 'Acme School',
+        slug: 'acme-school',
+        image_url: null,
+        created_at: 123456,
+      },
+    };
+
+    await service.dispatch(mockOrgEvent);
+    expect(organizationsService.handleWebhookEvent).toHaveBeenCalledWith(mockOrgEvent);
   });
 });

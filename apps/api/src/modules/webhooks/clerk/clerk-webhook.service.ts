@@ -2,6 +2,7 @@ import { Injectable, Logger, UnauthorizedException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Webhook } from 'svix';
 import { UsersService } from '../../users/users.service';
+import { OrganizationsService } from '../../organizations/organizations.service';
 import { ClerkWebhookEvent, SvixHeaders } from './clerk-webhook.types';
 
 @Injectable()
@@ -12,6 +13,7 @@ export class ClerkWebhookService {
   constructor(
     configService: ConfigService,
     private readonly usersService: UsersService,
+    private readonly organizationsService: OrganizationsService,
   ) {
     this.webhookSecret = configService.get<string>('CLERK_WEBHOOK_SECRET') ?? '';
   }
@@ -50,7 +52,11 @@ export class ClerkWebhookService {
       case 'user.deleted':
         return this.usersService.handleWebhookEvent(event);
 
-      // OrgsService.handleWebhookEvent(event)
+      case 'organization.created':
+      case 'organization.updated':
+      case 'organization.deleted':
+        return this.organizationsService.handleWebhookEvent(event);
+
       // MembersService.handleWebhookEvent(event)
 
       default:
