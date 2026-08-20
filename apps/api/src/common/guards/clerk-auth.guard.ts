@@ -11,6 +11,15 @@ import { ConfigService } from '@nestjs/config';
 import { Request } from 'express';
 import { UsersService } from '../../modules/users/users.service';
 import { CLERK_CLIENT } from '../clerk/clerk-client.provider';
+import { AuthenticatedRequest, AuthContext } from '../interfaces/authenticated-request.interface';
+
+interface ClerkJwtPayload {
+  sub: string;
+  org_id?: string;
+  org_role?: string;
+  org_permissions?: string[];
+  [key: string]: unknown;
+}
 
 @Injectable()
 export class ClerkAuthGuard implements CanActivate {
@@ -38,14 +47,12 @@ export class ClerkAuthGuard implements CanActivate {
       throw new UnauthorizedException('Clerk secret key is not configured');
     }
 
-    let payload: { sub: string };
+    let payload: ClerkJwtPayload;
     try {
-      payload = (await verifyToken(token, {
+      payload = await verifyToken(token, {
         secretKey: this.secretKey,
         clockSkewInMs: 5000,
-      })) as unknown as {
-        sub: string;
-      };
+      });
     } catch {
       throw new UnauthorizedException('Invalid or expired authentication token');
     }
@@ -92,7 +99,19 @@ export class ClerkAuthGuard implements CanActivate {
       throw new ForbiddenException('Your account has been blocked');
     }
 
-    (request as Request & { user: typeof localUser }).user = localUser;
+    const authContext: AuthContext = {
+      orgId: payload.org_id ?? null,
+      orgRole: payload.org_role ?? null,
+      orgPermissions: payload.org_permissions ?? [],
+      clerkUserId: localUser.clerkUserId,
+      userId: localUser._id.toString(),
+      user: localUser,
+    };
+
+    const authenticatedReq = request as AuthenticatedRequest;
+    authenticatedReq.auth = authContext;
+    authenticatedReq.user = localUser;
+
     return true;
   }
 }

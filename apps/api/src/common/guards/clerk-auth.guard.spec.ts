@@ -128,7 +128,7 @@ describe('ClerkAuthGuard', () => {
     });
   });
 
-  it('should attach local user document to request and return true when valid', async () => {
+  it('should attach local user document and auth context (including orgId) to request and return true when valid', async () => {
     const mockUser = {
       _id: '66bf4b3d1234567890abcdef',
       clerkUserId: 'user_clerk_123',
@@ -137,13 +137,27 @@ describe('ClerkAuthGuard', () => {
       status: 'active',
     };
 
-    (clerkBackend.verifyToken as jest.Mock).mockResolvedValueOnce({ sub: 'user_clerk_123' });
+    (clerkBackend.verifyToken as jest.Mock).mockResolvedValueOnce({
+      sub: 'user_clerk_123',
+      org_id: 'org_test_456',
+      org_role: 'org:admin',
+      org_permissions: ['org:quiz:manage'],
+    });
     (usersService.findByClerkUserId as jest.Mock).mockResolvedValueOnce(mockUser);
 
     const context = createMockContext('Bearer valid_token');
     const result = await guard.canActivate(context);
 
     expect(result).toBe(true);
-    expect(context.switchToHttp().getRequest().user).toEqual(mockUser);
+    const req = context.switchToHttp().getRequest();
+    expect(req.user).toEqual(mockUser);
+    expect(req.auth).toEqual({
+      orgId: 'org_test_456',
+      orgRole: 'org:admin',
+      orgPermissions: ['org:quiz:manage'],
+      clerkUserId: 'user_clerk_123',
+      userId: '66bf4b3d1234567890abcdef',
+      user: mockUser,
+    });
   });
 });
