@@ -29,7 +29,7 @@ describe('ClerkAuthGuard', () => {
     } as unknown as ConfigService;
 
     usersService = {
-      findByClerkUserId: jest.fn(),
+      findById: jest.fn(),
       syncFromClerk: jest.fn(),
     } as unknown as UsersService;
 
@@ -78,15 +78,14 @@ describe('ClerkAuthGuard', () => {
 
   it('should throw ForbiddenException when user status is blocked', async () => {
     const mockBlockedUser = {
-      _id: '66bf4b3d1234567890abcdef',
-      clerkUserId: 'user_clerk_123',
+      _id: 'user_clerk_123',
       fullName: 'Blocked User',
       email: 'blocked@example.com',
       status: 'blocked',
     };
 
     (clerkBackend.verifyToken as jest.Mock).mockResolvedValueOnce({ sub: 'user_clerk_123' });
-    (usersService.findByClerkUserId as jest.Mock).mockResolvedValueOnce(mockBlockedUser);
+    (usersService.findById as jest.Mock).mockResolvedValueOnce(mockBlockedUser);
 
     const context = createMockContext('Bearer valid_token');
     await expect(guard.canActivate(context)).rejects.toThrow(ForbiddenException);
@@ -103,15 +102,14 @@ describe('ClerkAuthGuard', () => {
     };
 
     const syncedUser = {
-      _id: '66bf4b3d1234567890abcdef',
-      clerkUserId: 'user_clerk_123',
+      _id: 'user_clerk_123',
       fullName: 'John Doe',
       email: 'john@example.com',
       status: 'active',
     };
 
     (clerkBackend.verifyToken as jest.Mock).mockResolvedValueOnce({ sub: 'user_clerk_123' });
-    (usersService.findByClerkUserId as jest.Mock).mockResolvedValueOnce(null);
+    (usersService.findById as jest.Mock).mockResolvedValueOnce(null);
     mockClerkClient.users.getUser.mockResolvedValueOnce(mockClerkUser);
     (usersService.syncFromClerk as jest.Mock).mockResolvedValueOnce(syncedUser);
 
@@ -121,7 +119,7 @@ describe('ClerkAuthGuard', () => {
     expect(result).toBe(true);
     expect(mockClerkClient.users.getUser).toHaveBeenCalledWith('user_clerk_123');
     expect(usersService.syncFromClerk).toHaveBeenCalledWith({
-      clerkUserId: 'user_clerk_123',
+      userId: 'user_clerk_123',
       email: 'john@example.com',
       fullName: 'John Doe',
       avatarUrl: 'https://avatar.com/john.png',
@@ -130,8 +128,7 @@ describe('ClerkAuthGuard', () => {
 
   it('should attach local user document and auth context (including orgId) to request and return true when valid', async () => {
     const mockUser = {
-      _id: '66bf4b3d1234567890abcdef',
-      clerkUserId: 'user_clerk_123',
+      _id: 'user_clerk_123',
       fullName: 'Test User',
       email: 'test@example.com',
       status: 'active',
@@ -143,7 +140,7 @@ describe('ClerkAuthGuard', () => {
       org_role: 'org:admin',
       org_permissions: ['org:quiz:manage'],
     });
-    (usersService.findByClerkUserId as jest.Mock).mockResolvedValueOnce(mockUser);
+    (usersService.findById as jest.Mock).mockResolvedValueOnce(mockUser);
 
     const context = createMockContext('Bearer valid_token');
     const result = await guard.canActivate(context);
@@ -155,8 +152,7 @@ describe('ClerkAuthGuard', () => {
       orgId: 'org_test_456',
       orgRole: 'org:admin',
       orgPermissions: ['org:quiz:manage'],
-      clerkUserId: 'user_clerk_123',
-      userId: '66bf4b3d1234567890abcdef',
+      userId: 'user_clerk_123',
       user: mockUser,
     });
   });

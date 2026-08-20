@@ -27,8 +27,7 @@ describe('CurrentOrg Decorator', () => {
     const request = {
       auth: {
         orgId,
-        clerkUserId: 'user_123',
-        userId: '66bf4b3d1234567890abcdef',
+        userId: 'user_123',
       },
     } as unknown as AuthenticatedRequest;
 

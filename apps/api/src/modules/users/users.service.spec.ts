@@ -33,17 +33,41 @@ describe('UsersService', () => {
     expect(service).toBeDefined();
   });
 
-  it('should find user by clerkUserId and active status', async () => {
-    const mockUser = { clerkUserId: 'user_123', status: 'active' };
+  it('should find user by id and active status', async () => {
+    const mockUser = { _id: 'user_123', status: 'active' };
     mockUserModel.findOne.mockReturnValueOnce({
       exec: jest.fn().mockResolvedValueOnce(mockUser),
     });
 
-    const result = await service.findByClerkUserId('user_123');
+    const result = await service.findById('user_123');
     expect(result).toEqual(mockUser);
     expect(mockUserModel.findOne).toHaveBeenCalledWith({
-      clerkUserId: 'user_123',
+      _id: 'user_123',
       status: 'active',
     });
+  });
+
+  it('should handle user.deleted by setting status to deleted', async () => {
+    mockUserModel.findOneAndUpdate.mockReturnValueOnce({
+      exec: jest.fn().mockResolvedValueOnce({ _id: 'user_123' }),
+    });
+
+    await service.handleWebhookEvent({
+      type: 'user.deleted',
+      data: { id: 'user_123', deleted: true },
+    });
+
+    expect(mockUserModel.findOneAndUpdate).toHaveBeenCalledWith(
+      { _id: 'user_123' },
+      {
+        $set: {
+          email: null,
+          fullName: 'Deleted User',
+          avatarUrl: null,
+          status: 'deleted',
+          deletedAt: expect.any(Date),
+        },
+      },
+    );
   });
 });

@@ -16,7 +16,7 @@ describe('UsersController', () => {
         {
           provide: UsersService,
           useValue: {
-            findByClerkUserId: jest.fn(),
+            findById: jest.fn(),
             syncFromClerk: jest.fn(),
           },
         },
@@ -43,8 +43,7 @@ describe('UsersController', () => {
 
   it('should return the current user in getMe', () => {
     const mockUser = {
-      _id: 'mock_id',
-      clerkUserId: 'user_123',
+      _id: 'user_123',
       fullName: 'Test User',
       email: 'test@example.com',
       status: 'active',

@@ -36,7 +36,7 @@ describe('OrganizationsController', () => {
         },
         {
           provide: UsersService,
-          useValue: { findByClerkUserId: jest.fn() },
+          useValue: { findById: jest.fn() },
         },
       ],
     }).compile();

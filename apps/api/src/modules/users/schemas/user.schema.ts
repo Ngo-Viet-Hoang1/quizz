@@ -1,17 +1,16 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
-import { HydratedDocument, Schema as MongooseSchema } from 'mongoose';
+import { HydratedDocument } from 'mongoose';
 
 export type UserDocument = HydratedDocument<User>;
 
 @Schema({
   timestamps: true,
   collection: 'users',
+  _id: false,
 })
 export class User {
-  _id!: MongooseSchema.Types.ObjectId;
-
-  @Prop({ type: String, required: true, unique: true, index: true })
-  clerkUserId!: string;
+  @Prop({ type: String, required: true })
+  _id!: string;
 
   @Prop({ type: String, default: null })
   email!: string | null;
@@ -24,10 +23,10 @@ export class User {
 
   @Prop({
     type: String,
-    enum: ['active', 'blocked'],
+    enum: ['active', 'blocked', 'deleted'],
     default: 'active',
   })
-  status!: 'active' | 'blocked';
+  status!: 'active' | 'blocked' | 'deleted';
 
   @Prop({ type: [String], default: [] })
   organizationIds!: string[];
@@ -40,3 +39,8 @@ export class User {
 }
 
 export const UserSchema = SchemaFactory.createForClass(User);
+
+UserSchema.index(
+  { email: 1 },
+  { unique: true, partialFilterExpression: { email: { $type: 'string' } } },
+);

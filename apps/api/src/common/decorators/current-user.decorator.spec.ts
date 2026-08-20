@@ -25,8 +25,7 @@ describe('CurrentUser Decorator', () => {
   const factory = getParamDecoratorFactory(CurrentUser);
 
   const mockUser = {
-    _id: '66bf4b3d1234567890abcdef',
-    clerkUserId: 'user_123',
+    _id: 'user_123',
     fullName: 'Test User',
     email: 'test@example.com',
   } as unknown as UserDocument;
@@ -35,8 +34,7 @@ describe('CurrentUser Decorator', () => {
     const request = {
       auth: {
         orgId: 'org_123',
-        clerkUserId: 'user_123',
-        userId: '66bf4b3d1234567890abcdef',
+        userId: 'user_123',
         user: mockUser,
       },
       user: mockUser,

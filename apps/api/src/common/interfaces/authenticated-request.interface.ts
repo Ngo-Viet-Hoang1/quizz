@@ -5,7 +5,6 @@ export interface AuthContext {
   orgId: string | null;
   orgRole?: string | null;
   orgPermissions?: string[];
-  clerkUserId: string;
   userId: string;
   user: UserDocument;
 }

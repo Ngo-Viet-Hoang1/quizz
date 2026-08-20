@@ -61,7 +61,7 @@ export class ClerkAuthGuard implements CanActivate {
       throw new UnauthorizedException('Invalid token: missing subject claim');
     }
 
-    let localUser = await this.usersService.findByClerkUserId(payload.sub);
+    let localUser = await this.usersService.findById(payload.sub);
 
     // Sync clerk user if not found in local db
     if (!localUser) {
@@ -80,14 +80,14 @@ export class ClerkAuthGuard implements CanActivate {
             'User';
 
           localUser = await this.usersService.syncFromClerk({
-            clerkUserId: clerkUser.id,
+            userId: clerkUser.id,
             email: primaryEmail,
             fullName,
             avatarUrl: clerkUser.imageUrl ?? null,
           });
         }
       } catch {
-        localUser = await this.usersService.findByClerkUserId(payload.sub);
+        localUser = await this.usersService.findById(payload.sub);
       }
     }
 
@@ -103,8 +103,7 @@ export class ClerkAuthGuard implements CanActivate {
       orgId: payload.org_id ?? null,
       orgRole: payload.org_role ?? null,
       orgPermissions: payload.org_permissions ?? [],
-      clerkUserId: localUser.clerkUserId,
-      userId: localUser._id.toString(),
+      userId: localUser._id,
       user: localUser,
     };
 

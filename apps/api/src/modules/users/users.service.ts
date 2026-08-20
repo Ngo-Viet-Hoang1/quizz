@@ -14,19 +14,19 @@ export class UsersService {
 
   constructor(@InjectModel(User.name) private readonly userModel: Model<UserDocument>) {}
 
-  async findByClerkUserId(clerkUserId: string): Promise<UserDocument | null> {
-    return this.userModel.findOne({ clerkUserId, status: 'active' }).exec();
+  async findById(userId: string): Promise<UserDocument | null> {
+    return this.userModel.findOne({ _id: userId, status: 'active' }).exec();
   }
 
   async syncFromClerk(data: {
-    clerkUserId: string;
+    userId: string;
     email: string | null;
     fullName: string;
     avatarUrl?: string | null;
   }): Promise<UserDocument> {
     return this.userModel
       .findOneAndUpdate(
-        { clerkUserId: data.clerkUserId },
+        { _id: data.userId },
         {
           $set: {
             email: data.email,
@@ -62,7 +62,7 @@ export class UsersService {
 
     await this.userModel
       .findOneAndUpdate(
-        { clerkUserId: data.id },
+        { _id: data.id },
         {
           $set: {
             email,
@@ -85,7 +85,7 @@ export class UsersService {
 
     await this.userModel
       .findOneAndUpdate(
-        { clerkUserId: data.id },
+        { _id: data.id },
         {
           $set: {
             email,
@@ -103,13 +103,13 @@ export class UsersService {
     // Soft delete: anonymize data, free partial unique index on email
     await this.userModel
       .findOneAndUpdate(
-        { clerkUserId: data.id },
+        { _id: data.id },
         {
           $set: {
             email: null, // free unique index
             fullName: 'Deleted User',
             avatarUrl: null,
-            status: 'blocked',
+            status: 'deleted',
             deletedAt: new Date(),
           },
         },
