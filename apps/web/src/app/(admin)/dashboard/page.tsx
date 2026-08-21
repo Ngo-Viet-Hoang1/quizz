@@ -393,159 +393,154 @@ export default function Home() {
   };
 
   return (
-    <main className="min-h-screen bg-muted/20 p-6 md:p-12">
-      <div className="mx-auto max-w-5xl space-y-8">
-        {/* Header Preview */}
-        <div className="flex flex-wrap items-center justify-between gap-4">
-          <div>
-            <div className="flex items-center gap-2.5">
-              <div className="flex gap-1.5">
-                <span className="h-3 w-3 rounded-full bg-red-400/90" />
-                <span className="h-3 w-3 rounded-full bg-amber-400/90" />
-                <span className="h-3 w-3 rounded-full bg-emerald-400/90" />
-              </div>
-              <h1 className="font-mono text-xl font-bold tracking-tight text-foreground">
-                ISSUE WORKBENCH / SERVER-SIDE DEMO
-              </h1>
+    <div className="space-y-6">
+      {/* Header Preview */}
+      <div className="flex flex-wrap items-center justify-between gap-4">
+        <div>
+          <div className="flex items-center gap-2.5">
+            <div className="flex gap-1.5">
+              <span className="h-3 w-3 rounded-full bg-red-400/90" />
+              <span className="h-3 w-3 rounded-full bg-amber-400/90" />
+              <span className="h-3 w-3 rounded-full bg-emerald-400/90" />
             </div>
-            <p className="mt-1 text-sm text-muted-foreground">
-              Full simulation of NestJS Backend interaction (Server Pagination, Search, Filter &
-              Sort)
-            </p>
+            <h1 className="font-mono text-xl font-bold tracking-tight text-foreground">
+              ISSUE WORKBENCH / SERVER-SIDE DEMO
+            </h1>
           </div>
-
-          <div className="flex items-center gap-2">
-            <Badge variant="outline" className="font-mono text-xs gap-1.5 px-3 py-1 bg-card">
-              <Server className="h-3.5 w-3.5 text-emerald-500 animate-pulse" />
-              Server Simulation (300ms API Delay)
-            </Badge>
-            <Badge variant="outline" className="font-mono text-xs gap-1.5 px-3 py-1">
-              <Sparkles className="h-3.5 w-3.5 text-primary" />
-              TanStack Table v9.1
-            </Badge>
-          </div>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Full simulation of NestJS Backend interaction (Server Pagination, Search, Filter & Sort)
+          </p>
         </div>
 
-        {/* 1. DATA TABLE WORKBENCH PREVIEW (SERVER-SIDE MODE) */}
-        <Card className="rounded-2xl border bg-card/60 backdrop-blur-sm shadow-sm">
-          <CardHeader className="pb-2">
-            <CardTitle className="font-mono text-base font-semibold">
-              Server-side Data Table
-            </CardTitle>
-            <CardDescription className="text-xs">
-              Search, tab switching, column sorting, pagination, and limit changes send requests to
-              server
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <DataTable
-              columns={columns}
-              data={serverRows}
-              isLoading={isLoading}
-              skeletonRowCount={limit}
-              serverPagination={paginationMeta}
-              onPageChange={(newPage) => setPage(newPage)}
-              onPageSizeChange={(newLimit) => {
-                setLimit(newLimit);
-                setPage(1);
-              }}
-              pageSizeOptions={[5, 10, 15, 30, 50]}
-              searchColumnId="title"
-              searchPlaceholder="Search records on server..."
-              searchValue={search}
-              onSearchChange={(val) => {
-                setSearch(val);
-                setPage(1);
-              }}
-              filterOptions={[
-                { label: 'ALL', value: 'ALL' },
-                { label: 'ACTIVE', value: 'ACTIVE' },
-                { label: 'REVIEW', value: 'REVIEW' },
-                { label: 'SHIPPED', value: 'SHIPPED' },
-              ]}
-              activeFilter={statusFilter}
-              onFilterChange={(newStatus) => {
-                setStatusFilter(newStatus);
-                setPage(1);
-              }}
-              onSortChange={(newSorting) => {
-                setSorting(newSorting);
-              }}
-              renderBulkActions={(selected) => (
-                <>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    className="h-7 text-xs font-mono"
-                    onClick={() => toast.info(`Exporting data for ${selected.length} record(s)...`)}
-                  >
-                    Export CSV
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant="destructive"
-                    className="h-7 text-xs font-mono"
-                    onClick={() => handleBulkDelete(selected)}
-                  >
-                    Delete Selected
-                  </Button>
-                </>
-              )}
-            />
-          </CardContent>
-        </Card>
-
-        {/* 2. FORM DEMO WITH useApiForm */}
-        <Card className="rounded-2xl border bg-card shadow-sm max-w-lg">
-          <CardHeader className="pb-3">
-            <CardTitle className="font-mono text-base font-semibold">
-              Quick Create Item (useApiForm Demo)
-            </CardTitle>
-            <CardDescription className="text-xs">
-              Add new record to mock database and verify real-time table synchronization
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <form onSubmit={onSubmit} className="space-y-4">
-              <div className="space-y-1.5">
-                <label className="text-xs font-mono font-medium text-foreground">Title</label>
-                <Input
-                  placeholder="Enter project or task title..."
-                  {...form.register('title')}
-                  className="rounded-xl font-mono text-sm"
-                />
-                {form.formState.errors.title && (
-                  <p className="text-xs text-destructive font-mono">
-                    {form.formState.errors.title.message}
-                  </p>
-                )}
-              </div>
-
-              <div className="space-y-1.5">
-                <label className="text-xs font-mono font-medium text-foreground">
-                  Score (0-100)
-                </label>
-                <Input
-                  type="number"
-                  placeholder="100"
-                  {...form.register('score', { valueAsNumber: true })}
-                  className="rounded-xl font-mono text-sm"
-                />
-                {form.formState.errors.score && (
-                  <p className="text-xs text-destructive font-mono">
-                    {form.formState.errors.score.message}
-                  </p>
-                )}
-              </div>
-
-              <Button type="submit" size="sm" className="w-full rounded-xl gap-2 font-mono text-xs">
-                <Plus className="h-4 w-4" />
-                Submit & Update Table
-              </Button>
-            </form>
-          </CardContent>
-        </Card>
+        <div className="flex items-center gap-2">
+          <Badge variant="outline" className="font-mono text-xs gap-1.5 px-3 py-1 bg-card">
+            <Server className="h-3.5 w-3.5 text-emerald-500 animate-pulse" />
+            Server Simulation (300ms API Delay)
+          </Badge>
+          <Badge variant="outline" className="font-mono text-xs gap-1.5 px-3 py-1">
+            <Sparkles className="h-3.5 w-3.5 text-primary" />
+            TanStack Table v9.1
+          </Badge>
+        </div>
       </div>
-    </main>
+
+      {/* 1. DATA TABLE WORKBENCH PREVIEW (SERVER-SIDE MODE) */}
+      <Card className="rounded-2xl border bg-card/60 backdrop-blur-sm shadow-sm">
+        <CardHeader className="pb-2">
+          <CardTitle className="font-mono text-base font-semibold">
+            Server-side Data Table
+          </CardTitle>
+          <CardDescription className="text-xs">
+            Search, tab switching, column sorting, pagination, and limit changes send requests to
+            server
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <DataTable
+            columns={columns}
+            data={serverRows}
+            isLoading={isLoading}
+            skeletonRowCount={limit}
+            serverPagination={paginationMeta}
+            onPageChange={(newPage) => setPage(newPage)}
+            onPageSizeChange={(newLimit) => {
+              setLimit(newLimit);
+              setPage(1);
+            }}
+            pageSizeOptions={[5, 10, 15, 30, 50]}
+            searchColumnId="title"
+            searchPlaceholder="Search records on server..."
+            searchValue={search}
+            onSearchChange={(val) => {
+              setSearch(val);
+              setPage(1);
+            }}
+            filterOptions={[
+              { label: 'ALL', value: 'ALL' },
+              { label: 'ACTIVE', value: 'ACTIVE' },
+              { label: 'REVIEW', value: 'REVIEW' },
+              { label: 'SHIPPED', value: 'SHIPPED' },
+            ]}
+            activeFilter={statusFilter}
+            onFilterChange={(newStatus) => {
+              setStatusFilter(newStatus);
+              setPage(1);
+            }}
+            onSortChange={(newSorting) => {
+              setSorting(newSorting);
+            }}
+            renderBulkActions={(selected) => (
+              <>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="h-7 text-xs font-mono"
+                  onClick={() => toast.info(`Exporting data for ${selected.length} record(s)...`)}
+                >
+                  Export CSV
+                </Button>
+                <Button
+                  size="sm"
+                  variant="destructive"
+                  className="h-7 text-xs font-mono"
+                  onClick={() => handleBulkDelete(selected)}
+                >
+                  Delete Selected
+                </Button>
+              </>
+            )}
+          />
+        </CardContent>
+      </Card>
+
+      {/* 2. FORM DEMO WITH useApiForm */}
+      <Card className="rounded-2xl border bg-card shadow-sm max-w-lg">
+        <CardHeader className="pb-3">
+          <CardTitle className="font-mono text-base font-semibold">
+            Quick Create Item (useApiForm Demo)
+          </CardTitle>
+          <CardDescription className="text-xs">
+            Add new record to mock database and verify real-time table synchronization
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <form onSubmit={onSubmit} className="space-y-4">
+            <div className="space-y-1.5">
+              <label className="text-xs font-mono font-medium text-foreground">Title</label>
+              <Input
+                placeholder="Enter project or task title..."
+                {...form.register('title')}
+                className="rounded-xl font-mono text-sm"
+              />
+              {form.formState.errors.title && (
+                <p className="text-xs text-destructive font-mono">
+                  {form.formState.errors.title.message}
+                </p>
+              )}
+            </div>
+
+            <div className="space-y-1.5">
+              <label className="text-xs font-mono font-medium text-foreground">Score (0-100)</label>
+              <Input
+                type="number"
+                placeholder="100"
+                {...form.register('score', { valueAsNumber: true })}
+                className="rounded-xl font-mono text-sm"
+              />
+              {form.formState.errors.score && (
+                <p className="text-xs text-destructive font-mono">
+                  {form.formState.errors.score.message}
+                </p>
+              )}
+            </div>
+
+            <Button type="submit" size="sm" className="w-full rounded-xl gap-2 font-mono text-xs">
+              <Plus className="h-4 w-4" />
+              Submit & Update Table
+            </Button>
+          </form>
+        </CardContent>
+      </Card>
+    </div>
   );
 }
