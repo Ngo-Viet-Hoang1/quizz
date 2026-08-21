@@ -11,6 +11,7 @@
   },
   "dependencies": {
     "@base-ui/react": "^1.7.0",
+    "@clerk/nextjs": "^7.7.6",
     "@hookform/resolvers": "^5.9.0",
     "@repo/shared-types": "workspace:^",
     "@tanstack/react-query": "^5.101.4",

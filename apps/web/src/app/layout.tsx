@@ -1,4 +1,5 @@
 import { QueryProvider } from '@/shared/lib/query-provider';
+import { ClerkProvider } from '@clerk/nextjs';
 import type { Metadata } from 'next';
 import { Inter } from 'next/font/google';
 import { Toaster } from 'sonner';
@@ -22,10 +23,12 @@ export default function RootLayout({
   return (
     <html lang="en" className={`${inter.variable} font-sans antialiased`} suppressHydrationWarning>
       <body className="min-h-screen bg-background text-foreground">
-        <QueryProvider>
-          {children}
-          <Toaster position="top-right" richColors />
-        </QueryProvider>
+        <ClerkProvider>
+          <QueryProvider>
+            {children}
+            <Toaster position="top-right" richColors />
+          </QueryProvider>
+        </ClerkProvider>
       </body>
     </html>
   );

@@ -70,3 +70,6 @@ export class ApiError extends Error {
     return this.code === 'NOT_FOUND';
   }
 }
+
+export { PERMISSIONS } from './permissions';
+export type { Permission } from './permissions';
