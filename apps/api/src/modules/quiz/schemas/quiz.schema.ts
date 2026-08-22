@@ -1,40 +1,15 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { HydratedDocument, Schema as MongooseSchema, Types } from 'mongoose';
+import {
+  QuestionDifficulty,
+  QuestionType,
+  QuizDifficulty,
+  QuizSourceType,
+  QuizStatus,
+  QuizVisibility,
+} from '../enums';
 
 export type QuizDocument = HydratedDocument<Quiz>;
-
-export enum QuizDifficulty {
-  EASY = 'easy',
-  MEDIUM = 'medium',
-  HARD = 'hard',
-  MIXED = 'mixed',
-}
-
-export enum QuizSourceType {
-  MANUAL = 'manual',
-  AI_GENERATED = 'ai_generated',
-  AI_FROM_DOCUMENT = 'ai_from_document',
-}
-
-export enum QuizVisibility {
-  PRIVATE = 'private',
-  PUBLIC = 'public',
-  ORGANIZATION = 'organization',
-}
-
-export enum QuizStatus {
-  DRAFT = 'draft',
-  PUBLISHED = 'published',
-  ARCHIVED = 'archived',
-}
-
-export enum QuestionType {
-  SINGLE_CHOICE = 'single_choice',
-  MULTIPLE_CHOICE = 'multiple_choice',
-  TRUE_FALSE = 'true_false',
-  FILL_BLANK = 'fill_blank',
-  ORDERING = 'ordering',
-}
 
 @Schema()
 export class QuestionOption {
@@ -68,6 +43,7 @@ export class Question {
   _id?: Types.ObjectId;
 
   @Prop({
+    type: String,
     required: true,
     enum: QuestionType,
     default: QuestionType.SINGLE_CHOICE,
@@ -80,8 +56,12 @@ export class Question {
   @Prop({ trim: true })
   explanation?: string;
 
-  @Prop({ enum: ['easy', 'medium', 'hard'], default: 'medium' })
-  difficulty?: string;
+  @Prop({
+    type: String,
+    enum: QuestionDifficulty,
+    default: QuestionDifficulty.MEDIUM,
+  })
+  difficulty?: QuestionDifficulty;
 
   @Prop({ default: 1 })
   points?: number;
@@ -102,11 +82,11 @@ export const QuestionSchema = SchemaFactory.createForClass(Question);
 export class Quiz {
   _id?: Types.ObjectId;
 
-  @Prop({ trim: true })
-  organizationId?: string;
+  @Prop({ required: true, trim: true })
+  organizationId!: string;
 
-  @Prop({ type: MongooseSchema.Types.ObjectId, ref: 'User' })
-  ownerId?: Types.ObjectId;
+  @Prop({ type: String, required: true, trim: true, ref: 'User' })
+  ownerId!: string;
 
   @Prop({ required: true, trim: true })
   title!: string;
@@ -117,16 +97,16 @@ export class Quiz {
   @Prop({ trim: true })
   category?: string;
 
-  @Prop({ enum: QuizDifficulty, default: QuizDifficulty.MEDIUM })
+  @Prop({ type: String, enum: QuizDifficulty, default: QuizDifficulty.MEDIUM })
   difficulty!: QuizDifficulty;
 
-  @Prop({ enum: QuizSourceType, default: QuizSourceType.MANUAL })
+  @Prop({ type: String, enum: QuizSourceType, default: QuizSourceType.MANUAL })
   sourceType!: QuizSourceType;
 
-  @Prop({ enum: QuizVisibility, default: QuizVisibility.PRIVATE })
+  @Prop({ type: String, enum: QuizVisibility, default: QuizVisibility.PRIVATE })
   visibility!: QuizVisibility;
 
-  @Prop({ enum: QuizStatus, default: QuizStatus.DRAFT })
+  @Prop({ type: String, enum: QuizStatus, default: QuizStatus.DRAFT })
   status!: QuizStatus;
 
   @Prop({ default: 1 })
@@ -152,6 +132,36 @@ export class Quiz {
 
   @Prop({ trim: true })
   shareCode?: string;
+
+  createdAt?: Date;
+  updatedAt?: Date;
 }
 
 export const QuizSchema = SchemaFactory.createForClass(Quiz);
+
+// Index definitions
+QuizSchema.index(
+  { organizationId: 1, deletedAt: 1, createdAt: -1 },
+  { name: 'org_deleted_created_idx' },
+);
+
+QuizSchema.index({ organizationId: 1, status: 1 }, { name: 'org_status_idx' });
+
+QuizSchema.index({ organizationId: 1, ownerId: 1 }, { name: 'org_owner_idx' });
+
+QuizSchema.index(
+  { title: 'text', description: 'text' },
+  {
+    weights: { title: 10, description: 5 },
+    name: 'quiz_text_search_idx',
+  },
+);
+
+QuizSchema.index(
+  { shareCode: 1 },
+  {
+    unique: true,
+    sparse: true,
+    name: 'share_code_unique_sparse_idx',
+  },
+);
