@@ -12,42 +12,90 @@ import {
   ValidateNested,
 } from 'class-validator';
 import {
+  QuestionDifficulty,
   QuestionType,
   QuizDifficulty,
   QuizSourceType,
-  QuizStatus,
   QuizVisibility,
-} from '../schemas/quiz.schema';
+} from '../enums';
 
 export class QuestionOptionDto {
-  @ApiPropertyOptional() @IsOptional() @IsString() _id?: string;
-  @ApiProperty() @IsString() @IsNotEmpty() content!: string;
-  @ApiPropertyOptional() @IsOptional() @IsBoolean() isCorrect?: boolean;
-  @ApiPropertyOptional() @IsOptional() @IsInt() orderIndex?: number;
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  _id?: string;
+
+  @ApiProperty()
+  @IsString()
+  @IsNotEmpty()
+  content!: string;
+
+  @ApiPropertyOptional({ default: false })
+  @IsOptional()
+  @IsBoolean()
+  isCorrect?: boolean;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsInt()
+  orderIndex?: number;
 }
 
 export class QuestionMetadataDto {
-  @ApiPropertyOptional() @IsOptional() @IsString() correctText?: string;
-  @ApiPropertyOptional() @IsOptional() @IsArray() correctOrder?: string[];
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  correctText?: string;
+
+  @ApiPropertyOptional({ type: [String] })
+  @IsOptional()
+  @IsArray()
+  correctOrder?: string[];
 }
 
 export class QuestionDto {
-  @ApiPropertyOptional() @IsOptional() @IsString() _id?: string;
-  @ApiPropertyOptional({ enum: QuestionType })
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  _id?: string;
+
+  @ApiPropertyOptional({ enum: QuestionType, default: QuestionType.SINGLE_CHOICE })
   @IsOptional()
   @IsEnum(QuestionType)
   type?: QuestionType;
-  @ApiProperty() @IsString() @IsNotEmpty() content!: string;
-  @ApiPropertyOptional() @IsOptional() @IsString() explanation?: string;
-  @ApiPropertyOptional() @IsOptional() @IsString() difficulty?: string;
-  @ApiPropertyOptional() @IsOptional() @IsInt() points?: number;
-  @ApiPropertyOptional() @IsOptional() @IsInt() orderIndex?: number;
+
+  @ApiProperty()
+  @IsString()
+  @IsNotEmpty()
+  content!: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  explanation?: string;
+
+  @ApiPropertyOptional({ enum: QuestionDifficulty, default: QuestionDifficulty.MEDIUM })
+  @IsOptional()
+  @IsEnum(QuestionDifficulty)
+  difficulty?: QuestionDifficulty;
+
+  @ApiPropertyOptional({ default: 1 })
+  @IsOptional()
+  @IsInt()
+  points?: number;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsInt()
+  orderIndex?: number;
+
   @ApiPropertyOptional({ type: [QuestionOptionDto] })
   @IsOptional()
   @IsArray()
   @ValidateNested({ each: true })
   @Type(() => QuestionOptionDto)
   options?: QuestionOptionDto[];
+
   @ApiPropertyOptional({ type: QuestionMetadataDto })
   @IsOptional()
   @ValidateNested()
@@ -56,26 +104,47 @@ export class QuestionDto {
 }
 
 export class CreateQuizDto {
-  @ApiPropertyOptional() @IsOptional() @IsString() organizationId?: string;
-  @ApiPropertyOptional() @IsOptional() @IsString() ownerId?: string;
-  @ApiProperty() @IsString() @IsNotEmpty() title!: string;
-  @ApiPropertyOptional() @IsOptional() @IsString() description?: string;
-  @ApiPropertyOptional() @IsOptional() @IsString() category?: string;
-  @ApiPropertyOptional({ enum: QuizDifficulty })
+  @ApiProperty({ example: 'TypeScript Advanced Concepts' })
+  @IsString()
+  @IsNotEmpty()
+  title!: string;
+
+  @ApiPropertyOptional({ example: 'A comprehensive quiz on advanced TS features.' })
+  @IsOptional()
+  @IsString()
+  description?: string;
+
+  @ApiPropertyOptional({ example: 'Programming' })
+  @IsOptional()
+  @IsString()
+  category?: string;
+
+  @ApiPropertyOptional({ enum: QuizDifficulty, default: QuizDifficulty.MEDIUM })
   @IsOptional()
   @IsEnum(QuizDifficulty)
   difficulty?: QuizDifficulty;
-  @ApiPropertyOptional({ enum: QuizSourceType })
+
+  @ApiPropertyOptional({ enum: QuizSourceType, default: QuizSourceType.MANUAL })
   @IsOptional()
   @IsEnum(QuizSourceType)
   sourceType?: QuizSourceType;
-  @ApiPropertyOptional({ enum: QuizVisibility })
+
+  @ApiPropertyOptional({ enum: QuizVisibility, default: QuizVisibility.PRIVATE })
   @IsOptional()
   @IsEnum(QuizVisibility)
   visibility?: QuizVisibility;
-  @ApiPropertyOptional({ enum: QuizStatus }) @IsOptional() @IsEnum(QuizStatus) status?: QuizStatus;
-  @ApiPropertyOptional() @IsOptional() @IsInt() @Min(1) timeLimitSec?: number;
-  @ApiPropertyOptional() @IsOptional() @IsString() coverImageUrl?: string;
+
+  @ApiPropertyOptional({ example: 1800 })
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  timeLimitSec?: number;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  coverImageUrl?: string;
+
   @ApiPropertyOptional({ type: [QuestionDto] })
   @IsOptional()
   @IsArray()
