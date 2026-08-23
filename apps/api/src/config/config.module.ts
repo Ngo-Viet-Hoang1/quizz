@@ -26,6 +26,7 @@ export function validateEnv(config: Record<string, unknown>): Env {
     NestConfigModule.forRoot({
       isGlobal: true,
       validate: validateEnv,
+      ignoreEnvFile: process.env.NODE_ENV === 'production',
       envFilePath: ['.env', '../../.env'],
     }),
   ],
