@@ -5,6 +5,7 @@ on:
 
 jobs:
   migrate-then-deploy:
+    name: Deploy API to Render
     runs-on: ubuntu-latest
     timeout-minutes: 15
     environment: production
@@ -20,13 +21,9 @@ jobs:
         env:
           MONGODB_URI: ${{ secrets.MONGO_PROD_URI }}
 
-      - name: Install Render CLI
+      - name: Trigger Render Deploy
         run: |
-          curl -L https://render.com/download-cli/linux -o render-cli
-          chmod +x render-cli
-          sudo mv render-cli /usr/local/bin/render
-
-      - name: Trigger Render deploy and wait
-        run: render deploys create ${{ secrets.RENDER_SERVICE_ID }} --wait --output json
-        env:
-          RENDER_API_KEY: ${{ secrets.RENDER_API_KEY }}
+          curl -f -X POST "https://api.render.com/v1/services/${{ secrets.RENDER_SERVICE_ID }}/deploys" \
+            -H "Authorization: Bearer ${{ secrets.RENDER_API_KEY }}" \
+            -H "Accept: application/json" \
+            -H "Content-Type: application/json"
