@@ -78,19 +78,23 @@ RUN apk add --no-cache dumb-init wget
 RUN addgroup -g 1001 -S appgroup && \
     adduser -S appuser -u 1001 -G appgroup
 
-# Copy production-only dependencies.
+# Copy production-only dependencies and built packages
 COPY --from=prod-deps --chown=appuser:appgroup \
     /app/node_modules ./node_modules
 
 COPY --from=prod-deps --chown=appuser:appgroup \
     /app/apps/api/node_modules ./apps/api/node_modules
 
-# Copy only the compiled application.
 COPY --from=builder --chown=appuser:appgroup \
-    /app/apps/api/dist ./dist
+    /app/packages ./packages
 
 COPY --from=builder --chown=appuser:appgroup \
-    /app/apps/api/package.json ./package.json
+    /app/apps/api/dist ./apps/api/dist
+
+COPY --from=builder --chown=appuser:appgroup \
+    /app/apps/api/package.json ./apps/api/package.json
+
+WORKDIR /app/apps/api
 
 USER appuser
 
