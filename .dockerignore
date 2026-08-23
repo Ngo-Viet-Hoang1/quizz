@@ -1,0 +1,52 @@
+# Dependencies & Package Stores
+**/node_modules
+**/.pnpm-store
+.pnpm-store
+.bun
+
+# Build Outputs & Caches 
+**/dist
+**/build
+**/.next
+**/.turbo
+*.tsbuildinfo
+.eslintcache
+
+# Environment Variables & Secrets 
+**/.env
+**/.env.*
+!**/.env.example
+
+# Git, CI/CD & IDE configs
+**/.git
+**/.github
+**/.husky
+.vscode
+.idea
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Test files, coverage & logs
+**/coverage
+**/__tests__
+**/*.test.ts
+**/*.spec.ts
+logs
+*.log
+
+# Documentation & Specs
+*.md
+!README.md
+specs
+docs
+
+# Docker & Local Compose
+docker-compose*.yml
+Dockerfile*
+.dockerignore
+
+# AI Assistant Context
+.gemini
+.agents

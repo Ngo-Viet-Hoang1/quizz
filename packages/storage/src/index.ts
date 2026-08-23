@@ -1,2 +1,2 @@
 export * from './storage.interface';
-export * from './minio-storage.service';
+export * from './s3-compatible-storage.service';

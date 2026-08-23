@@ -12,9 +12,10 @@
     "dev": "tsc --watch --preserveWatchOutput"
   },
   "dependencies": {
+    "@aws-sdk/client-s3": "^3.758.0",
+    "@aws-sdk/s3-request-presigner": "^3.758.0",
     "@nestjs/common": "^10.4.15",
-    "@nestjs/config": "^4.0.4",
-    "minio": "^8.0.2"
+    "@nestjs/config": "^4.0.4"
   },
   "devDependencies": {
     "@repo/tsconfig": "workspace:*"

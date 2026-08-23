@@ -48,6 +48,21 @@ services:
     volumes:
       - minio_data:/data
 
+  # Optional - auto create "quiz-assets" bucket on first `docker compose up`.
+  minio-init:
+    image: minio/mc:latest
+    container_name: quiz-minio-init
+    depends_on:
+      minio:
+        condition: service_healthy
+    entrypoint: >
+      /bin/sh -c "
+      mc alias set local http://minio:9000 minioadmin minioadmin &&
+      (mc mb local/quiz-assets || true) &&
+      mc anonymous set download local/quiz-assets &&
+      echo 'MinIO bucket quiz-assets ready.'
+      "
+
 volumes:
   mongo_data:
   redis_data:
