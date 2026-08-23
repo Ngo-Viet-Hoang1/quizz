@@ -29,7 +29,7 @@ export class HttpExceptionFilter implements ExceptionFilter {
     } else if (exception instanceof Error) {
       this.logger.error(exception.message, exception.stack);
       if (process.env.NODE_ENV !== 'production') {
-        message = exception.message; // dev: cho xem message thật để debug
+        message = exception.message; // dev: show real message for debugging
       }
     } else {
       this.logger.error(String(exception));

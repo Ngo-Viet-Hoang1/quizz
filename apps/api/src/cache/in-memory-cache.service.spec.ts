@@ -7,18 +7,18 @@ describe('InMemoryCacheService', () => {
     service = new InMemoryCacheService();
   });
 
-  it('get trả null nếu key chưa set', async () => {
+  it('should return null when key does not exist', async () => {
     const val = await service.get('nonexistent');
     expect(val).toBeNull();
   });
 
-  it('get trả value đúng sau khi set', async () => {
+  it('should return correct value after set', async () => {
     await service.set('test-key', { foo: 'bar' });
     const val = await service.get<{ foo: string }>('test-key');
     expect(val).toEqual({ foo: 'bar' });
   });
 
-  it('get trả null sau khi TTL hết hạn', async () => {
+  it('should return null after TTL expires', async () => {
     await service.set('ttl-key', 'expired-soon', 1); // 1 second TTL
     const valBefore = await service.get('ttl-key');
     expect(valBefore).toBe('expired-soon');
@@ -29,7 +29,7 @@ describe('InMemoryCacheService', () => {
     expect(valAfter).toBeNull();
   });
 
-  it('getOrSet chỉ gọi factory đúng 1 lần dù 3 request cùng miss cùng lúc', async () => {
+  it('should call factory only once when concurrent requests miss cache (cache stampede prevention)', async () => {
     const factory = jest.fn().mockImplementation(async () => {
       // Simulate asynchronous db fetch delay
       await new Promise((resolve) => setTimeout(resolve, 100));

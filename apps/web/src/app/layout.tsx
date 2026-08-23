@@ -1,4 +1,5 @@
-import { QueryProvider } from '@/shared/lib/query-provider';
+import { QueryProvider, ThemeProvider } from '@/shared/providers';
+import { ClerkProvider } from '@clerk/nextjs';
 import type { Metadata } from 'next';
 import { Inter } from 'next/font/google';
 import { Toaster } from 'sonner';
@@ -10,8 +11,8 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
-  title: 'Quiz Platform',
-  description: 'Enterprise AI Quiz Platform',
+  title: 'HKT Quizz LMS',
+  description: 'AI-Powered Enterprise Examination & Quiz Platform',
 };
 
 export default function RootLayout({
@@ -22,10 +23,19 @@ export default function RootLayout({
   return (
     <html lang="en" className={`${inter.variable} font-sans antialiased`} suppressHydrationWarning>
       <body className="min-h-screen bg-background text-foreground">
-        <QueryProvider>
-          {children}
-          <Toaster position="top-right" richColors />
-        </QueryProvider>
+        <ClerkProvider>
+          <ThemeProvider
+            attribute="class"
+            defaultTheme="system"
+            enableSystem
+            disableTransitionOnChange
+          >
+            <QueryProvider>
+              {children}
+              <Toaster position="top-right" richColors />
+            </QueryProvider>
+          </ThemeProvider>
+        </ClerkProvider>
       </body>
     </html>
   );
