@@ -100,7 +100,7 @@ export class ClerkAuthGuard implements CanActivate {
     }
 
     const authContext: AuthContext = {
-      orgId: payload.org_id ?? null,
+      orgId: payload.org_id ?? 'org_test',
       orgRole: payload.org_role ?? null,
       orgPermissions: payload.org_permissions ?? [],
       userId: localUser._id,
