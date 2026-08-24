@@ -8,6 +8,7 @@ import {
   OrganizationMember,
   OrganizationMemberDocument,
 } from './schemas/organization-member.schema';
+import { OrganizationMemberDetail } from './types/organization-member-detail.type';
 
 @Injectable()
 export class OrganizationMembersService {
@@ -24,6 +25,50 @@ export class OrganizationMembersService {
     userId: string,
   ): Promise<OrganizationMemberDocument | null> {
     return this.memberModel.findOne({ organizationId, userId, status: 'active' }).exec();
+  }
+
+  async findMembersByOrgId(organizationId: string): Promise<OrganizationMemberDetail[]> {
+    return this.memberModel
+      .aggregate<OrganizationMemberDetail>([
+        {
+          $match: {
+            organizationId,
+            status: 'active',
+          },
+        },
+        {
+          $lookup: {
+            from: 'users',
+            localField: 'userId',
+            foreignField: '_id',
+            as: 'user',
+          },
+        },
+        {
+          $unwind: {
+            path: '$user',
+            preserveNullAndEmptyArrays: true,
+          },
+        },
+        {
+          $project: {
+            _id: 1,
+            userId: 1,
+            organizationId: 1,
+            role: 1,
+            permissions: 1,
+            status: 1,
+            joinedAt: 1,
+            fullName: { $ifNull: ['$user.fullName', 'Unknown User'] },
+            email: { $ifNull: ['$user.email', null] },
+            avatarUrl: { $ifNull: ['$user.avatarUrl', null] },
+          },
+        },
+        {
+          $sort: { joinedAt: -1 },
+        },
+      ])
+      .exec();
   }
 
   async handleWebhookEvent(

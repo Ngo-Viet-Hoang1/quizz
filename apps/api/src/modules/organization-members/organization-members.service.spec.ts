@@ -11,6 +11,7 @@ describe('OrganizationMembersService', () => {
   let mockMemberModel: {
     findOne: jest.Mock;
     findOneAndUpdate: jest.Mock;
+    aggregate: jest.Mock;
   };
   let mockUsersService: {
     addOrganization: jest.Mock;
@@ -21,6 +22,7 @@ describe('OrganizationMembersService', () => {
     mockMemberModel = {
       findOne: jest.fn(),
       findOneAndUpdate: jest.fn(),
+      aggregate: jest.fn(),
     };
 
     mockUsersService = {
@@ -47,6 +49,31 @@ describe('OrganizationMembersService', () => {
 
   it('should be defined', () => {
     expect(service).toBeDefined();
+  });
+
+  it('should find members by organizationId using aggregation pipeline', async () => {
+    const mockDetailList = [
+      {
+        _id: 'mem_1',
+        userId: 'user_1',
+        organizationId: 'org_123',
+        role: 'org:admin',
+        permissions: ['quizzes:create'],
+        status: 'active',
+        fullName: 'Admin User',
+        email: 'admin@school.edu.vn',
+        avatarUrl: null,
+        joinedAt: new Date(),
+      },
+    ];
+
+    mockMemberModel.aggregate.mockReturnValueOnce({
+      exec: jest.fn().mockResolvedValueOnce(mockDetailList),
+    });
+
+    const result = await service.findMembersByOrgId('org_123');
+    expect(result).toEqual(mockDetailList);
+    expect(mockMemberModel.aggregate).toHaveBeenCalled();
   });
 
   it('should find active member by organizationId and userId', async () => {
