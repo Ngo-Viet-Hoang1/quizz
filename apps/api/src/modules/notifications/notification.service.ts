@@ -71,6 +71,45 @@ export class NotificationService {
     return updated;
   }
 
+  async markAsRead(id: string, orgId: string, userId: string): Promise<Notification> {
+    const updated = await this.notificationModel
+      .findOneAndUpdate(
+        { _id: id, organizationId: orgId, userId, deletedAt: null },
+        { readAt: new Date() },
+        { new: true },
+      )
+      .lean<Notification>()
+      .exec();
+
+    if (!updated) {
+      throw new NotFoundException(`Notification with ID ${id} not found`);
+    }
+
+    return updated;
+  }
+
+  async markAllAsRead(orgId: string, userId: string): Promise<{ modifiedCount: number }> {
+    const filter: QueryFilter<NotificationDocument> = {
+      organizationId: orgId,
+      userId,
+      readAt: null,
+      deletedAt: null,
+    };
+    const result = await this.notificationModel.updateMany(filter, { readAt: new Date() }).exec();
+    return { modifiedCount: result.modifiedCount };
+  }
+
+  async unreadCount(orgId: string, userId: string): Promise<{ count: number }> {
+    const filter: QueryFilter<NotificationDocument> = {
+      organizationId: orgId,
+      userId,
+      readAt: null,
+      deletedAt: null,
+    };
+    const count = await this.notificationModel.countDocuments(filter).exec();
+    return { count };
+  }
+
   async remove(
     id: string,
     orgId: string,

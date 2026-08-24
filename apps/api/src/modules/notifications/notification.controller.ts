@@ -53,6 +53,25 @@ export class NotificationController {
     return ApiResponse.success(items, meta);
   }
 
+  @Get('unread-count')
+  @ApiOperation({ summary: 'Get unread notification count for current user' })
+  unreadCount(
+    @CurrentOrg() orgId: string,
+    @CurrentUser('_id') userId: string,
+  ): Promise<{ count: number }> {
+    return this.notificationService.unreadCount(orgId, userId);
+  }
+
+  @Patch('read-all')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Mark all notifications as read for current user' })
+  markAllAsRead(
+    @CurrentOrg() orgId: string,
+    @CurrentUser('_id') userId: string,
+  ): Promise<{ modifiedCount: number }> {
+    return this.notificationService.markAllAsRead(orgId, userId);
+  }
+
   @Get(':id')
   @ApiOperation({ summary: 'Get notification by ID' })
   findOne(
@@ -72,6 +91,17 @@ export class NotificationController {
     @Body() dto: UpdateNotificationDto,
   ): Promise<Notification> {
     return this.notificationService.update(id, orgId, userId, dto);
+  }
+
+  @Patch(':id/read')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Mark a notification as read' })
+  markAsRead(
+    @CurrentOrg() orgId: string,
+    @CurrentUser('_id') userId: string,
+    @Param('id', ParseObjectIdPipe) id: string,
+  ): Promise<Notification> {
+    return this.notificationService.markAsRead(id, orgId, userId);
   }
 
   @Delete(':id')
