@@ -30,3 +30,16 @@ jobs:
         run: pnpm --filter @repo/api migrate:up
         env:
           MONGODB_URI: mongodb://localhost:27017/dryrun
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Verify Docker Build (API)
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: apps/api/Dockerfile
+          push: false
+          tags: quiz-api:ci-test
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
