@@ -4,11 +4,17 @@ import { PERMISSIONS } from '@repo/shared-types';
 import { OrganizationMembersService } from './organization-members.service';
 import { OrganizationMember } from './schemas/organization-member.schema';
 
+import { UsersService } from '../users/users.service';
+
 describe('OrganizationMembersService', () => {
   let service: OrganizationMembersService;
   let mockMemberModel: {
     findOne: jest.Mock;
     findOneAndUpdate: jest.Mock;
+  };
+  let mockUsersService: {
+    addOrganization: jest.Mock;
+    removeOrganization: jest.Mock;
   };
 
   beforeEach(async () => {
@@ -17,12 +23,21 @@ describe('OrganizationMembersService', () => {
       findOneAndUpdate: jest.fn(),
     };
 
+    mockUsersService = {
+      addOrganization: jest.fn().mockResolvedValue(null),
+      removeOrganization: jest.fn().mockResolvedValue(null),
+    };
+
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         OrganizationMembersService,
         {
           provide: getModelToken(OrganizationMember.name),
           useValue: mockMemberModel,
+        },
+        {
+          provide: UsersService,
+          useValue: mockUsersService,
         },
       ],
     }).compile();
@@ -87,8 +102,9 @@ describe('OrganizationMembersService', () => {
           userId: 'user_123',
         },
       },
-      { upsert: true, new: true, setDefaultsOnInsert: true },
+      { upsert: true, returnDocument: 'after', setDefaultsOnInsert: true },
     );
+    expect(mockUsersService.addOrganization).toHaveBeenCalledWith('user_123', 'org_123');
   });
 
   it('should handle organizationMembership.updated without changing joinedAt or status', async () => {
@@ -118,6 +134,7 @@ describe('OrganizationMembersService', () => {
           ]),
         },
       },
+      { returnDocument: 'after' },
     );
   });
 
@@ -143,6 +160,8 @@ describe('OrganizationMembersService', () => {
           status: 'removed',
         },
       },
+      { returnDocument: 'after' },
     );
+    expect(mockUsersService.removeOrganization).toHaveBeenCalledWith('user_123', 'org_123');
   });
 });

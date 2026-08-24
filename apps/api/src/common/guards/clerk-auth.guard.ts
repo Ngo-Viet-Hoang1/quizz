@@ -99,9 +99,21 @@ export class ClerkAuthGuard implements CanActivate {
       throw new ForbiddenException('Your account has been blocked');
     }
 
+    const rawOrg = payload.o as { id?: string; rol?: string } | undefined;
+    const orgId = payload.org_id ?? rawOrg?.id ?? null;
+    const orgRole = payload.org_role ?? rawOrg?.rol ?? null;
+
+    // Auto-link active organizationId to user.organizationIds if not yet added
+    if (orgId && !localUser.organizationIds?.includes(orgId)) {
+      const updatedUser = await this.usersService.addOrganization(localUser._id, orgId);
+      if (updatedUser) {
+        localUser = updatedUser;
+      }
+    }
+
     const authContext: AuthContext = {
-      orgId: payload.org_id ?? null,
-      orgRole: payload.org_role ?? null,
+      orgId,
+      orgRole,
       orgPermissions: payload.org_permissions ?? [],
       userId: localUser._id,
       user: localUser,

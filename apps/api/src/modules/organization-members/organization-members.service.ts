@@ -1,6 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
+import { UsersService } from '../users/users.service';
 import { ClerkOrgMembershipData, ClerkWebhookEvent } from '../webhooks/clerk/clerk-webhook.types';
 import { resolvePermissionsForRole } from './constants/role-permissions.map';
 import {
@@ -15,6 +16,7 @@ export class OrganizationMembersService {
   constructor(
     @InjectModel(OrganizationMember.name)
     private readonly memberModel: Model<OrganizationMemberDocument>,
+    private readonly usersService: UsersService,
   ) {}
 
   async findByOrgAndUser(
@@ -58,9 +60,11 @@ export class OrganizationMembersService {
             userId,
           },
         },
-        { upsert: true, new: true, setDefaultsOnInsert: true },
+        { upsert: true, returnDocument: 'after', setDefaultsOnInsert: true },
       )
       .exec();
+
+    await this.usersService.addOrganization(userId, organizationId);
 
     this.logger.debug(
       `Member created/synced: ${userId} in ${organizationId} with role ${data.role}`,
@@ -81,6 +85,7 @@ export class OrganizationMembersService {
             permissions,
           },
         },
+        { returnDocument: 'after' },
       )
       .exec();
 
@@ -99,8 +104,11 @@ export class OrganizationMembersService {
             status: 'removed',
           },
         },
+        { returnDocument: 'after' },
       )
       .exec();
+
+    await this.usersService.removeOrganization(userId, organizationId);
 
     this.logger.debug(`Member removed: ${userId} from ${organizationId}`);
   }

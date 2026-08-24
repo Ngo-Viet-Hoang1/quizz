@@ -3,11 +3,14 @@ import { MongooseModule } from '@nestjs/mongoose';
 import { OrganizationMembersService } from './organization-members.service';
 import { OrganizationMember, OrganizationMemberSchema } from './schemas/organization-member.schema';
 
+import { UsersModule } from '../users/users.module';
+
 @Module({
   imports: [
     MongooseModule.forFeature([
       { name: OrganizationMember.name, schema: OrganizationMemberSchema },
     ]),
+    UsersModule,
   ],
   providers: [OrganizationMembersService],
   exports: [OrganizationMembersService],
