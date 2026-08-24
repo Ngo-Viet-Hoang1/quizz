@@ -13,6 +13,7 @@ import { QuizModule } from './modules/quiz/quiz.module';
 import { RequestContextMiddleware } from './common/middleware/request-context.middleware';
 import { OrganizationMembersModule } from './modules/organization-members/organization-members.module';
 import { AuditModule } from './modules/audit/audit.module';
+import { SyncModule } from './modules/sync/sync.module';
 
 @Module({
   imports: [
@@ -29,6 +30,7 @@ import { AuditModule } from './modules/audit/audit.module';
     WebhooksModule,
     AuditModule,
     QuizModule,
+    SyncModule,
   ],
 })
 export class AppModule implements NestModule {
