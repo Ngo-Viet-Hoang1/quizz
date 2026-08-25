@@ -10,6 +10,7 @@ import { UsersModule } from './modules/users/users.module';
 import { OrganizationsModule } from './modules/organizations/organizations.module';
 import { WebhooksModule } from './modules/webhooks/webhooks.module';
 import { QuizModule } from './modules/quiz/quiz.module';
+import { RoomModule } from './modules/room/room.module';
 import { RequestContextMiddleware } from './common/middleware/request-context.middleware';
 import { OrganizationMembersModule } from './modules/organization-members/organization-members.module';
 import { AuditModule } from './modules/audit/audit.module';
@@ -29,6 +30,7 @@ import { AuditModule } from './modules/audit/audit.module';
     WebhooksModule,
     AuditModule,
     QuizModule,
+    RoomModule,
   ],
 })
 export class AppModule implements NestModule {
