@@ -31,6 +31,7 @@
     "@nestjs/mongoose": "^11.0.4",
     "@nestjs/platform-express": "^10.4.15",
     "@nestjs/swagger": "^7.4.2",
+    "@nestjs/throttler": "^6.5.0",
     "@repo/storage": "workspace:*",
     "class-transformer": "^0.5.1",
     "class-validator": "^0.14.1",
@@ -44,11 +45,11 @@
     "zod": "^4.4.3"
   },
   "devDependencies": {
-    "@repo/eslint-config": "workspace:^",
-    "@repo/tsconfig": "workspace:*",
     "@nestjs/cli": "^10.4.9",
     "@nestjs/schematics": "^10.2.3",
     "@nestjs/testing": "^10.4.15",
+    "@repo/eslint-config": "workspace:^",
+    "@repo/tsconfig": "workspace:*",
     "@swc/cli": "^0.8.1",
     "@swc/core": "^1.10.1",
     "@types/express": "^5.0.0",

@@ -11,12 +11,20 @@ import { OrganizationsModule } from './modules/organizations/organizations.modul
 import { WebhooksModule } from './modules/webhooks/webhooks.module';
 import { QuizModule } from './modules/quiz/quiz.module';
 import { RequestContextMiddleware } from './common/middleware/request-context.middleware';
+import { APP_GUARD } from '@nestjs/core';
+import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
 import { OrganizationMembersModule } from './modules/organization-members/organization-members.module';
 import { AuditModule } from './modules/audit/audit.module';
 import { SyncModule } from './modules/sync/sync.module';
 
 @Module({
   imports: [
+    ThrottlerModule.forRoot([
+      {
+        ttl: 60000,
+        limit: 100,
+      },
+    ]),
     ConfigModule,
     LoggerModule,
     DatabaseModule,
@@ -31,6 +39,12 @@ import { SyncModule } from './modules/sync/sync.module';
     AuditModule,
     QuizModule,
     SyncModule,
+  ],
+  providers: [
+    {
+      provide: APP_GUARD,
+      useClass: ThrottlerGuard,
+    },
   ],
 })
 export class AppModule implements NestModule {

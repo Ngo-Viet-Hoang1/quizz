@@ -9,11 +9,13 @@ import {
   UnauthorizedException,
 } from '@nestjs/common';
 import { ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
+import { SkipThrottle } from '@nestjs/throttler';
 import { Request } from 'express';
 import { ClerkWebhookService } from './clerk-webhook.service';
 import { SvixHeaders } from './clerk-webhook.types';
 
 @ApiTags('webhooks:clerk')
+@SkipThrottle()
 @Controller('webhooks/clerk')
 export class ClerkWebhookController {
   constructor(private readonly clerkWebhookService: ClerkWebhookService) {}
