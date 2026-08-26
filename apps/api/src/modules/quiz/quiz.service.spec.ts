@@ -1,8 +1,9 @@
-import { BadRequestException, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ConflictException, NotFoundException } from '@nestjs/common';
 import { getModelToken } from '@nestjs/mongoose';
 import { Test, TestingModule } from '@nestjs/testing';
 import { Types } from 'mongoose';
 import {
+  ExamAttemptStatus,
   QuestionDifficulty,
   QuestionType,
   QuizDifficulty,
@@ -11,7 +12,7 @@ import {
   QuizVisibility,
 } from './enums';
 import { QuizService } from './quiz.service';
-import { Quiz } from './schemas/quiz.schema';
+import { ExamAttempt, Quiz } from './schemas';
 
 type MockQuizModel = jest.Mock & {
   find: jest.Mock;
@@ -21,9 +22,14 @@ type MockQuizModel = jest.Mock & {
   countDocuments: jest.Mock;
 };
 
+type MockExamAttemptModel = {
+  exists: jest.Mock;
+};
+
 describe('QuizService', () => {
   let service: QuizService;
   let mockQuizModel: MockQuizModel;
+  let mockExamAttemptModel: MockExamAttemptModel;
 
   const mockOrgId = 'org_123';
   const mockUserId = 'user_abc';
@@ -77,12 +83,20 @@ describe('QuizService', () => {
       countDocuments: jest.fn(),
     });
 
+    mockExamAttemptModel = {
+      exists: jest.fn(),
+    };
+
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         QuizService,
         {
           provide: getModelToken(Quiz.name),
           useValue: mockQuizModel,
+        },
+        {
+          provide: getModelToken(ExamAttempt.name),
+          useValue: mockExamAttemptModel,
         },
       ],
     }).compile();
@@ -149,6 +163,105 @@ describe('QuizService', () => {
       });
 
       await expect(service.findOne(mockQuizId, mockOrgId)).rejects.toThrow(NotFoundException);
+    });
+  });
+
+  describe('hasActiveExamAttempts', () => {
+    it('should return true when in_progress attempt exists', async () => {
+      mockExamAttemptModel.exists.mockResolvedValue({ _id: new Types.ObjectId() });
+
+      const result = await service.hasActiveExamAttempts(mockQuizId, 1);
+      expect(result).toBe(true);
+      expect(mockExamAttemptModel.exists).toHaveBeenCalledWith({
+        quizId: new Types.ObjectId(mockQuizId),
+        quizVersion: 1,
+        status: ExamAttemptStatus.IN_PROGRESS,
+      });
+    });
+
+    it('should return false when no in_progress attempt exists', async () => {
+      mockExamAttemptModel.exists.mockResolvedValue(null);
+
+      const result = await service.hasActiveExamAttempts(mockQuizId, 1);
+      expect(result).toBe(false);
+    });
+  });
+
+  describe('update', () => {
+    it('should throw NotFoundException if quiz does not exist', async () => {
+      mockQuizModel.findOne.mockReturnValue({
+        lean: jest.fn().mockReturnValue({
+          exec: jest.fn().mockResolvedValue(null),
+        }),
+      });
+
+      await expect(
+        service.update(mockQuizId, mockOrgId, { title: 'Updated Title' }),
+      ).rejects.toThrow(NotFoundException);
+    });
+
+    it('should allow updating a DRAFT quiz even if exam attempts check would be skipped', async () => {
+      const mockDoc = createMockQuizDoc({ status: QuizStatus.DRAFT });
+      mockQuizModel.findOne.mockReturnValue({
+        lean: jest.fn().mockReturnValue({
+          exec: jest.fn().mockResolvedValue(mockDoc),
+        }),
+      });
+      const updatedDoc = { ...mockDoc, title: 'Updated Draft Title' };
+      mockQuizModel.findOneAndUpdate.mockReturnValue({
+        lean: jest.fn().mockReturnValue({
+          exec: jest.fn().mockResolvedValue(updatedDoc),
+        }),
+      });
+
+      const result = await service.update(mockQuizId, mockOrgId, { title: 'Updated Draft Title' });
+      expect(result.title).toBe('Updated Draft Title');
+      expect(mockExamAttemptModel.exists).not.toHaveBeenCalled();
+    });
+
+    it('should throw ConflictException when updating a PUBLISHED quiz with in_progress attempts', async () => {
+      const mockDoc = createMockQuizDoc({ status: QuizStatus.PUBLISHED, version: 2 });
+      mockQuizModel.findOne.mockReturnValue({
+        lean: jest.fn().mockReturnValue({
+          exec: jest.fn().mockResolvedValue(mockDoc),
+        }),
+      });
+      mockExamAttemptModel.exists.mockResolvedValue({ _id: new Types.ObjectId() });
+
+      await expect(service.update(mockQuizId, mockOrgId, { title: 'New Title' })).rejects.toThrow(
+        ConflictException,
+      );
+
+      await expect(service.update(mockQuizId, mockOrgId, { title: 'New Title' })).rejects.toThrow(
+        'Cannot update quiz with exam attempts in progress',
+      );
+    });
+
+    it('should allow updating a PUBLISHED quiz when no in_progress attempts exist', async () => {
+      const mockDoc = createMockQuizDoc({ status: QuizStatus.PUBLISHED, version: 2 });
+      mockQuizModel.findOne.mockReturnValue({
+        lean: jest.fn().mockReturnValue({
+          exec: jest.fn().mockResolvedValue(mockDoc),
+        }),
+      });
+      mockExamAttemptModel.exists.mockResolvedValue(null);
+
+      const updatedDoc = { ...mockDoc, title: 'Updated Published Quiz' };
+      mockQuizModel.findOneAndUpdate.mockReturnValue({
+        lean: jest.fn().mockReturnValue({
+          exec: jest.fn().mockResolvedValue(updatedDoc),
+        }),
+      });
+
+      const result = await service.update(mockQuizId, mockOrgId, {
+        title: 'Updated Published Quiz',
+      });
+      expect(result.title).toBe('Updated Published Quiz');
+      expect(mockExamAttemptModel.exists).toHaveBeenCalledWith({
+        quizId: new Types.ObjectId(mockQuizId),
+        quizVersion: 2,
+        status: ExamAttemptStatus.IN_PROGRESS,
+      });
     });
   });
 
@@ -301,7 +414,57 @@ describe('QuizService', () => {
   });
 
   describe('remove', () => {
-    it('should soft delete quiz by setting deletedAt', async () => {
+    it('should throw NotFoundException if quiz does not exist', async () => {
+      mockQuizModel.findOne.mockReturnValue({
+        lean: jest.fn().mockReturnValue({
+          exec: jest.fn().mockResolvedValue(null),
+        }),
+      });
+
+      await expect(service.remove(mockQuizId, mockOrgId)).rejects.toThrow(NotFoundException);
+    });
+
+    it('should allow soft delete of a DRAFT quiz without checking attempts', async () => {
+      const mockDoc = createMockQuizDoc({ status: QuizStatus.DRAFT });
+      mockQuizModel.findOne.mockReturnValue({
+        lean: jest.fn().mockReturnValue({
+          exec: jest.fn().mockResolvedValue(mockDoc),
+        }),
+      });
+      mockQuizModel.findOneAndUpdate.mockReturnValue({
+        lean: jest.fn().mockReturnValue({
+          exec: jest.fn().mockResolvedValue({ _id: mockQuizId }),
+        }),
+      });
+
+      const result = await service.remove(mockQuizId, mockOrgId);
+      expect(result).toEqual({ deleted: true, id: mockQuizId });
+      expect(mockExamAttemptModel.exists).not.toHaveBeenCalled();
+    });
+
+    it('should throw ConflictException when deleting a PUBLISHED quiz with in_progress attempts', async () => {
+      const mockDoc = createMockQuizDoc({ status: QuizStatus.PUBLISHED, version: 1 });
+      mockQuizModel.findOne.mockReturnValue({
+        lean: jest.fn().mockReturnValue({
+          exec: jest.fn().mockResolvedValue(mockDoc),
+        }),
+      });
+      mockExamAttemptModel.exists.mockResolvedValue({ _id: new Types.ObjectId() });
+
+      await expect(service.remove(mockQuizId, mockOrgId)).rejects.toThrow(ConflictException);
+      await expect(service.remove(mockQuizId, mockOrgId)).rejects.toThrow(
+        'Cannot delete quiz with exam attempts in progress',
+      );
+    });
+
+    it('should soft delete a PUBLISHED quiz when no in_progress attempts exist', async () => {
+      const mockDoc = createMockQuizDoc({ status: QuizStatus.PUBLISHED, version: 1 });
+      mockQuizModel.findOne.mockReturnValue({
+        lean: jest.fn().mockReturnValue({
+          exec: jest.fn().mockResolvedValue(mockDoc),
+        }),
+      });
+      mockExamAttemptModel.exists.mockResolvedValue(null);
       mockQuizModel.findOneAndUpdate.mockReturnValue({
         lean: jest.fn().mockReturnValue({
           exec: jest.fn().mockResolvedValue({ _id: mockQuizId }),

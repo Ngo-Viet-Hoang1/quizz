@@ -1,4 +1,9 @@
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  ConflictException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { randomBytes } from 'crypto';
 import { Model, QueryFilter, Types } from 'mongoose';
@@ -6,9 +11,9 @@ import { paginate, PaginateResult } from '../../common/utils/paginate.util';
 import { CreateQuizDto } from './dto/create-quiz.dto';
 import { QueryQuizDto } from './dto/query-quiz.dto';
 import { UpdateQuizDto } from './dto/update-quiz.dto';
-import { QuestionType, QuizStatus } from './enums';
+import { ExamAttemptStatus, QuestionType, QuizStatus } from './enums';
 import { IQuiz } from './interfaces/quiz.interface';
-import { Quiz, QuizDocument } from './schemas/quiz.schema';
+import { ExamAttempt, ExamAttemptDocument, Quiz, QuizDocument } from './schemas';
 
 const QUIZ_SORT_FIELDS = ['createdAt', 'title', 'updatedAt', 'status', 'questionCount'] as const;
 
@@ -19,7 +24,23 @@ const QUIZ_LIST_PROJECTION: Record<string, 0 | 1> = {
 
 @Injectable()
 export class QuizService {
-  constructor(@InjectModel(Quiz.name) private readonly quizModel: Model<QuizDocument>) {}
+  constructor(
+    @InjectModel(Quiz.name) private readonly quizModel: Model<QuizDocument>,
+    @InjectModel(ExamAttempt.name) private readonly examAttemptModel: Model<ExamAttemptDocument>,
+  ) {}
+
+  async hasActiveExamAttempts(
+    quizId: Types.ObjectId | string,
+    quizVersion: number,
+  ): Promise<boolean> {
+    const queryQuizId = typeof quizId === 'string' ? new Types.ObjectId(quizId) : quizId;
+    const exists = await this.examAttemptModel.exists({
+      quizId: queryQuizId,
+      quizVersion,
+      status: ExamAttemptStatus.IN_PROGRESS,
+    });
+    return Boolean(exists);
+  }
 
   async create(orgId: string, userId: string, dto: CreateQuizDto): Promise<Quiz> {
     const formattedQuestions = dto.questions?.map((q, idx) => ({
@@ -71,6 +92,22 @@ export class QuizService {
   }
 
   async update(id: string, orgId: string, dto: UpdateQuizDto): Promise<Quiz> {
+    const existing = await this.quizModel
+      .findOne({ _id: id, organizationId: orgId, deletedAt: null })
+      .lean<Quiz>()
+      .exec();
+
+    if (!existing) {
+      throw new NotFoundException(`Quiz with ID ${id} not found`);
+    }
+
+    if (existing.status !== QuizStatus.DRAFT) {
+      const hasActive = await this.hasActiveExamAttempts(existing._id!, existing.version);
+      if (hasActive) {
+        throw new ConflictException('Cannot update quiz with exam attempts in progress');
+      }
+    }
+
     const formattedQuestions = dto.questions?.map((q, idx) => ({
       ...q,
       _id: q._id ? new Types.ObjectId(q._id) : new Types.ObjectId(),
@@ -97,11 +134,7 @@ export class QuizService {
       .lean<Quiz>()
       .exec();
 
-    if (!updated) {
-      throw new NotFoundException(`Quiz with ID ${id} not found`);
-    }
-
-    return updated;
+    return updated!;
   }
 
   async publish(id: string, orgId: string): Promise<Quiz> {
@@ -256,17 +289,29 @@ export class QuizService {
   }
 
   async remove(id: string, orgId: string): Promise<{ deleted: boolean; id: string }> {
-    const deleted = await this.quizModel
+    const quiz = await this.quizModel
+      .findOne({ _id: id, organizationId: orgId, deletedAt: null })
+      .lean<Quiz>()
+      .exec();
+
+    if (!quiz) {
+      throw new NotFoundException(`Quiz with ID ${id} not found`);
+    }
+
+    if (quiz.status !== QuizStatus.DRAFT) {
+      const hasActive = await this.hasActiveExamAttempts(quiz._id!, quiz.version);
+      if (hasActive) {
+        throw new ConflictException('Cannot delete quiz with exam attempts in progress');
+      }
+    }
+
+    await this.quizModel
       .findOneAndUpdate(
         { _id: id, organizationId: orgId, deletedAt: null },
         { deletedAt: new Date() },
       )
       .lean<Quiz>()
       .exec();
-
-    if (!deleted) {
-      throw new NotFoundException(`Quiz with ID ${id} not found`);
-    }
 
     return { deleted: true, id };
   }
