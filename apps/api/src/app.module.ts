@@ -15,6 +15,7 @@ import { RequestContextMiddleware } from './common/middleware/request-context.mi
 import { OrganizationMembersModule } from './modules/organization-members/organization-members.module';
 import { AuditModule } from './modules/audit/audit.module';
 import { SyncModule } from './modules/sync/sync.module';
+import { AiGenerationModule } from './modules/ai-generation/ai-generation.module';
 
 @Module({
   imports: [
@@ -33,6 +34,7 @@ import { SyncModule } from './modules/sync/sync.module';
     QuizModule,
     NotificationModule,
     SyncModule,
+    AiGenerationModule,
   ],
 })
 export class AppModule implements NestModule {
