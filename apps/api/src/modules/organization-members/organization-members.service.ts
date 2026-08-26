@@ -1,12 +1,14 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
+import { UsersService } from '../users/users.service';
 import { ClerkOrgMembershipData, ClerkWebhookEvent } from '../webhooks/clerk/clerk-webhook.types';
 import { resolvePermissionsForRole } from './constants/role-permissions.map';
 import {
   OrganizationMember,
   OrganizationMemberDocument,
 } from './schemas/organization-member.schema';
+import { OrganizationMemberDetail } from './types/organization-member-detail.type';
 
 @Injectable()
 export class OrganizationMembersService {
@@ -15,6 +17,7 @@ export class OrganizationMembersService {
   constructor(
     @InjectModel(OrganizationMember.name)
     private readonly memberModel: Model<OrganizationMemberDocument>,
+    private readonly usersService: UsersService,
   ) {}
 
   async findByOrgAndUser(
@@ -22,6 +25,50 @@ export class OrganizationMembersService {
     userId: string,
   ): Promise<OrganizationMemberDocument | null> {
     return this.memberModel.findOne({ organizationId, userId, status: 'active' }).exec();
+  }
+
+  async findMembersByOrgId(organizationId: string): Promise<OrganizationMemberDetail[]> {
+    return this.memberModel
+      .aggregate<OrganizationMemberDetail>([
+        {
+          $match: {
+            organizationId,
+            status: 'active',
+          },
+        },
+        {
+          $lookup: {
+            from: 'users',
+            localField: 'userId',
+            foreignField: '_id',
+            as: 'user',
+          },
+        },
+        {
+          $unwind: {
+            path: '$user',
+            preserveNullAndEmptyArrays: true,
+          },
+        },
+        {
+          $project: {
+            _id: 1,
+            userId: 1,
+            organizationId: 1,
+            role: 1,
+            permissions: 1,
+            status: 1,
+            joinedAt: 1,
+            fullName: { $ifNull: ['$user.fullName', 'Unknown User'] },
+            email: { $ifNull: ['$user.email', null] },
+            avatarUrl: { $ifNull: ['$user.avatarUrl', null] },
+          },
+        },
+        {
+          $sort: { joinedAt: -1 },
+        },
+      ])
+      .exec();
   }
 
   async handleWebhookEvent(
@@ -58,9 +105,11 @@ export class OrganizationMembersService {
             userId,
           },
         },
-        { upsert: true, new: true, setDefaultsOnInsert: true },
+        { upsert: true, returnDocument: 'after', setDefaultsOnInsert: true },
       )
       .exec();
+
+    await this.usersService.addOrganization(userId, organizationId);
 
     this.logger.debug(
       `Member created/synced: ${userId} in ${organizationId} with role ${data.role}`,
@@ -81,6 +130,7 @@ export class OrganizationMembersService {
             permissions,
           },
         },
+        { returnDocument: 'after' },
       )
       .exec();
 
@@ -99,8 +149,11 @@ export class OrganizationMembersService {
             status: 'removed',
           },
         },
+        { returnDocument: 'after' },
       )
       .exec();
+
+    await this.usersService.removeOrganization(userId, organizationId);
 
     this.logger.debug(`Member removed: ${userId} from ${organizationId}`);
   }

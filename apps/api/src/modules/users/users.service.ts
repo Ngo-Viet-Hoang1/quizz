@@ -36,7 +36,27 @@ export class UsersService {
             deletedAt: null,
           },
         },
-        { upsert: true, new: true, setDefaultsOnInsert: true },
+        { upsert: true, returnDocument: 'after', setDefaultsOnInsert: true },
+      )
+      .exec() as Promise<UserDocument>;
+  }
+
+  async addOrganization(userId: string, orgId: string): Promise<UserDocument | null> {
+    return this.userModel
+      .findOneAndUpdate(
+        { _id: userId },
+        { $addToSet: { organizationIds: orgId } },
+        { returnDocument: 'after' },
+      )
+      .exec();
+  }
+
+  async removeOrganization(userId: string, orgId: string): Promise<UserDocument | null> {
+    return this.userModel
+      .findOneAndUpdate(
+        { _id: userId },
+        { $pull: { organizationIds: orgId } },
+        { returnDocument: 'after' },
       )
       .exec();
   }

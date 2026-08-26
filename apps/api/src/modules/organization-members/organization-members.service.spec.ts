@@ -4,17 +4,30 @@ import { PERMISSIONS } from '@repo/shared-types';
 import { OrganizationMembersService } from './organization-members.service';
 import { OrganizationMember } from './schemas/organization-member.schema';
 
+import { UsersService } from '../users/users.service';
+
 describe('OrganizationMembersService', () => {
   let service: OrganizationMembersService;
   let mockMemberModel: {
     findOne: jest.Mock;
     findOneAndUpdate: jest.Mock;
+    aggregate: jest.Mock;
+  };
+  let mockUsersService: {
+    addOrganization: jest.Mock;
+    removeOrganization: jest.Mock;
   };
 
   beforeEach(async () => {
     mockMemberModel = {
       findOne: jest.fn(),
       findOneAndUpdate: jest.fn(),
+      aggregate: jest.fn(),
+    };
+
+    mockUsersService = {
+      addOrganization: jest.fn().mockResolvedValue(null),
+      removeOrganization: jest.fn().mockResolvedValue(null),
     };
 
     const module: TestingModule = await Test.createTestingModule({
@@ -24,6 +37,10 @@ describe('OrganizationMembersService', () => {
           provide: getModelToken(OrganizationMember.name),
           useValue: mockMemberModel,
         },
+        {
+          provide: UsersService,
+          useValue: mockUsersService,
+        },
       ],
     }).compile();
 
@@ -32,6 +49,31 @@ describe('OrganizationMembersService', () => {
 
   it('should be defined', () => {
     expect(service).toBeDefined();
+  });
+
+  it('should find members by organizationId using aggregation pipeline', async () => {
+    const mockDetailList = [
+      {
+        _id: 'mem_1',
+        userId: 'user_1',
+        organizationId: 'org_123',
+        role: 'org:admin',
+        permissions: ['quizzes:create'],
+        status: 'active',
+        fullName: 'Admin User',
+        email: 'admin@school.edu.vn',
+        avatarUrl: null,
+        joinedAt: new Date(),
+      },
+    ];
+
+    mockMemberModel.aggregate.mockReturnValueOnce({
+      exec: jest.fn().mockResolvedValueOnce(mockDetailList),
+    });
+
+    const result = await service.findMembersByOrgId('org_123');
+    expect(result).toEqual(mockDetailList);
+    expect(mockMemberModel.aggregate).toHaveBeenCalled();
   });
 
   it('should find active member by organizationId and userId', async () => {
@@ -87,8 +129,9 @@ describe('OrganizationMembersService', () => {
           userId: 'user_123',
         },
       },
-      { upsert: true, new: true, setDefaultsOnInsert: true },
+      { upsert: true, returnDocument: 'after', setDefaultsOnInsert: true },
     );
+    expect(mockUsersService.addOrganization).toHaveBeenCalledWith('user_123', 'org_123');
   });
 
   it('should handle organizationMembership.updated without changing joinedAt or status', async () => {
@@ -118,6 +161,7 @@ describe('OrganizationMembersService', () => {
           ]),
         },
       },
+      { returnDocument: 'after' },
     );
   });
 
@@ -143,6 +187,8 @@ describe('OrganizationMembersService', () => {
           status: 'removed',
         },
       },
+      { returnDocument: 'after' },
     );
+    expect(mockUsersService.removeOrganization).toHaveBeenCalledWith('user_123', 'org_123');
   });
 });
