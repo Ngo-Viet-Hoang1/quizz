@@ -10,6 +10,7 @@ import { UsersModule } from './modules/users/users.module';
 import { OrganizationsModule } from './modules/organizations/organizations.module';
 import { WebhooksModule } from './modules/webhooks/webhooks.module';
 import { QuizModule } from './modules/quiz/quiz.module';
+import { NotificationModule } from './modules/notifications/notification.module';
 import { RequestContextMiddleware } from './common/middleware/request-context.middleware';
 import { OrganizationMembersModule } from './modules/organization-members/organization-members.module';
 import { AuditModule } from './modules/audit/audit.module';
@@ -30,6 +31,7 @@ import { SyncModule } from './modules/sync/sync.module';
     WebhooksModule,
     AuditModule,
     QuizModule,
+    NotificationModule,
     SyncModule,
   ],
 })
