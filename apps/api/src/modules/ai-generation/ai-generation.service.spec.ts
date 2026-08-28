@@ -3,6 +3,8 @@ import { getModelToken } from '@nestjs/mongoose';
 import { Test, TestingModule } from '@nestjs/testing';
 import { Job } from 'bullmq';
 import { Types } from 'mongoose';
+import { PaginationQueryDto } from '../../common/dto/pagination-query.dto';
+import { paginate } from '../../common/utils/paginate.util';
 import { Organization } from '../organizations/schemas/organization.schema';
 import { QuestionType, QuizDifficulty } from '../quiz/enums';
 import { AiGenerationService } from './ai-generation.service';
@@ -11,6 +13,9 @@ import { AiGenerationJobStatus, SupportedAiModel } from './enums';
 import { AiGenerationJobPayload } from './interfaces';
 import { AiGenerationQueueService } from './queue/ai-generation-queue.service';
 import { AiGenerationJob } from './schemas';
+
+jest.mock('../../common/utils/paginate.util');
+
 
 type MockJobInstance = {
   _id: Types.ObjectId;
@@ -301,6 +306,29 @@ describe('AiGenerationService - enqueueJob', () => {
       );
     });
   });
+
+  describe('getJobs', () => {
+    it('should return paginated list of AI generation jobs for organization using paginate util', async () => {
+      const mockResult = {
+        items: [],
+        meta: { page: 1, limit: 10, total: 0, totalPages: 1 },
+      };
+      (paginate as jest.Mock).mockResolvedValue(mockResult);
+
+      const query: PaginationQueryDto = { page: 1, limit: 10, sortBy: 'createdAt', sortOrder: 'desc' };
+      const result = await service.getJobs(orgId, query);
+
+      expect(paginate).toHaveBeenCalledWith(
+        jobModel,
+        { organizationId: orgId },
+        query,
+        { allowedSortFields: ['createdAt', 'status', 'questionCount'] },
+      );
+      expect(result).toEqual(mockResult);
+    });
+  });
 });
+
+
 
 

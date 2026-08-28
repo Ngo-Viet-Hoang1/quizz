@@ -6,6 +6,8 @@ import {
 } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
+import { PaginationQueryDto } from '../../common/dto/pagination-query.dto';
+import { paginate, PaginateResult } from '../../common/utils/paginate.util';
 import { Organization, OrganizationDocument } from '../organizations/schemas/organization.schema';
 import { QuestionType, QuizDifficulty } from '../quiz/enums';
 import { EnqueueAiGenerationJobDto } from './dto';
@@ -27,7 +29,6 @@ export interface GetJobStatusResponse {
   createdAt?: Date;
   completedAt?: Date | null;
 }
-
 
 @Injectable()
 export class AiGenerationService {
@@ -136,7 +137,6 @@ export class AiGenerationService {
       throw new InternalServerErrorException(`Failed to queue AI generation job: ${errorMsg}`);
     }
 
-
     // 4. Return immediate response
     return {
       jobId: createdJob._id ? createdJob._id.toString() : '',
@@ -163,6 +163,20 @@ export class AiGenerationService {
       completedAt: job.completedAt ?? null,
     };
   }
+
+  async getJobs(
+    orgId: string,
+    query: PaginationQueryDto,
+  ): Promise<PaginateResult<AiGenerationJob>> {
+    return paginate<AiGenerationJob, AiGenerationJobDocument>(
+      this.jobModel,
+      { organizationId: orgId },
+      query,
+      { allowedSortFields: ['createdAt', 'status', 'questionCount'] },
+    );
+  }
 }
+
+
 
 

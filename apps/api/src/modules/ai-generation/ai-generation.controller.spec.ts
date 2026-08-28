@@ -1,4 +1,5 @@
 import { Test, TestingModule } from '@nestjs/testing';
+import { PaginateResult } from '../../common/utils/paginate.util';
 import { ClerkAuthGuard } from '../../common/guards/clerk-auth.guard';
 import { OrgContextGuard } from '../../common/guards/org-context.guard';
 import { QuestionType, QuizDifficulty } from '../quiz/enums';
@@ -6,26 +7,29 @@ import { AiGenerationController } from './ai-generation.controller';
 import { AiGenerationService, EnqueueJobResponse } from './ai-generation.service';
 import { EnqueueAiGenerationJobDto } from './dto';
 import { AiGenerationJobStatus } from './enums';
+import { AiGenerationJob } from './schemas';
 
 describe('AiGenerationController', () => {
   let controller: AiGenerationController;
-  let service: jest.Mocked<AiGenerationService>;
+  let mockAiGenerationService: Record<string, jest.Mock>;
 
   beforeEach(async () => {
-    service = {
+    mockAiGenerationService = {
       enqueueJob: jest.fn(),
       getJobById: jest.fn(),
-    } as unknown as jest.Mocked<AiGenerationService>;
+      getJobs: jest.fn(),
+    };
 
     const module: TestingModule = await Test.createTestingModule({
       controllers: [AiGenerationController],
       providers: [
         {
           provide: AiGenerationService,
-          useValue: service,
+          useValue: mockAiGenerationService,
         },
       ],
     })
+
       .overrideGuard(ClerkAuthGuard)
       .useValue({ canActivate: () => true })
       .overrideGuard(OrgContextGuard)
@@ -55,12 +59,28 @@ describe('AiGenerationController', () => {
       status: AiGenerationJobStatus.PENDING,
     };
 
-    service.enqueueJob.mockResolvedValue(mockResponse);
+    mockAiGenerationService.enqueueJob.mockResolvedValue(mockResponse);
 
     const result = await controller.enqueue(orgId, userId, dto);
 
-    expect(service.enqueueJob).toHaveBeenCalledWith(orgId, userId, dto);
+    expect(mockAiGenerationService.enqueueJob).toHaveBeenCalledWith(orgId, userId, dto);
     expect(result).toEqual(mockResponse);
+  });
+
+  it('should call aiGenerationService.getJobs and return paginated list of jobs', async () => {
+    const orgId = 'org_abc_1';
+    const mockJobsResponse: PaginateResult<AiGenerationJob> = {
+      items: [],
+      meta: { page: 1, limit: 10, total: 0, totalPages: 0 },
+    };
+
+    mockAiGenerationService.getJobs.mockResolvedValue(mockJobsResponse);
+
+    const query = { page: 1, limit: 10, sortBy: 'createdAt', sortOrder: 'desc' as const };
+    const result = await controller.getJobs(orgId, query);
+
+    expect(mockAiGenerationService.getJobs).toHaveBeenCalledWith(orgId, query);
+    expect(result).toEqual(mockJobsResponse);
   });
 
   it('should call aiGenerationService.getJobById and return job status', async () => {
@@ -75,13 +95,15 @@ describe('AiGenerationController', () => {
       completedAt: new Date(),
     };
 
-    service.getJobById.mockResolvedValue(mockStatusResponse);
+    mockAiGenerationService.getJobById.mockResolvedValue(mockStatusResponse);
 
     const result = await controller.getJobStatus(orgId, jobId);
 
-    expect(service.getJobById).toHaveBeenCalledWith(orgId, jobId);
+    expect(mockAiGenerationService.getJobById).toHaveBeenCalledWith(orgId, jobId);
     expect(result).toEqual(mockStatusResponse);
   });
 });
+
+
 
 
