@@ -12,6 +12,8 @@ import { WebhooksModule } from './modules/webhooks/webhooks.module';
 import { QuizModule } from './modules/quiz/quiz.module';
 import { NotificationModule } from './modules/notifications/notification.module';
 import { RequestContextMiddleware } from './common/middleware/request-context.middleware';
+import { APP_GUARD } from '@nestjs/core';
+import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
 import { OrganizationMembersModule } from './modules/organization-members/organization-members.module';
 import { AuditModule } from './modules/audit/audit.module';
 import { SyncModule } from './modules/sync/sync.module';
@@ -19,6 +21,12 @@ import { AiGenerationModule } from './modules/ai-generation/ai-generation.module
 
 @Module({
   imports: [
+    ThrottlerModule.forRoot([
+      {
+        ttl: 60000,
+        limit: 100,
+      },
+    ]),
     ConfigModule,
     LoggerModule,
     DatabaseModule,
@@ -35,6 +43,12 @@ import { AiGenerationModule } from './modules/ai-generation/ai-generation.module
     NotificationModule,
     SyncModule,
     AiGenerationModule,
+  ],
+  providers: [
+    {
+      provide: APP_GUARD,
+      useClass: ThrottlerGuard,
+    },
   ],
 })
 export class AppModule implements NestModule {
