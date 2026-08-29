@@ -11,6 +11,8 @@ export const envSchema = z.object({
 
   PORT: z.preprocess(emptyToUndefined, z.coerce.number().int().positive().default(4000)),
 
+  ENABLE_SWAGGER: booleanString,
+
   // Database
   MONGODB_URI: z.string().url(),
 
@@ -33,6 +35,14 @@ export const envSchema = z.object({
 
   // CORS / Frontend URL
   FRONTEND_URL: z.preprocess(emptyToUndefined, z.url().default('http://localhost:3000')),
+
+  // AI Provider
+  ANTHROPIC_API_KEY: z.preprocess(emptyToUndefined, z.string().min(1).optional()),
+  CLAUDE_MODEL: z.preprocess(emptyToUndefined, z.string().optional()),
+
+  // BullBoard Admin UI
+  BULL_BOARD_USER: z.preprocess(emptyToUndefined, z.string().default('admin')),
+  BULL_BOARD_PASSWORD: z.preprocess(emptyToUndefined, z.string().default('changeme')),
 });
 
 export type Env = z.infer<typeof envSchema>;

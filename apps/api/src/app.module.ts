@@ -18,6 +18,7 @@ import { OrganizationMembersModule } from './modules/organization-members/organi
 import { AuditModule } from './modules/audit/audit.module';
 import { SyncModule } from './modules/sync/sync.module';
 import { AiGenerationModule } from './modules/ai-generation/ai-generation.module';
+import { QueueModule } from './queue/queue.module';
 
 @Module({
   imports: [
@@ -43,6 +44,7 @@ import { AiGenerationModule } from './modules/ai-generation/ai-generation.module
     NotificationModule,
     SyncModule,
     AiGenerationModule,
+    QueueModule,
   ],
   providers: [
     {

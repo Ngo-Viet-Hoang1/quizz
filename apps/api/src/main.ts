@@ -59,6 +59,8 @@ async function bootstrap(): Promise<void> {
     logger.log('Swagger documentation initialized at /api/docs');
   }
 
+  app.enableShutdownHooks();
+
   await app.listen(process.env.PORT ?? 4000, '0.0.0.0');
 }
 bootstrap();
