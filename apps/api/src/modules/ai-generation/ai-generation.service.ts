@@ -1,3 +1,5 @@
+import { BullMqJobPublisher } from '@/queue/bullmq-job-publisher';
+import { JOB_NAMES } from '@/queue/queue.constants';
 import {
   ForbiddenException,
   Injectable,
@@ -8,57 +10,37 @@ import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import { PaginationQueryDto } from '../../common/dto/pagination-query.dto';
 import { paginate, PaginateResult } from '../../common/utils/paginate.util';
-import { Organization, OrganizationDocument } from '../organizations/schemas/organization.schema';
-import { QuestionType, QuizDifficulty } from '../quiz/enums';
-import { EnqueueAiGenerationJobDto } from './dto';
+import { EnqueueAiGenerationJobDto, EnqueueJobResponseDto, GetJobStatusResponseDto } from './dto';
 import { AiGenerationJobStatus } from './enums';
-import { AiGenerationQueueService } from './queue/ai-generation-queue.service';
 import { AiGenerationJob, AiGenerationJobDocument } from './schemas';
-
-export interface EnqueueJobResponse {
-  jobId: string;
-  status: string;
-  quizId?: string | null;
-}
-
-export interface GetJobStatusResponse {
-  jobId: string;
-  status: string;
-  quizId: string | null;
-  errorMessage?: string | null;
-  createdAt?: Date;
-  completedAt?: Date | null;
-}
+import { AiGenerationQuotaService } from './services/ai-generation-quota.service';
 
 @Injectable()
 export class AiGenerationService {
   constructor(
     @InjectModel(AiGenerationJob.name)
     private readonly jobModel: Model<AiGenerationJobDocument>,
-    @InjectModel(Organization.name)
-    private readonly organizationModel: Model<OrganizationDocument>,
-    private readonly queueService: AiGenerationQueueService,
+    private readonly jobPublisher: BullMqJobPublisher,
+    private readonly quotaService: AiGenerationQuotaService,
   ) {}
 
   async enqueueJob(
     orgId: string,
     userId: string,
     dto: EnqueueAiGenerationJobDto,
-  ): Promise<EnqueueJobResponse> {
-    const questionType = dto.questionType ?? QuestionType.SINGLE_CHOICE;
-    const difficulty = dto.difficulty ?? QuizDifficulty.MEDIUM;
-    const prompt = `Generate ${dto.questionCount} ${questionType} quiz questions on topic: "${dto.topic}". Difficulty: ${difficulty}.`;
-    const model = dto.model ?? 'claude-3-5-haiku-20241022';
+  ): Promise<EnqueueJobResponseDto> {
+    const { idempotencyKey, topic, questionCount, questionType, difficulty, model } = dto;
+    const prompt = `Generate ${questionCount} ${questionType} quiz questions on topic: "${topic}". Difficulty: ${difficulty}.`;
 
-    // 1. Try to create the job document first with status: pending
+    // 1. Insert new PENDING job document (or return existing job if duplicate idempotencyKey)
     let createdJob: AiGenerationJobDocument;
     try {
       const doc = new this.jobModel({
         organizationId: orgId,
         userId,
-        idempotencyKey: dto.idempotencyKey,
+        idempotencyKey,
         prompt,
-        questionCount: dto.questionCount,
+        questionCount,
         model,
         status: AiGenerationJobStatus.PENDING,
       });
@@ -66,12 +48,9 @@ export class AiGenerationService {
     } catch (err: unknown) {
       const mongoErr = err as { code?: number };
       if (mongoErr?.code === 11000) {
-        // E11000 duplicate key on { organizationId, idempotencyKey }:
-        // Job already exists or race condition occurred -> fetch existing job, NO quota deducted
-        const existingJob = await this.jobModel.findOne({
-          organizationId: orgId,
-          idempotencyKey: dto.idempotencyKey,
-        });
+        // E11000 duplicate key on { organizationId, idempotencyKey }
+        const existingJob = await this.jobModel.findOne({ organizationId: orgId, idempotencyKey });
+
         if (existingJob) {
           return {
             jobId: existingJob._id ? existingJob._id.toString() : '',
@@ -80,71 +59,56 @@ export class AiGenerationService {
           };
         }
       }
+
       throw err;
     }
 
-    // 2. Insert succeeded -> Deduct quota atomic
-    const cost = 1;
-    const org = await this.organizationModel.findOneAndUpdate(
-      {
-        _id: orgId,
-        $expr: {
-          $lte: [{ $add: ['$aiQuotaUsed', cost] }, '$aiQuotaMonthly'],
-        },
-      },
-      { $inc: { aiQuotaUsed: cost } },
-      { new: true },
-    );
-
+    // 2. Deduct quota atomically (rollback job document if quota exhausted)
+    const org = await this.quotaService.deductQuota(orgId);
     if (!org) {
-      // Quota exceeded -> rollback created document and throw 403
       await this.jobModel.deleteOne({ _id: createdJob._id });
       throw new ForbiddenException('Monthly AI quota exceeded');
     }
 
-    // 3. Quota confirmed -> Push job into BullMQ queue with error handling
+    // 3. Push job into BullMQ Redis queue (rollback quota & mark job failed if Redis fails)
+    const jobId = createdJob._id ? createdJob._id.toString() : '';
     try {
-      await this.queueService.addJob(
+      await this.jobPublisher.publish(
+        JOB_NAMES.GENERATE_QUIZ,
         {
-          jobId: createdJob._id ? createdJob._id.toString() : '',
+          jobId,
           organizationId: orgId,
           userId,
-          topic: dto.topic,
-          questionCount: dto.questionCount,
+          topic,
+          questionCount,
           questionType,
           difficulty,
           prompt,
           model,
-          idempotencyKey: dto.idempotencyKey,
+          idempotencyKey,
         },
-        dto.idempotencyKey,
+        { jobId: idempotencyKey },
       );
     } catch (err: unknown) {
-      // Rollback quota and mark job failed if Redis / Queue push fails
-      await this.organizationModel.updateOne({ _id: orgId }, { $inc: { aiQuotaUsed: -cost } });
-      if (createdJob?._id) {
-        await this.jobModel.updateOne(
-          { _id: createdJob._id },
-          {
-            $set: {
-              status: AiGenerationJobStatus.FAILED,
-              errorMessage: 'Failed to enqueue job to Redis queue',
-            },
+      await this.quotaService.refundQuota(orgId, jobId);
+      await this.jobModel.updateOne(
+        { _id: createdJob._id },
+        {
+          $set: {
+            status: AiGenerationJobStatus.FAILED,
+            errorMessage: 'Failed to enqueue job to Redis queue',
           },
-        );
-      }
+        },
+      );
+
       const errorMsg = err instanceof Error ? err.message : String(err);
       throw new InternalServerErrorException(`Failed to queue AI generation job: ${errorMsg}`);
     }
 
-    // 4. Return immediate response
-    return {
-      jobId: createdJob._id ? createdJob._id.toString() : '',
-      status: createdJob.status,
-    };
+    return { jobId, status: createdJob.status };
   }
 
-  async getJobById(orgId: string, jobId: string): Promise<GetJobStatusResponse> {
+  async getJobById(orgId: string, jobId: string): Promise<GetJobStatusResponseDto> {
     const job = await this.jobModel.findOne({
       _id: jobId,
       organizationId: orgId,
@@ -176,7 +140,3 @@ export class AiGenerationService {
     );
   }
 }
-
-
-
-

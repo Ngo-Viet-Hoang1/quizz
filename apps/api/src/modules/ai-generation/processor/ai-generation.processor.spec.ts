@@ -146,15 +146,15 @@ describe('AiGenerationProcessor', () => {
       { new: true },
     );
 
-    // Verify AI call — signal is passed from BullMqWorkerBase
-    expect(aiProvider.generateQuiz).toHaveBeenCalledWith(
-      payload.topic,
-      payload.questionCount,
-      payload.questionType,
-      payload.difficulty,
-      payload.model,
-      expect.any(AbortSignal),
-    );
+    // Verify AI call — parameter object with signal passed from BullMqWorkerBase
+    expect(aiProvider.generateQuiz).toHaveBeenCalledWith({
+      topic: payload.topic,
+      questionCount: payload.questionCount,
+      questionType: payload.questionType,
+      difficulty: payload.difficulty,
+      model: payload.model,
+      signal: expect.any(AbortSignal),
+    });
 
     // Verify Quiz Draft creation
     expect(quizModel).toHaveBeenCalledWith(

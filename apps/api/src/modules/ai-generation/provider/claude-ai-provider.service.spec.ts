@@ -64,12 +64,12 @@ describe('ClaudeAiProviderService', () => {
       json: jest.fn().mockResolvedValue(mockResponsePayload),
     } as unknown as Response);
 
-    const result = await service.generateQuiz(
-      'TypeScript',
-      1,
-      QuestionType.SINGLE_CHOICE,
-      QuizDifficulty.EASY,
-    );
+    const result = await service.generateQuiz({
+      topic: 'TypeScript',
+      questionCount: 1,
+      questionType: QuestionType.SINGLE_CHOICE,
+      difficulty: QuizDifficulty.EASY,
+    });
 
     expect(global.fetch).toHaveBeenCalledTimes(1);
     const fetchCall = (global.fetch as jest.Mock).mock.calls[0];
@@ -108,14 +108,18 @@ describe('ClaudeAiProviderService', () => {
     } as unknown as Response);
 
     await expect(
-      service.generateQuiz('Big Topic', 20, QuestionType.SINGLE_CHOICE, QuizDifficulty.HARD),
+      service.generateQuiz({
+        topic: 'Big Topic',
+        questionCount: 20,
+        questionType: QuestionType.SINGLE_CHOICE,
+        difficulty: QuizDifficulty.HARD,
+      }),
     ).rejects.toThrow(
       'AI response was truncated due to token limits. Please reduce the question count.',
     );
   });
 
   it('should throw an error when API key is not configured', () => {
-    // Both ANTHROPIC_API_KEY and CLAUDE_API_KEY are missing
     const noKeyConfigService = {
       get: jest.fn().mockReturnValue(undefined),
     } as unknown as ConfigService;
@@ -139,7 +143,12 @@ describe('ClaudeAiProviderService', () => {
     } as unknown as Response);
 
     await expect(
-      service.generateQuiz('Math', 3, QuestionType.SINGLE_CHOICE, QuizDifficulty.EASY),
+      service.generateQuiz({
+        topic: 'Math',
+        questionCount: 3,
+        questionType: QuestionType.SINGLE_CHOICE,
+        difficulty: QuizDifficulty.EASY,
+      }),
     ).rejects.toThrow('Failed to parse AI JSON response: Invalid JSON syntax');
   });
 
@@ -169,7 +178,12 @@ describe('ClaudeAiProviderService', () => {
     } as unknown as Response);
 
     await expect(
-      service.generateQuiz('Math', 1, QuestionType.SINGLE_CHOICE, QuizDifficulty.EASY),
+      service.generateQuiz({
+        topic: 'Math',
+        questionCount: 1,
+        questionType: QuestionType.SINGLE_CHOICE,
+        difficulty: QuizDifficulty.EASY,
+      }),
     ).rejects.toThrow('Question at index 0 does not have any correct option selected');
   });
 
@@ -181,7 +195,12 @@ describe('ClaudeAiProviderService', () => {
     global.fetch = jest.fn().mockRejectedValue(abortError);
 
     await expect(
-      service.generateQuiz('Physics', 2, QuestionType.SINGLE_CHOICE, QuizDifficulty.HARD),
+      service.generateQuiz({
+        topic: 'Physics',
+        questionCount: 2,
+        questionType: QuestionType.SINGLE_CHOICE,
+        difficulty: QuizDifficulty.HARD,
+      }),
     ).rejects.toThrow('Claude API request was aborted (job timeout or cancellation)');
   });
 
@@ -209,7 +228,12 @@ describe('ClaudeAiProviderService', () => {
     } as unknown as Response);
 
     await expect(
-      service.generateQuiz('violent acts', 5, QuestionType.SINGLE_CHOICE, QuizDifficulty.MEDIUM),
+      service.generateQuiz({
+        topic: 'violent acts',
+        questionCount: 5,
+        questionType: QuestionType.SINGLE_CHOICE,
+        difficulty: QuizDifficulty.MEDIUM,
+      }),
     ).rejects.toThrow('Content safety violation: Topic contains violent or offensive content.');
   });
 
@@ -232,7 +256,12 @@ describe('ClaudeAiProviderService', () => {
     } as unknown as Response);
 
     await expect(
-      service.generateQuiz('violent acts', 5, QuestionType.SINGLE_CHOICE, QuizDifficulty.MEDIUM),
+      service.generateQuiz({
+        topic: 'violent acts',
+        questionCount: 5,
+        questionType: QuestionType.SINGLE_CHOICE,
+        difficulty: QuizDifficulty.MEDIUM,
+      }),
     ).rejects.toThrow(
       'Content safety violation: Topic promotes violence and is inappropriate for educational assessment.',
     );
@@ -257,7 +286,12 @@ describe('ClaudeAiProviderService', () => {
     } as unknown as Response);
 
     await expect(
-      service.generateQuiz('violent acts', 3, QuestionType.SINGLE_CHOICE, QuizDifficulty.EASY),
+      service.generateQuiz({
+        topic: 'violent acts',
+        questionCount: 3,
+        questionType: QuestionType.SINGLE_CHOICE,
+        difficulty: QuizDifficulty.EASY,
+      }),
     ).rejects.toThrow(
       'Content safety violation: I cannot create quiz questions on how to commit violent acts or murder.',
     );
@@ -276,12 +310,12 @@ describe('ClaudeAiProviderService', () => {
     } as unknown as Response);
 
     await expect(
-      service.generateQuiz(
-        'dangerous content',
-        5,
-        QuestionType.SINGLE_CHOICE,
-        QuizDifficulty.MEDIUM,
-      ),
+      service.generateQuiz({
+        topic: 'dangerous content',
+        questionCount: 5,
+        questionType: QuestionType.SINGLE_CHOICE,
+        difficulty: QuizDifficulty.MEDIUM,
+      }),
     ).rejects.toThrow('Content safety violation: Request was blocked by AI provider safety policy');
   });
 });

@@ -21,13 +21,15 @@ export interface AiGenerationResult {
   costUsd: number;
 }
 
+export interface GenerateQuizOptions {
+  topic: string;
+  questionCount: number;
+  questionType: QuestionType;
+  difficulty: QuizDifficulty;
+  model?: string;
+  signal?: AbortSignal;
+}
+
 export interface IAiProvider {
-  generateQuiz(
-    topic: string,
-    questionCount: number,
-    questionType: QuestionType,
-    difficulty: QuizDifficulty,
-    model?: string,
-    signal?: AbortSignal,
-  ): Promise<AiGenerationResult>;
+  generateQuiz(options: GenerateQuizOptions): Promise<AiGenerationResult>;
 }

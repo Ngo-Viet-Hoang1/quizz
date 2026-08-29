@@ -18,6 +18,22 @@ export class AiGenerationQuotaService {
     private readonly organizationModel: Model<OrganizationDocument>,
   ) {}
 
+  /**
+   * Atomically deducts 1 AI quota unit from the organization.
+   * Returns the updated organization document if quota was available, or null if quota is exceeded.
+   */
+  async deductQuota(orgId: string): Promise<OrganizationDocument | null> {
+    const cost = 1;
+    return this.organizationModel.findOneAndUpdate(
+      {
+        _id: orgId,
+        $expr: { $lte: [{ $add: ['$aiQuotaUsed', cost] }, '$aiQuotaMonthly'] },
+      },
+      { $inc: { aiQuotaUsed: cost } },
+      { new: true },
+    );
+  }
+
   async refundQuota(orgId: string, jobId: string): Promise<boolean> {
     // Atomically set quotaRefunded = true only if it is not already true
     const updatedJob = await this.jobModel.findOneAndUpdate(

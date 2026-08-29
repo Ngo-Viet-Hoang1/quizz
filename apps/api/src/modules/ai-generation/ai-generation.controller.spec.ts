@@ -4,8 +4,8 @@ import { ClerkAuthGuard } from '../../common/guards/clerk-auth.guard';
 import { OrgContextGuard } from '../../common/guards/org-context.guard';
 import { QuestionType, QuizDifficulty } from '../quiz/enums';
 import { AiGenerationController } from './ai-generation.controller';
-import { AiGenerationService, EnqueueJobResponse } from './ai-generation.service';
-import { EnqueueAiGenerationJobDto } from './dto';
+import { AiGenerationService } from './ai-generation.service';
+import { EnqueueAiGenerationJobDto, EnqueueJobResponseDto } from './dto';
 import { AiGenerationJobStatus } from './enums';
 import { AiGenerationJob } from './schemas';
 
@@ -54,7 +54,7 @@ describe('AiGenerationController', () => {
       difficulty: QuizDifficulty.MEDIUM,
     };
 
-    const mockResponse: EnqueueJobResponse = {
+    const mockResponse: EnqueueJobResponseDto = {
       jobId: 'job_mongo_123',
       status: AiGenerationJobStatus.PENDING,
     };
@@ -103,7 +103,3 @@ describe('AiGenerationController', () => {
     expect(result).toEqual(mockStatusResponse);
   });
 });
-
-
-
-

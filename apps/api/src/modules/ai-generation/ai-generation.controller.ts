@@ -17,12 +17,8 @@ import { ClerkAuthGuard } from '../../common/guards/clerk-auth.guard';
 import { OrgContextGuard } from '../../common/guards/org-context.guard';
 import { ParseObjectIdPipe } from '../../common/pipes/parse-object-id.pipe';
 import { PaginateResult } from '../../common/utils/paginate.util';
-import {
-  AiGenerationService,
-  EnqueueJobResponse,
-  GetJobStatusResponse,
-} from './ai-generation.service';
-import { EnqueueAiGenerationJobDto } from './dto';
+import { AiGenerationService } from './ai-generation.service';
+import { EnqueueAiGenerationJobDto, EnqueueJobResponseDto, GetJobStatusResponseDto } from './dto';
 import { AiGenerationJob } from './schemas';
 
 @ApiTags('ai-generation')
@@ -39,7 +35,7 @@ export class AiGenerationController {
     @CurrentOrg() orgId: string,
     @CurrentUser('_id') userId: string,
     @Body() dto: EnqueueAiGenerationJobDto,
-  ): Promise<EnqueueJobResponse> {
+  ): Promise<EnqueueJobResponseDto> {
     return this.aiGenerationService.enqueueJob(orgId, userId, dto);
   }
 
@@ -57,11 +53,7 @@ export class AiGenerationController {
   getJobStatus(
     @CurrentOrg() orgId: string,
     @Param('id', ParseObjectIdPipe) id: string,
-  ): Promise<GetJobStatusResponse> {
+  ): Promise<GetJobStatusResponseDto> {
     return this.aiGenerationService.getJobById(orgId, id);
   }
 }
-
-
-
-

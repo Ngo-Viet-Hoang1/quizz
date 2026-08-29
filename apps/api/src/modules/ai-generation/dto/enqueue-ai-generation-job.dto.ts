@@ -1,6 +1,15 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
-import { IsEnum, IsInt, IsNotEmpty, IsOptional, IsString, Max, MaxLength, Min } from 'class-validator';
+import {
+  IsEnum,
+  IsInt,
+  IsNotEmpty,
+  IsOptional,
+  IsString,
+  Max,
+  MaxLength,
+  Min,
+} from 'class-validator';
 import { QuestionType, QuizDifficulty } from '../../quiz/enums';
 import { SupportedAiModel } from '../enums/supported-ai-model.enum';
 
@@ -39,7 +48,7 @@ export class EnqueueAiGenerationJobDto {
   })
   @IsOptional()
   @IsEnum(QuestionType)
-  questionType?: QuestionType;
+  questionType?: QuestionType = QuestionType.SINGLE_CHOICE;
 
   @ApiPropertyOptional({
     enum: QuizDifficulty,
@@ -48,7 +57,7 @@ export class EnqueueAiGenerationJobDto {
   })
   @IsOptional()
   @IsEnum(QuizDifficulty)
-  difficulty?: QuizDifficulty;
+  difficulty?: QuizDifficulty = QuizDifficulty.MEDIUM;
 
   @ApiPropertyOptional({
     enum: SupportedAiModel,
@@ -57,6 +66,5 @@ export class EnqueueAiGenerationJobDto {
   })
   @IsOptional()
   @IsEnum(SupportedAiModel)
-  model?: SupportedAiModel;
+  model?: SupportedAiModel = SupportedAiModel.CLAUDE_3_5_HAIKU;
 }
-

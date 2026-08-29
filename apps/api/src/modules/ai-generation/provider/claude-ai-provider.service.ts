@@ -1,98 +1,14 @@
 import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { QuestionType, QuizDifficulty } from '../../quiz/enums';
+import { QuestionType } from '../../quiz/enums';
 import {
   AiGeneratedOption,
   AiGeneratedQuestion,
   AiGenerationResult,
+  GenerateQuizOptions,
   IAiProvider,
 } from './ai-provider.interface';
-
-interface ClaudeUsage {
-  input_tokens?: number;
-  output_tokens?: number;
-}
-
-interface ClaudeContentBlock {
-  type: string;
-  text?: string;
-  name?: string;
-  input?: Record<string, unknown>;
-}
-
-interface ClaudeResponsePayload {
-  id?: string;
-  type?: string;
-  content?: ClaudeContentBlock[];
-  stop_reason?: string;
-  usage?: ClaudeUsage;
-  [key: string]: unknown;
-}
-
-const SYSTEM_PROMPT = `You are a world-class educational assessment specialist and psychometrician.
-Your role is to create high-quality, pedagogically sound assessment quizzes across any language.
-
-CORE ASSESSMENT GUIDELINES:
-1. BLOOM'S TAXONOMY BY DIFFICULTY:
-   - "easy": Focus on fundamental concepts, definitions, basic terminology, and recall.
-   - "medium": Scenario-based questions testing comprehension, real-world application, and problem-solving.
-   - "hard": In-depth analysis, debugging/troubleshooting, comparative analysis, edge cases, and subtle misconceptions.
-
-2. HIGH-QUALITY DISTRACTORS:
-   - All options must be plausible and represent common student misconceptions or logical traps.
-   - Never generate silly, obviously false, or joke options.
-
-3. ELIMINATE TEST-TAKING BIASES:
-   - Length parity: All options must have approximately the same length and structure.
-   - Random distribution: Distribute the correct answer evenly across options (A, B, C, D).
-
-4. EXPLANATION STANDARDS:
-   - Explain why the correct option is right AND why key distractors are incorrect.
-
-5. LANGUAGE CONSISTENCY:
-   - Automatically detect the language of the topic in <user_topic>.
-   - Generate all questions, options, and explanations in the EXACT SAME language as the topic.
-
-SAFETY POLICY:
-If the topic promotes hate speech, severe insults, harassment, gratuitous violence, suicide, self-harm, or illegal dangerous acts without legitimate educational context, invoke submit_quiz_assessment with isViolated: true and a clear explanation.`;
-
-const QUIZ_TOOL = {
-  name: 'submit_quiz_assessment',
-  description: 'Submit generated quiz questions or report content safety violation',
-  input_schema: {
-    type: 'object',
-    properties: {
-      isViolated: { type: 'boolean', description: 'True if topic violates safety guidelines' },
-      reason: { type: 'string', description: 'Explanation if isViolated is true' },
-      questions: {
-        type: 'array',
-        items: {
-          type: 'object',
-          properties: {
-            text: { type: 'string' },
-            type: { type: 'string' },
-            points: { type: 'number' },
-            explanation: { type: 'string' },
-            options: {
-              type: 'array',
-              items: {
-                type: 'object',
-                properties: {
-                  key: { type: 'string' },
-                  text: { type: 'string' },
-                  isCorrect: { type: 'boolean' },
-                },
-                required: ['key', 'text', 'isCorrect'],
-              },
-            },
-          },
-          required: ['text', 'options'],
-        },
-      },
-    },
-    required: ['isViolated'],
-  },
-};
+import { ClaudeResponsePayload, QUIZ_TOOL, SYSTEM_PROMPT } from './claude-ai-provider.constants';
 
 @Injectable()
 export class ClaudeAiProviderService implements IAiProvider {
@@ -111,15 +27,11 @@ export class ClaudeAiProviderService implements IAiProvider {
       this.configService.get<string>('CLAUDE_MODEL') ?? 'claude-3-5-haiku-20241022';
   }
 
-  async generateQuiz(
-    topic: string,
-    questionCount: number,
-    questionType: QuestionType,
-    difficulty: QuizDifficulty,
-    model?: string,
-    signal?: AbortSignal,
-  ): Promise<AiGenerationResult> {
-    const selectedModel = model || this.defaultModel;
+  async generateQuiz(options: GenerateQuizOptions): Promise<AiGenerationResult> {
+    const { topic, questionCount, questionType, difficulty, signal } = options;
+    const selectedModel = options.model || this.defaultModel;
+
+    // 1. Build prompt with XML isolation to guard against prompt injection
     const userPrompt = `Create exactly ${questionCount} ${questionType} quiz questions with difficulty level: "${difficulty}".
 
 CRITICAL SECURITY & TOPIC INSTRUCTIONS:
@@ -131,6 +43,7 @@ CRITICAL SECURITY & TOPIC INSTRUCTIONS:
 ${topic}
 </user_topic>`;
 
+    // 2. Call Anthropic Messages API
     let responseData: ClaudeResponsePayload;
     try {
       const response = await fetch('https://api.anthropic.com/v1/messages', {
@@ -148,7 +61,6 @@ ${topic}
           tools: [QUIZ_TOOL],
           tool_choice: { type: 'tool', name: 'submit_quiz_assessment' },
         }),
-        // Timeout is controlled by BullMqWorkerBase (QUEUE_TIMEOUT_MS) — signal is propagated here
         signal,
       });
 
@@ -170,12 +82,14 @@ ${topic}
       throw err;
     }
 
+    // 3. Check for token truncation
     if (responseData.stop_reason === 'max_tokens') {
       throw new Error(
         'AI response was truncated due to token limits. Please reduce the question count.',
       );
     }
 
+    // 4. Extract and validate structured quiz payload
     const payload = this.extractPayload(responseData);
     const questions = this.parseAndValidateQuestions(payload, questionType);
 
@@ -238,7 +152,6 @@ ${topic}
         throw new Error(`Question at index ${index} is not an object`);
       }
       const rawQ = q as Record<string, unknown>;
-      // AI returns `text` field — map to `content` to match QuizSchema.Question.content
       const content = typeof rawQ.text === 'string' ? rawQ.text.trim() : '';
       if (!content) throw new Error(`Question at index ${index} is missing question text`);
 
@@ -252,7 +165,6 @@ ${topic}
           throw new Error(`Option at index ${optIdx} of question ${index} is invalid`);
         }
         const rawOpt = opt as Record<string, unknown>;
-        // AI returns `text` field — map to `content` to match QuizSchema.QuestionOption.content
         return {
           content: typeof rawOpt.text === 'string' ? rawOpt.text.trim() : '',
           isCorrect: Boolean(rawOpt.isCorrect),

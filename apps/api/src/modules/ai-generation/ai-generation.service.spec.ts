@@ -1,21 +1,19 @@
 import { ForbiddenException, NotFoundException } from '@nestjs/common';
 import { getModelToken } from '@nestjs/mongoose';
 import { Test, TestingModule } from '@nestjs/testing';
-import { Job } from 'bullmq';
 import { Types } from 'mongoose';
 import { PaginationQueryDto } from '../../common/dto/pagination-query.dto';
 import { paginate } from '../../common/utils/paginate.util';
-import { Organization } from '../organizations/schemas/organization.schema';
 import { QuestionType, QuizDifficulty } from '../quiz/enums';
+import { BullMqJobPublisher } from '@/queue/bullmq-job-publisher';
+import { JOB_NAMES } from '@/queue/queue.constants';
 import { AiGenerationService } from './ai-generation.service';
 import { EnqueueAiGenerationJobDto } from './dto';
 import { AiGenerationJobStatus, SupportedAiModel } from './enums';
-import { AiGenerationJobPayload } from './interfaces';
-import { AiGenerationQueueService } from './queue/ai-generation-queue.service';
 import { AiGenerationJob } from './schemas';
+import { AiGenerationQuotaService } from './services/ai-generation-quota.service';
 
 jest.mock('../../common/utils/paginate.util');
-
 
 type MockJobInstance = {
   _id: Types.ObjectId;
@@ -37,16 +35,11 @@ type MockJobModel = jest.Mock & {
   updateOne: jest.Mock;
 };
 
-type MockOrgModel = {
-  findOneAndUpdate: jest.Mock;
-  updateOne: jest.Mock;
-};
-
 describe('AiGenerationService - enqueueJob', () => {
   let service: AiGenerationService;
   let jobModel: MockJobModel;
-  let orgModel: MockOrgModel;
-  let queueService: jest.Mocked<AiGenerationQueueService>;
+  let quotaService: jest.Mocked<AiGenerationQuotaService>;
+  let jobPublisher: jest.Mocked<BullMqJobPublisher>;
   let mockJobInstance: MockJobInstance;
 
   const orgId = 'org_test_123';
@@ -73,7 +66,6 @@ describe('AiGenerationService - enqueueJob', () => {
       save: jest.fn().mockImplementation(function (this: MockJobInstance) {
         return Promise.resolve(this);
       }),
-
     };
 
     const mockConstructor = jest.fn().mockImplementation(() => mockJobInstance);
@@ -85,17 +77,14 @@ describe('AiGenerationService - enqueueJob', () => {
       updateOne: jest.fn().mockResolvedValue({ modifiedCount: 1 }),
     });
 
+    quotaService = {
+      deductQuota: jest.fn(),
+      refundQuota: jest.fn().mockResolvedValue(true),
+    } as unknown as jest.Mocked<AiGenerationQuotaService>;
 
-    orgModel = {
-      findOneAndUpdate: jest.fn(),
-      updateOne: jest.fn(),
-    };
-
-    queueService = {
-      addJob: jest.fn(),
-      getJob: jest.fn(),
-      onModuleDestroy: jest.fn(),
-    } as unknown as jest.Mocked<AiGenerationQueueService>;
+    jobPublisher = {
+      publish: jest.fn().mockResolvedValue(undefined),
+    } as unknown as jest.Mocked<BullMqJobPublisher>;
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -105,12 +94,12 @@ describe('AiGenerationService - enqueueJob', () => {
           useValue: jobModel,
         },
         {
-          provide: getModelToken(Organization.name),
-          useValue: orgModel,
+          provide: BullMqJobPublisher,
+          useValue: jobPublisher,
         },
         {
-          provide: AiGenerationQueueService,
-          useValue: queueService,
+          provide: AiGenerationQuotaService,
+          useValue: quotaService,
         },
       ],
     }).compile();
@@ -123,15 +112,11 @@ describe('AiGenerationService - enqueueJob', () => {
     mockJobInstance._id = createdId;
     mockJobInstance.save.mockResolvedValue(mockJobInstance);
 
-    orgModel.findOneAndUpdate.mockResolvedValue({
+    quotaService.deductQuota.mockResolvedValue({
       _id: orgId,
       aiQuotaMonthly: 100,
       aiQuotaUsed: 1,
-    });
-
-    queueService.addJob.mockResolvedValue({
-      id: dto.idempotencyKey,
-    } as unknown as Job<AiGenerationJobPayload>);
+    } as never);
 
     const result = await service.enqueueJob(orgId, userId, dto);
 
@@ -148,20 +133,12 @@ describe('AiGenerationService - enqueueJob', () => {
     });
     expect(mockJobInstance.save).toHaveBeenCalledTimes(1);
 
-    // 2. Verify atomic quota deduction happened AFTER insert
-    expect(orgModel.findOneAndUpdate).toHaveBeenCalledWith(
-      {
-        _id: orgId,
-        $expr: {
-          $lte: [{ $add: ['$aiQuotaUsed', 1] }, '$aiQuotaMonthly'],
-        },
-      },
-      { $inc: { aiQuotaUsed: 1 } },
-      { new: true },
-    );
+    // 2. Verify atomic quota deduction via QuotaService
+    expect(quotaService.deductQuota).toHaveBeenCalledWith(orgId);
 
     // 3. Verify pushed to BullMQ
-    expect(queueService.addJob).toHaveBeenCalledWith(
+    expect(jobPublisher.publish).toHaveBeenCalledWith(
+      JOB_NAMES.GENERATE_QUIZ,
       {
         jobId: createdId.toString(),
         organizationId: orgId,
@@ -175,7 +152,7 @@ describe('AiGenerationService - enqueueJob', () => {
         model: 'claude-3-5-haiku-20241022',
         idempotencyKey: dto.idempotencyKey,
       },
-      dto.idempotencyKey,
+      { jobId: dto.idempotencyKey },
     );
 
     // 4. Verify return response
@@ -190,8 +167,8 @@ describe('AiGenerationService - enqueueJob', () => {
     mockJobInstance._id = createdId;
     mockJobInstance.save.mockResolvedValue(mockJobInstance);
 
-    // Quota exhausted -> findOneAndUpdate returns null
-    orgModel.findOneAndUpdate.mockResolvedValue(null);
+    // Quota exhausted -> deductQuota returns null
+    quotaService.deductQuota.mockResolvedValue(null);
 
     await expect(service.enqueueJob(orgId, userId, dto)).rejects.toThrow(
       new ForbiddenException('Monthly AI quota exceeded'),
@@ -200,24 +177,23 @@ describe('AiGenerationService - enqueueJob', () => {
     // Verify rollback deletion was called
     expect(jobModel.deleteOne).toHaveBeenCalledWith({ _id: createdId });
     // Verify job was NOT pushed to queue
-    expect(queueService.addJob).not.toHaveBeenCalled();
+    expect(jobPublisher.publish).not.toHaveBeenCalled();
   });
 
   it('should rollback quota and mark job FAILED if pushing to BullMQ queue fails', async () => {
-    orgModel.findOneAndUpdate.mockResolvedValue({
+    quotaService.deductQuota.mockResolvedValue({
       _id: orgId,
       aiQuotaUsed: 1,
-    });
-    orgModel.updateOne.mockResolvedValue({ modifiedCount: 1 });
+    } as never);
     jobModel.updateOne = jest.fn().mockResolvedValue({ modifiedCount: 1 });
-    queueService.addJob.mockRejectedValue(new Error('Redis connection timeout'));
+    jobPublisher.publish.mockRejectedValue(new Error('Redis connection timeout'));
 
     await expect(service.enqueueJob(orgId, userId, dto)).rejects.toThrow(
       'Failed to queue AI generation job: Redis connection timeout',
     );
 
-    // Verify quota rollback was called
-    expect(orgModel.updateOne).toHaveBeenCalledWith({ _id: orgId }, { $inc: { aiQuotaUsed: -1 } });
+    // Verify quota was refunded via QuotaService
+    expect(quotaService.refundQuota).toHaveBeenCalledWith(orgId, mockJobInstance._id.toString());
     // Verify job marked FAILED
     expect(jobModel.updateOne).toHaveBeenCalledWith(
       { _id: mockJobInstance._id },
@@ -253,10 +229,10 @@ describe('AiGenerationService - enqueueJob', () => {
     });
 
     // 2. Verify NO quota was deducted
-    expect(orgModel.findOneAndUpdate).not.toHaveBeenCalled();
+    expect(quotaService.deductQuota).not.toHaveBeenCalled();
 
     // 3. Verify NO job pushed to queue
-    expect(queueService.addJob).not.toHaveBeenCalled();
+    expect(jobPublisher.publish).not.toHaveBeenCalled();
 
     // 4. Verify existing job returned
     expect(result).toEqual({
@@ -315,20 +291,18 @@ describe('AiGenerationService - enqueueJob', () => {
       };
       (paginate as jest.Mock).mockResolvedValue(mockResult);
 
-      const query: PaginationQueryDto = { page: 1, limit: 10, sortBy: 'createdAt', sortOrder: 'desc' };
+      const query: PaginationQueryDto = {
+        page: 1,
+        limit: 10,
+        sortBy: 'createdAt',
+        sortOrder: 'desc',
+      };
       const result = await service.getJobs(orgId, query);
 
-      expect(paginate).toHaveBeenCalledWith(
-        jobModel,
-        { organizationId: orgId },
-        query,
-        { allowedSortFields: ['createdAt', 'status', 'questionCount'] },
-      );
+      expect(paginate).toHaveBeenCalledWith(jobModel, { organizationId: orgId }, query, {
+        allowedSortFields: ['createdAt', 'status', 'questionCount'],
+      });
       expect(result).toEqual(mockResult);
     });
   });
 });
-
-
-
-

@@ -4,7 +4,7 @@ import { Processor } from '@nestjs/bullmq';
 import { Injectable, Logger } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Job } from 'bullmq';
-import { Model, Types } from 'mongoose';
+import { Model } from 'mongoose';
 import { QuizDifficulty, QuizSourceType, QuizStatus, QuizVisibility } from '../../quiz/enums';
 import { Quiz, QuizDocument } from '../../quiz/schemas/quiz.schema';
 import { AiGenerationJobStatus } from '../enums';
@@ -31,71 +31,48 @@ export class AiGenerationProcessor extends BullMqWorkerBase {
   }
 
   async handleJob(job: Job<AiGenerationJobPayload>, signal: AbortSignal): Promise<void> {
-    const payload = job.data;
-    this.logger.log(`Processing AI generation job: ${payload.jobId}`);
+    const { jobId, organizationId, userId, topic, questionCount, questionType, difficulty, model } =
+      job.data;
+    this.logger.log(`Processing AI generation job: ${jobId}`);
 
-    // 1. Atomic transition from PENDING -> PROCESSING
+    // 1. Atomic transition: PENDING -> PROCESSING (early return if already processed/retried)
     const jobDoc = await this.jobModel.findOneAndUpdate(
-      {
-        _id: payload.jobId,
-        organizationId: payload.organizationId,
-        status: AiGenerationJobStatus.PENDING,
-      },
-      {
-        $set: { status: AiGenerationJobStatus.PROCESSING },
-      },
+      { _id: jobId, organizationId, status: AiGenerationJobStatus.PENDING },
+      { $set: { status: AiGenerationJobStatus.PROCESSING } },
       { new: true },
     );
 
-    // If job is not in PENDING state (e.g. BullMQ retry after failed/completed), early return!
     if (!jobDoc) {
-      this.logger.warn(
-        `Skipping job ${payload.jobId}: status is no longer PENDING (likely already handled or retried).`,
-      );
+      this.logger.warn(`Skipping job ${jobId}: no longer PENDING (already handled or retried).`);
       return;
     }
 
     try {
-      // 2. Call AI provider — pass signal so request is cancelled on job timeout
-      const aiResult = await this.aiProvider.generateQuiz(
-        payload.topic,
-        payload.questionCount,
-        payload.questionType,
-        payload.difficulty,
-        payload.model,
+      // 2. Call AI Provider using Parameter Object Pattern
+      const aiResult = await this.aiProvider.generateQuiz({
+        topic,
+        questionCount,
+        questionType,
+        difficulty,
+        model,
         signal,
-      );
+      });
 
-      // 3. Map generated questions — AI returns `text` field; map to `content` per QuizSchema
-      const formattedQuestions = aiResult.questions.map((q) => ({
-        _id: new Types.ObjectId(),
-        content: q.content,
-        type: q.type,
-        points: q.points,
-        explanation: q.explanation,
-        options: q.options.map((opt) => ({
-          _id: new Types.ObjectId(),
-          content: opt.content,
-          isCorrect: opt.isCorrect,
-        })),
-      }));
-
-      // 4. Create Quiz in status: draft, sourceType: ai_generated
       const quizDoc = new this.quizModel({
-        organizationId: payload.organizationId,
-        ownerId: payload.userId,
-        title: payload.topic,
-        difficulty: payload.difficulty || QuizDifficulty.MEDIUM,
+        organizationId,
+        ownerId: userId,
+        title: topic,
+        difficulty: difficulty || QuizDifficulty.MEDIUM,
         sourceType: QuizSourceType.AI_GENERATED,
         visibility: QuizVisibility.PRIVATE,
         status: QuizStatus.DRAFT,
-        questions: formattedQuestions,
+        questions: aiResult.questions,
       });
       const savedQuiz = await quizDoc.save();
 
-      // 5. Update Job to COMPLETED with quizId, stats, and response
+      // 4. Update Job to COMPLETED with quizId, tokens and cost metrics
       await this.jobModel.updateOne(
-        { _id: payload.jobId },
+        { _id: jobId },
         {
           $set: {
             quizId: savedQuiz._id,
@@ -109,41 +86,32 @@ export class AiGenerationProcessor extends BullMqWorkerBase {
         },
       );
 
-      this.logger.log(
-        `Job ${payload.jobId} completed successfully. Created quiz draft ${savedQuiz._id}`,
-      );
+      this.logger.log(`Job ${jobId} completed successfully. Created quiz draft ${savedQuiz._id}`);
     } catch (err: unknown) {
       const errorMsg = err instanceof Error ? err.message : String(err);
-      this.logger.error(`Job ${payload.jobId} failed: ${errorMsg}`);
+      this.logger.error(`Job ${jobId} failed: ${errorMsg}`);
 
-      // 6. Mark Job as FAILED
+      // 5. Mark Job as FAILED
       await this.jobModel.updateOne(
-        { _id: payload.jobId },
-        {
-          $set: {
-            status: AiGenerationJobStatus.FAILED,
-            errorMessage: errorMsg,
-          },
-        },
+        { _id: jobId },
+        { $set: { status: AiGenerationJobStatus.FAILED, errorMessage: errorMsg } },
       );
 
+      // 6. Quota refund: only for infra/transient errors (not intentional content safety violations)
       const isContentSafetyViolation = errorMsg.includes('Content safety violation');
-
-      // 7. Quota refund — only for infra/transient errors (Claude down, timeout, rate-limit).
-      //    Intentional content safety violations retain quota to deter abuse.
       if (!isContentSafetyViolation) {
-        await this.quotaService.refundQuota(payload.organizationId, payload.jobId);
+        await this.quotaService.refundQuota(organizationId, jobId);
       } else {
         this.logger.warn(
-          `Quota retained for job ${payload.jobId} due to deliberate content safety policy violation.`,
+          `Quota retained for job ${jobId} due to deliberate content safety policy violation.`,
         );
       }
 
-      // 8. Re-throw so BullMqWorkerBase.process() can decide: UnrecoverableError vs retry.
-      //    isRetryable() is checked there — quota & status are already handled above.
+      // 7. Re-throw so BullMqWorkerBase handles retry vs unrecoverable error
       throw err;
     }
   }
+
   /**
    * Content safety violations are intentional — do not retry.
    * All other errors (infra, timeout, rate-limit) are retryable.
