@@ -1,18 +1,27 @@
+import { ConfigService } from '@nestjs/config';
 import { QuestionType, QuizDifficulty } from '../../quiz/enums';
 import { ClaudeAiProviderService } from './claude-ai-provider.service';
 
+function buildService(apiKey: string | undefined = 'test-claude-api-key'): ClaudeAiProviderService {
+  const configService = {
+    get: jest.fn((key: string) => {
+      if (key === 'ANTHROPIC_API_KEY') return apiKey;
+      if (key === 'CLAUDE_MODEL') return 'claude-3-5-haiku-20241022';
+      return undefined;
+    }),
+  } as unknown as ConfigService;
+  return new ClaudeAiProviderService(configService);
+}
+
 describe('ClaudeAiProviderService', () => {
   let service: ClaudeAiProviderService;
-  const originalEnv = process.env;
   const originalFetch = global.fetch;
 
   beforeEach(() => {
-    service = new ClaudeAiProviderService();
-    process.env = { ...originalEnv, ANTHROPIC_API_KEY: 'test-claude-api-key' };
+    service = buildService();
   });
 
   afterEach(() => {
-    process.env = originalEnv;
     global.fetch = originalFetch;
   });
 
@@ -72,9 +81,11 @@ describe('ClaudeAiProviderService', () => {
     expect(requestBody.tools).toBeDefined();
     expect(requestBody.tool_choice).toEqual({ type: 'tool', name: 'submit_quiz_assessment' });
 
+    // Verify AI text→content field mapping
     expect(result.questions).toHaveLength(1);
-    expect(result.questions[0].text).toBe('What is TypeScript?');
+    expect(result.questions[0].content).toBe('What is TypeScript?');
     expect(result.questions[0].options).toHaveLength(2);
+    expect(result.questions[0].options[1].content).toBe('A typed superset of JavaScript');
     expect(result.questions[0].options[1].isCorrect).toBe(true);
     expect(result.inputTokens).toBe(150);
     expect(result.outputTokens).toBe(250);
@@ -103,13 +114,15 @@ describe('ClaudeAiProviderService', () => {
     );
   });
 
-  it('should throw an error when API key is missing', async () => {
-    delete process.env.ANTHROPIC_API_KEY;
-    delete process.env.CLAUDE_API_KEY;
+  it('should throw an error when API key is not configured', () => {
+    // Both ANTHROPIC_API_KEY and CLAUDE_API_KEY are missing
+    const noKeyConfigService = {
+      get: jest.fn().mockReturnValue(undefined),
+    } as unknown as ConfigService;
 
-    await expect(
-      service.generateQuiz('History', 5, QuestionType.SINGLE_CHOICE, QuizDifficulty.MEDIUM),
-    ).rejects.toThrow('AI API key is missing. Please configure ANTHROPIC_API_KEY in .env');
+    expect(() => new ClaudeAiProviderService(noKeyConfigService)).toThrow(
+      'ANTHROPIC_API_KEY is required but not configured',
+    );
   });
 
   it('should throw an error when AI returns malformed JSON', async () => {
@@ -160,7 +173,7 @@ describe('ClaudeAiProviderService', () => {
     ).rejects.toThrow('Question at index 0 does not have any correct option selected');
   });
 
-  it('should handle timeout when fetch is aborted', async () => {
+  it('should throw an AbortError message when fetch is aborted via signal', async () => {
     const abortError = Object.assign(new Error('The operation was aborted'), {
       name: 'AbortError',
     });
@@ -169,7 +182,7 @@ describe('ClaudeAiProviderService', () => {
 
     await expect(
       service.generateQuiz('Physics', 2, QuestionType.SINGLE_CHOICE, QuizDifficulty.HARD),
-    ).rejects.toThrow('Claude API request timed out after 45000ms');
+    ).rejects.toThrow('Claude API request was aborted (job timeout or cancellation)');
   });
 
   it('should throw Content safety violation error when tool_use returns isViolated: true', async () => {

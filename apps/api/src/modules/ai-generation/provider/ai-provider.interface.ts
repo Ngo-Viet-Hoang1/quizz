@@ -1,13 +1,12 @@
 import { QuestionType, QuizDifficulty } from '../../quiz/enums';
 
 export interface AiGeneratedOption {
-  key: string;
-  text: string;
+  content: string;
   isCorrect: boolean;
 }
 
 export interface AiGeneratedQuestion {
-  text: string;
+  content: string;
   type: QuestionType;
   points: number;
   explanation?: string;
@@ -29,5 +28,6 @@ export interface IAiProvider {
     questionType: QuestionType,
     difficulty: QuizDifficulty,
     model?: string,
+    signal?: AbortSignal,
   ): Promise<AiGenerationResult>;
 }

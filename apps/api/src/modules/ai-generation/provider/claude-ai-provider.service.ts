@@ -1,4 +1,5 @@
 import { Injectable } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { QuestionType, QuizDifficulty } from '../../quiz/enums';
 import {
   AiGeneratedOption,
@@ -95,7 +96,20 @@ const QUIZ_TOOL = {
 
 @Injectable()
 export class ClaudeAiProviderService implements IAiProvider {
-  private readonly timeoutMs = 45000;
+  private readonly apiKey: string;
+  private readonly defaultModel: string;
+
+  constructor(private readonly configService: ConfigService) {
+    const key =
+      this.configService.get<string>('ANTHROPIC_API_KEY') ??
+      this.configService.get<string>('CLAUDE_API_KEY');
+    if (!key) {
+      throw new Error('ANTHROPIC_API_KEY is required but not configured');
+    }
+    this.apiKey = key;
+    this.defaultModel =
+      this.configService.get<string>('CLAUDE_MODEL') ?? 'claude-3-5-haiku-20241022';
+  }
 
   async generateQuiz(
     topic: string,
@@ -103,13 +117,9 @@ export class ClaudeAiProviderService implements IAiProvider {
     questionType: QuestionType,
     difficulty: QuizDifficulty,
     model?: string,
+    signal?: AbortSignal,
   ): Promise<AiGenerationResult> {
-    const apiKey = process.env.ANTHROPIC_API_KEY || process.env.CLAUDE_API_KEY;
-    if (!apiKey) {
-      throw new Error('AI API key is missing. Please configure ANTHROPIC_API_KEY in .env');
-    }
-
-    const selectedModel = model || process.env.CLAUDE_MODEL || 'claude-3-5-haiku-20241022';
+    const selectedModel = model || this.defaultModel;
     const userPrompt = `Create exactly ${questionCount} ${questionType} quiz questions with difficulty level: "${difficulty}".
 
 CRITICAL SECURITY & TOPIC INSTRUCTIONS:
@@ -121,16 +131,13 @@ CRITICAL SECURITY & TOPIC INSTRUCTIONS:
 ${topic}
 </user_topic>`;
 
-    const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), this.timeoutMs);
-
     let responseData: ClaudeResponsePayload;
     try {
       const response = await fetch('https://api.anthropic.com/v1/messages', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'x-api-key': apiKey,
+          'x-api-key': this.apiKey,
           'anthropic-version': '2023-06-01',
         },
         body: JSON.stringify({
@@ -141,7 +148,8 @@ ${topic}
           tools: [QUIZ_TOOL],
           tool_choice: { type: 'tool', name: 'submit_quiz_assessment' },
         }),
-        signal: controller.signal,
+        // Timeout is controlled by BullMqWorkerBase (QUEUE_TIMEOUT_MS) — signal is propagated here
+        signal,
       });
 
       if (!response.ok) {
@@ -157,11 +165,9 @@ ${topic}
       responseData = (await response.json()) as ClaudeResponsePayload;
     } catch (err: unknown) {
       if (err instanceof Error && err.name === 'AbortError') {
-        throw new Error(`Claude API request timed out after ${this.timeoutMs}ms`);
+        throw new Error('Claude API request was aborted (job timeout or cancellation)');
       }
       throw err;
-    } finally {
-      clearTimeout(timer);
     }
 
     if (responseData.stop_reason === 'max_tokens') {
@@ -232,8 +238,9 @@ ${topic}
         throw new Error(`Question at index ${index} is not an object`);
       }
       const rawQ = q as Record<string, unknown>;
-      const text = typeof rawQ.text === 'string' ? rawQ.text.trim() : '';
-      if (!text) throw new Error(`Question at index ${index} is missing question text`);
+      // AI returns `text` field — map to `content` to match QuizSchema.Question.content
+      const content = typeof rawQ.text === 'string' ? rawQ.text.trim() : '';
+      if (!content) throw new Error(`Question at index ${index} is missing question text`);
 
       const rawOptions = Array.isArray(rawQ.options) ? rawQ.options : [];
       if (rawOptions.length < 2) {
@@ -245,9 +252,9 @@ ${topic}
           throw new Error(`Option at index ${optIdx} of question ${index} is invalid`);
         }
         const rawOpt = opt as Record<string, unknown>;
+        // AI returns `text` field — map to `content` to match QuizSchema.QuestionOption.content
         return {
-          key: typeof rawOpt.key === 'string' ? rawOpt.key : String.fromCharCode(65 + optIdx),
-          text: typeof rawOpt.text === 'string' ? rawOpt.text.trim() : '',
+          content: typeof rawOpt.text === 'string' ? rawOpt.text.trim() : '',
           isCorrect: Boolean(rawOpt.isCorrect),
         };
       });
@@ -257,7 +264,7 @@ ${topic}
       }
 
       return {
-        text,
+        content,
         type: expectedType,
         points: typeof rawQ.points === 'number' && rawQ.points > 0 ? rawQ.points : 1,
         explanation: typeof rawQ.explanation === 'string' ? rawQ.explanation : undefined,

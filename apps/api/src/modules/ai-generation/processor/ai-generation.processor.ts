@@ -1,21 +1,23 @@
-import { Processor, WorkerHost } from '@nestjs/bullmq';
+import { BullMqWorkerBase } from '@/queue/bullmq-worker.base';
+import { QUEUE_CONCURRENCY, QUEUE_NAMES, QUEUE_TIMEOUT_MS } from '@/queue/queue.constants';
+import { Processor } from '@nestjs/bullmq';
 import { Injectable, Logger } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
-import { Job, UnrecoverableError } from 'bullmq';
+import { Job } from 'bullmq';
 import { Model, Types } from 'mongoose';
 import { QuizDifficulty, QuizSourceType, QuizStatus, QuizVisibility } from '../../quiz/enums';
 import { Quiz, QuizDocument } from '../../quiz/schemas/quiz.schema';
-import { AI_GENERATION_QUEUE_NAME } from '../constants/ai-generation.constant';
 import { AiGenerationJobStatus } from '../enums';
 import { AiGenerationJobPayload } from '../interfaces';
 import { ClaudeAiProviderService } from '../provider/claude-ai-provider.service';
 import { AiGenerationJob, AiGenerationJobDocument } from '../schemas';
 import { AiGenerationQuotaService } from '../services/ai-generation-quota.service';
 
-@Processor(AI_GENERATION_QUEUE_NAME)
+@Processor(QUEUE_NAMES.AI_GENERATION, { concurrency: QUEUE_CONCURRENCY[QUEUE_NAMES.AI_GENERATION] })
 @Injectable()
-export class AiGenerationProcessor extends WorkerHost {
-  private readonly logger = new Logger(AiGenerationProcessor.name);
+export class AiGenerationProcessor extends BullMqWorkerBase {
+  protected readonly logger = new Logger(AiGenerationProcessor.name);
+  protected readonly timeoutMs = QUEUE_TIMEOUT_MS[QUEUE_NAMES.AI_GENERATION];
 
   constructor(
     @InjectModel(AiGenerationJob.name)
@@ -28,12 +30,12 @@ export class AiGenerationProcessor extends WorkerHost {
     super();
   }
 
-  async process(jobOrPayload: Job<AiGenerationJobPayload> | AiGenerationJobPayload): Promise<void> {
-    const payload = 'data' in jobOrPayload ? jobOrPayload.data : jobOrPayload;
+  async handleJob(job: Job<AiGenerationJobPayload>, signal: AbortSignal): Promise<void> {
+    const payload = job.data;
     this.logger.log(`Processing AI generation job: ${payload.jobId}`);
 
     // 1. Atomic transition from PENDING -> PROCESSING
-    const job = await this.jobModel.findOneAndUpdate(
+    const jobDoc = await this.jobModel.findOneAndUpdate(
       {
         _id: payload.jobId,
         organizationId: payload.organizationId,
@@ -46,7 +48,7 @@ export class AiGenerationProcessor extends WorkerHost {
     );
 
     // If job is not in PENDING state (e.g. BullMQ retry after failed/completed), early return!
-    if (!job) {
+    if (!jobDoc) {
       this.logger.warn(
         `Skipping job ${payload.jobId}: status is no longer PENDING (likely already handled or retried).`,
       );
@@ -54,26 +56,26 @@ export class AiGenerationProcessor extends WorkerHost {
     }
 
     try {
-      // 2. Call AI provider
+      // 2. Call AI provider — pass signal so request is cancelled on job timeout
       const aiResult = await this.aiProvider.generateQuiz(
         payload.topic,
         payload.questionCount,
         payload.questionType,
         payload.difficulty,
         payload.model,
+        signal,
       );
 
-      // 3. Map generated questions into Quiz questions format
+      // 3. Map generated questions — AI returns `text` field; map to `content` per QuizSchema
       const formattedQuestions = aiResult.questions.map((q) => ({
         _id: new Types.ObjectId(),
-        text: q.text,
+        content: q.content,
         type: q.type,
         points: q.points,
         explanation: q.explanation,
         options: q.options.map((opt) => ({
           _id: new Types.ObjectId(),
-          key: opt.key,
-          text: opt.text,
+          content: opt.content,
           isCorrect: opt.isCorrect,
         })),
       }));
@@ -127,7 +129,8 @@ export class AiGenerationProcessor extends WorkerHost {
 
       const isContentSafetyViolation = errorMsg.includes('Content safety violation');
 
-      // 7. Refund quota for infrastructure/transient errors, retain quota on intentional safety violations
+      // 7. Quota refund — only for infra/transient errors (Claude down, timeout, rate-limit).
+      //    Intentional content safety violations retain quota to deter abuse.
       if (!isContentSafetyViolation) {
         await this.quotaService.refundQuota(payload.organizationId, payload.jobId);
       } else {
@@ -136,14 +139,17 @@ export class AiGenerationProcessor extends WorkerHost {
         );
       }
 
-      // 8. For safety violations, throw UnrecoverableError so BullMQ terminates without retrying
-      if (isContentSafetyViolation) {
-        throw new UnrecoverableError(errorMsg);
-      }
-
-      // Re-throw so BullMQ records the failed attempt for transient errors
+      // 8. Re-throw so BullMqWorkerBase.process() can decide: UnrecoverableError vs retry.
+      //    isRetryable() is checked there — quota & status are already handled above.
       throw err;
     }
   }
+  /**
+   * Content safety violations are intentional — do not retry.
+   * All other errors (infra, timeout, rate-limit) are retryable.
+   */
+  protected isRetryable(error: unknown): boolean {
+    const msg = error instanceof Error ? error.message : String(error);
+    return !msg.includes('Content safety violation');
+  }
 }
-

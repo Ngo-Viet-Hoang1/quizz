@@ -1,6 +1,6 @@
 import { getModelToken } from '@nestjs/mongoose';
 import { Test, TestingModule } from '@nestjs/testing';
-import { UnrecoverableError } from 'bullmq';
+import { Job, UnrecoverableError } from 'bullmq';
 import { Types } from 'mongoose';
 import { QuestionType, QuizDifficulty, QuizSourceType, QuizStatus } from '../../quiz/enums';
 import { Quiz } from '../../quiz/schemas/quiz.schema';
@@ -45,6 +45,14 @@ describe('AiGenerationProcessor', () => {
     model: 'claude-3-5-haiku-20241022',
     idempotencyKey: 'idemp-12345',
   };
+
+  const mockJob = {
+    data: payload,
+    name: 'generate-quiz',
+    id: payload.jobId,
+    attemptsMade: 0,
+    opts: { attempts: 3 },
+  } as unknown as Job<AiGenerationJobPayload>;
 
   beforeEach(async () => {
     jobModel = {
@@ -107,13 +115,13 @@ describe('AiGenerationProcessor', () => {
     aiProvider.generateQuiz.mockResolvedValue({
       questions: [
         {
-          text: 'What is a Generic?',
+          content: 'What is a Generic?',
           type: QuestionType.SINGLE_CHOICE,
           points: 1,
           explanation: 'Generics allow type parameters.',
           options: [
-            { key: 'A', text: 'Type parameter', isCorrect: true },
-            { key: 'B', text: 'Variable', isCorrect: false },
+            { content: 'Type parameter', isCorrect: true },
+            { content: 'Variable', isCorrect: false },
           ],
         },
       ],
@@ -123,7 +131,7 @@ describe('AiGenerationProcessor', () => {
       costUsd: 0.00088,
     });
 
-    await processor.process(payload);
+    await processor.process(mockJob);
 
     // Verify atomic transition to PROCESSING
     expect(jobModel.findOneAndUpdate).toHaveBeenCalledWith(
@@ -138,13 +146,14 @@ describe('AiGenerationProcessor', () => {
       { new: true },
     );
 
-    // Verify AI call
+    // Verify AI call — signal is passed from BullMqWorkerBase
     expect(aiProvider.generateQuiz).toHaveBeenCalledWith(
       payload.topic,
       payload.questionCount,
       payload.questionType,
       payload.difficulty,
       payload.model,
+      expect.any(AbortSignal),
     );
 
     // Verify Quiz Draft creation
@@ -185,7 +194,7 @@ describe('AiGenerationProcessor', () => {
 
     aiProvider.generateQuiz.mockRejectedValue(new Error('Claude API rate limit exceeded'));
 
-    await expect(processor.process(payload)).rejects.toThrow('Claude API rate limit exceeded');
+    await expect(processor.process(mockJob)).rejects.toThrow('Claude API rate limit exceeded');
 
     // Verify marked FAILED with error message
     expect(jobModel.updateOne).toHaveBeenCalledWith(
@@ -206,7 +215,7 @@ describe('AiGenerationProcessor', () => {
     // findOneAndUpdate returns null because status is no longer PENDING
     jobModel.findOneAndUpdate.mockResolvedValue(null);
 
-    await processor.process(payload);
+    await processor.process(mockJob);
 
     // Verify AI provider is NOT called
     expect(aiProvider.generateQuiz).not.toHaveBeenCalled();
@@ -227,7 +236,7 @@ describe('AiGenerationProcessor', () => {
     );
     aiProvider.generateQuiz.mockRejectedValue(safetyViolationError);
 
-    await expect(processor.process(payload)).rejects.toThrow(UnrecoverableError);
+    await expect(processor.process(mockJob)).rejects.toThrow(UnrecoverableError);
 
     expect(jobModel.updateOne).toHaveBeenCalledWith(
       { _id: payload.jobId },
