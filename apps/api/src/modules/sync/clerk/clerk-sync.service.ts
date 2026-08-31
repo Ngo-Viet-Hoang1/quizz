@@ -36,7 +36,7 @@ export class ClerkSyncService {
 
     const usersCollection = db.collection<User>('users');
     const orgsCollection = db.collection<Organization>('organizations');
-    const membersCollection = db.collection<OrganizationMember>('organizationmembers');
+    const membersCollection = db.collection<OrganizationMember>('organization_members');
 
     // 1. Sync Users with Auto-Pagination
     let userOffset = 0;

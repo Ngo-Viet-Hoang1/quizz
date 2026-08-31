@@ -39,7 +39,7 @@ async function runSync(): Promise<void> {
 
   const usersCollection = db.collection<User>('users');
   const orgsCollection = db.collection<Organization>('organizations');
-  const membersCollection = db.collection<OrganizationMember>('organizationmembers');
+  const membersCollection = db.collection<OrganizationMember>('organization_members');
 
   try {
     // 1. Sync Users with Auto-Pagination (Unlimited)

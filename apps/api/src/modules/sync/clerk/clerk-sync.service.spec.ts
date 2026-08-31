@@ -104,7 +104,7 @@ describe('ClerkSyncService', () => {
 
     expect(mockConnection.db.collection).toHaveBeenCalledWith('users');
     expect(mockConnection.db.collection).toHaveBeenCalledWith('organizations');
-    expect(mockConnection.db.collection).toHaveBeenCalledWith('organizationmembers');
+    expect(mockConnection.db.collection).toHaveBeenCalledWith('organization_members');
     expect(mockCollection.updateOne).toHaveBeenCalled();
   });
 });
