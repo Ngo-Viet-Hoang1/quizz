@@ -1,4 +1,5 @@
 import { MiddlewareConsumer, Module, NestModule } from '@nestjs/common';
+import { ScheduleModule } from '@nestjs/schedule';
 import { HealthModule } from './health/health.module';
 import { ConfigModule } from './config/config.module';
 import { DatabaseModule } from './database/database.module';
@@ -18,6 +19,7 @@ import { OrganizationMembersModule } from './modules/organization-members/organi
 import { AuditModule } from './modules/audit/audit.module';
 import { SyncModule } from './modules/sync/sync.module';
 import { AiGenerationModule } from './modules/ai-generation/ai-generation.module';
+import { SubscriptionsModule } from './modules/subscriptions/subscriptions.module';
 import { QueueModule } from './queue/queue.module';
 
 @Module({
@@ -28,6 +30,7 @@ import { QueueModule } from './queue/queue.module';
         limit: 100,
       },
     ]),
+    ScheduleModule.forRoot(),
     ConfigModule,
     LoggerModule,
     DatabaseModule,
@@ -44,6 +47,7 @@ import { QueueModule } from './queue/queue.module';
     NotificationModule,
     SyncModule,
     AiGenerationModule,
+    SubscriptionsModule,
     QueueModule,
   ],
   providers: [

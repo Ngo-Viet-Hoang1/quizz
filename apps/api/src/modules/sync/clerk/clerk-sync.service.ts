@@ -2,6 +2,7 @@ import { Inject, Injectable, Logger } from '@nestjs/common';
 import { InjectConnection } from '@nestjs/mongoose';
 import { Connection } from 'mongoose';
 import { ClerkClient } from '@clerk/backend';
+import { SubscriptionPlan } from '@repo/shared-types';
 import { CLERK_CLIENT } from '../../../common/clerk/clerk-client.provider';
 import { resolvePermissionsForRole } from '../../organization-members/constants/role-permissions.map';
 import { OrganizationMember } from '../../organization-members/schemas/organization-member.schema';
@@ -118,7 +119,7 @@ export class ClerkSyncService {
               deletedAt: null,
             },
             $setOnInsert: {
-              plan: 'free',
+              plan: SubscriptionPlan.FREE,
               aiQuotaMonthly: 100,
               aiQuotaUsed: 0,
             },

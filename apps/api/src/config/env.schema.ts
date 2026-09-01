@@ -43,6 +43,13 @@ export const envSchema = z.object({
   // BullBoard Admin UI
   BULL_BOARD_USER: z.preprocess(emptyToUndefined, z.string().default('admin')),
   BULL_BOARD_PASSWORD: z.preprocess(emptyToUndefined, z.string().default('changeme')),
+
+  // SePay Payment Gateway
+  SEPAY_API_KEY: z.preprocess(emptyToUndefined, z.string().optional()),
+  SEPAY_WEBHOOK_SECRET: z.preprocess(emptyToUndefined, z.string().optional()),
+  SEPAY_BANK_ID: z.preprocess(emptyToUndefined, z.string().default('MBBank')),
+  SEPAY_ACCOUNT_NUMBER: z.preprocess(emptyToUndefined, z.string().default('0000000001')),
+  SEPAY_ACCOUNT_NAME: z.preprocess(emptyToUndefined, z.string().default('LE PHI VU')),
 });
 
 export type Env = z.infer<typeof envSchema>;

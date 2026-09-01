@@ -1,4 +1,5 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
+import { SubscriptionPlan } from '@repo/shared-types';
 import { HydratedDocument } from 'mongoose';
 
 export type OrganizationDocument = HydratedDocument<Organization>;
@@ -23,10 +24,10 @@ export class Organization {
 
   @Prop({
     type: String,
-    enum: ['free', 'pro', 'enterprise'],
-    default: 'free',
+    enum: SubscriptionPlan,
+    default: SubscriptionPlan.FREE,
   })
-  plan!: 'free' | 'pro' | 'enterprise';
+  plan!: SubscriptionPlan;
 
   @Prop({ type: Number, default: 100 })
   aiQuotaMonthly!: number;
