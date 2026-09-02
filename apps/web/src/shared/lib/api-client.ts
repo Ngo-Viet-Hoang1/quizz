@@ -1,5 +1,4 @@
 import { useAuth } from '@clerk/nextjs';
-import { auth } from '@clerk/nextjs/server';
 import { ApiError, ApiResponse } from '@repo/shared-types';
 import axios, { AxiosInstance, AxiosRequestConfig, AxiosResponse } from 'axios';
 import * as React from 'react';
@@ -12,7 +11,7 @@ export interface CustomRequestConfig extends AxiosRequestConfig {
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4000/api/v1';
 
 // Create axios instance that have ability to bring Clerk jwt token
-function createApiClientInstance(getToken?: () => Promise<string | null>) {
+export function createApiClientInstance(getToken?: () => Promise<string | null>) {
   const instance: AxiosInstance = axios.create({
     baseURL: API_BASE_URL,
     timeout: 15_000,
@@ -118,9 +117,3 @@ export function useApiClient() {
   const { getToken } = useAuth();
   return React.useMemo(() => createApiClientInstance(getToken), [getToken]);
 }
-
-// Used for Server Component & Route Hanlder ( Runs on Node.js SSR)
-export const serverApiClient = createApiClientInstance(async () => {
-  const { getToken } = await auth();
-  return getToken();
-});

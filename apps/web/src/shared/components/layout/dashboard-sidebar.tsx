@@ -30,7 +30,7 @@ export function DashboardSidebar({
       )}
     >
       {/* 1. Header: Organization Switcher */}
-      <div className="shrink-0">
+      <div className="shrink-0 w-full min-w-0 overflow-hidden">
         <NavOrg />
       </div>
 

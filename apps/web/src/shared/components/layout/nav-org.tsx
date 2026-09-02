@@ -1,55 +1,171 @@
 'use client';
 
+import { useRouter } from 'next/navigation';
+import { useClerk, useOrganization, useOrganizationList } from '@clerk/nextjs';
 import { Avatar, AvatarFallback, AvatarImage } from '@/shared/ui/avatar';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/shared/ui/dropdown-menu';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/shared/ui/tooltip';
-import { OrganizationSwitcher, useOrganization } from '@clerk/nextjs';
-import { Building2 } from 'lucide-react';
+import { cn } from '@/shared/lib/utils';
+import { Building2, Check, ChevronsUpDown, Plus, Settings } from 'lucide-react';
 
 export function NavOrg() {
-  const { organization } = useOrganization();
+  const router = useRouter();
+  const { openOrganizationProfile, openCreateOrganization } = useClerk();
+  const { organization, isLoaded: isOrgLoaded } = useOrganization();
+  const {
+    userMemberships,
+    setActive,
+    isLoaded: isListLoaded,
+  } = useOrganizationList({
+    userMemberships: {
+      infinite: true,
+    },
+  });
+
+  if (!isOrgLoaded || !isListLoaded) {
+    return (
+      <div className="flex h-16 w-full min-w-0 items-center border-b border-sidebar-border px-3 group-data-[collapsed=true]/sidebar:px-2 group-data-[collapsed=true]/sidebar:justify-center">
+        <div className="h-10 w-full rounded-lg bg-muted/60 animate-pulse border shadow-2xs group-data-[collapsed=true]/sidebar:size-9 group-data-[collapsed=true]/sidebar:rounded-lg" />
+      </div>
+    );
+  }
+
+  const handleSelectOrg = async (orgId: string) => {
+    if (orgId === organization?.id) return;
+    if (setActive) {
+      await setActive({ organization: orgId });
+      router.push('/dashboard');
+    }
+  };
+
+  const initial = organization?.name?.[0]?.toUpperCase() || 'O';
+  const orgList = userMemberships.data ?? [];
 
   return (
-    <div className="flex h-16 w-full items-center border-b border-sidebar-border px-3 group-data-[collapsed=true]/sidebar:px-2 group-data-[collapsed=true]/sidebar:justify-center">
-      {/* Collapsed State: Icon/Avatar with Tooltip */}
-      <div className="hidden group-data-[collapsed=true]/sidebar:flex">
+    <div className="flex h-16 w-full min-w-0 items-center border-b border-sidebar-border px-3 group-data-[collapsed=true]/sidebar:px-2 group-data-[collapsed=true]/sidebar:justify-center">
+      <DropdownMenu>
+        {/* Tooltip wraps Trigger so when collapsed it shows Org Name on hover */}
         <Tooltip>
           <TooltipTrigger
             render={
-              <div className="flex size-9 items-center justify-center rounded-lg border bg-background text-primary shadow-2xs hover:bg-accent cursor-pointer">
-                {organization?.imageUrl ? (
-                  <Avatar size="sm" className="size-7 rounded-md">
-                    <AvatarImage src={organization.imageUrl} alt={organization.name} />
-                    <AvatarFallback className="text-[11px] font-bold">
-                      {organization.name?.[0]?.toUpperCase() || 'O'}
-                    </AvatarFallback>
-                  </Avatar>
-                ) : (
-                  <Building2 className="size-4" />
-                )}
-              </div>
+              <DropdownMenuTrigger
+                render={
+                  <button
+                    type="button"
+                    className={cn(
+                      'flex h-10 w-full min-w-0 items-center gap-2.5 rounded-lg border border-sidebar-border/60 bg-sidebar p-2 text-left shadow-2xs transition-colors hover:bg-sidebar-accent cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-sidebar-ring',
+                      'group-data-[collapsed=true]/sidebar:size-9 group-data-[collapsed=true]/sidebar:p-0 group-data-[collapsed=true]/sidebar:justify-center',
+                    )}
+                  >
+                    {/* Organization Avatar */}
+                    <Avatar className="size-6 shrink-0 rounded-md border">
+                      {organization?.imageUrl && (
+                        <AvatarImage src={organization.imageUrl} alt={organization.name} />
+                      )}
+                      <AvatarFallback className="rounded-md bg-primary/10 text-[11px] font-bold text-primary">
+                        {initial}
+                      </AvatarFallback>
+                    </Avatar>
+
+                    {/* Organization Info: auto hidden when collapsed via CSS */}
+                    <div className="flex flex-1 min-w-0 flex-col overflow-hidden group-data-[collapsed=true]/sidebar:hidden">
+                      <span className="truncate text-xs font-semibold text-sidebar-foreground">
+                        {organization?.name || 'Select Organization'}
+                      </span>
+                      <span className="truncate text-[10px] text-muted-foreground">Workspace</span>
+                    </div>
+
+                    {/* Chevron: auto hidden when collapsed */}
+                    <ChevronsUpDown className="size-3.5 shrink-0 text-muted-foreground group-data-[collapsed=true]/sidebar:hidden" />
+                  </button>
+                }
+              />
             }
           />
-          <TooltipContent side="right">
+          <TooltipContent
+            side="right"
+            align="center"
+            className="hidden group-data-[collapsed=true]/sidebar:block"
+          >
             <span>{organization?.name || 'Select Organization'}</span>
           </TooltipContent>
         </Tooltip>
-      </div>
 
-      {/* Expanded State: Full Clerk OrganizationSwitcher */}
-      <div className="flex w-full group-data-[collapsed=true]/sidebar:hidden">
-        <OrganizationSwitcher
-          hidePersonal={false}
-          afterSelectOrganizationUrl="/dashboard"
-          afterSelectPersonalUrl="/dashboard"
-          appearance={{
-            elements: {
-              rootBox: 'w-full',
-              organizationSwitcherTrigger:
-                'w-full justify-between h-10 rounded-lg border bg-background px-2.5 shadow-2xs hover:bg-accent transition-colors',
-            },
-          }}
-        />
-      </div>
+        {/* Dropdown Menu Content: works in both expanded & collapsed states */}
+        <DropdownMenuContent
+          align="start"
+          side="bottom"
+          sideOffset={6}
+          className="w-60 rounded-xl border p-1 shadow-lg"
+        >
+          <DropdownMenuLabel className="px-2 py-1.5 text-[10px] font-medium text-muted-foreground uppercase tracking-wider">
+            Organizations
+          </DropdownMenuLabel>
+
+          <DropdownMenuSeparator />
+
+          {orgList.map((mem) => {
+            const isSelected = mem.organization.id === organization?.id;
+            const itemInitial = mem.organization.name?.[0]?.toUpperCase() || 'O';
+
+            return (
+              <DropdownMenuItem
+                key={mem.organization.id}
+                onClick={() => handleSelectOrg(mem.organization.id)}
+                className={cn(
+                  'flex items-center gap-2.5 rounded-lg px-2 py-1.5 text-xs font-medium cursor-pointer transition-colors',
+                  isSelected && 'bg-accent font-semibold text-accent-foreground',
+                )}
+              >
+                <Avatar className="size-5 shrink-0 rounded-md border">
+                  {mem.organization.imageUrl && (
+                    <AvatarImage src={mem.organization.imageUrl} alt={mem.organization.name} />
+                  )}
+                  <AvatarFallback className="rounded-md bg-muted text-[10px] font-bold">
+                    {itemInitial}
+                  </AvatarFallback>
+                </Avatar>
+
+                <span className="flex-1 truncate">{mem.organization.name}</span>
+
+                {isSelected && <Check className="size-3.5 text-primary shrink-0" />}
+              </DropdownMenuItem>
+            );
+          })}
+
+          {orgList.length === 0 && (
+            <div className="px-2 py-3 text-center text-xs text-muted-foreground flex items-center justify-center gap-1.5">
+              <Building2 className="size-4" />
+              <span>No organizations found</span>
+            </div>
+          )}
+
+          <DropdownMenuSeparator />
+
+          <DropdownMenuItem
+            onClick={() => openOrganizationProfile?.()}
+            className="flex items-center gap-2.5 rounded-lg px-2 py-1.5 text-xs font-medium cursor-pointer"
+          >
+            <Settings className="size-4 text-muted-foreground" />
+            <span>Manage organization</span>
+          </DropdownMenuItem>
+
+          <DropdownMenuItem
+            onClick={() => openCreateOrganization?.()}
+            className="flex items-center gap-2.5 rounded-lg px-2 py-1.5 text-xs font-medium cursor-pointer"
+          >
+            <Plus className="size-4 text-muted-foreground" />
+            <span>Create organization</span>
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
     </div>
   );
 }

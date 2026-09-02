@@ -1,5 +1,6 @@
 'use client';
 
+import { useUIStore } from '@/shared/stores/ui-store';
 import { Avatar, AvatarFallback, AvatarImage } from '@/shared/ui/avatar';
 import {
   DropdownMenu,
@@ -15,8 +16,13 @@ import { CreditCard, LogOut, User as UserIcon } from 'lucide-react';
 import { ThemeDropdownSub } from './theme-dropdown-sub';
 
 export function HeaderUserMenu() {
-  const { user } = useUser();
+  const { user, isLoaded } = useUser();
   const { signOut, openUserProfile } = useClerk();
+  const openPricingModal = useUIStore((s) => s.openPricingModal);
+
+  if (!isLoaded) {
+    return <div className="h-8 w-8 rounded-full bg-muted/70 animate-pulse border shadow-2xs" />;
+  }
 
   if (!user) return null;
 
@@ -82,7 +88,7 @@ export function HeaderUserMenu() {
             <span>Profile & Account</span>
           </DropdownMenuItem>
           <DropdownMenuItem
-            onClick={() => openUserProfile()}
+            onClick={() => openPricingModal()}
             className="cursor-pointer gap-2 px-2.5 py-1.5 text-xs"
           >
             <CreditCard className="size-4 text-muted-foreground" />
