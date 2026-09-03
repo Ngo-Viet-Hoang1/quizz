@@ -5,9 +5,15 @@ import { OrgContextGuard } from '../../common/guards/org-context.guard';
 import { ClassMembersService } from './class-members.service';
 import { ClassesController } from './classes.controller';
 import { ClassesService } from './classes.service';
-import { AddClassMemberDto, CreateClassDto, QueryClassDto, UpdateClassDto } from './dto';
+import {
+  AddClassMemberDto,
+  CreateClassDto,
+  QueryClassMemberDto,
+  QueryClassDto,
+  UpdateClassDto,
+} from './dto';
 import { ClassMemberRole, ClassMemberStatus, ClassStatus } from './enums/class.enum';
-import { IClass } from './interfaces/class.interface';
+import { IClass, IClassMember } from './interfaces/class.interface';
 import { Class, ClassDocument } from './schemas/class.schema';
 import { ClassMember } from './schemas/class-member.schema';
 
@@ -48,6 +54,16 @@ describe('ClassesController', () => {
     joinedAt: new Date(),
   };
 
+  const mockIClassMember: IClassMember = {
+    id: mockMemberId,
+    organizationId: mockOrgId,
+    classId: mockClassId,
+    userId: studentUserId,
+    role: ClassMemberRole.STUDENT,
+    status: ClassMemberStatus.ACTIVE,
+    joinedAt: new Date(),
+  };
+
   beforeEach(async () => {
     const mockClassesService = {
       create: jest.fn().mockResolvedValue(mockClass),
@@ -74,6 +90,10 @@ describe('ClassesController', () => {
       removeMember: jest
         .fn()
         .mockResolvedValue({ ...mockClassMember, status: ClassMemberStatus.REMOVED }),
+      getMembers: jest.fn().mockResolvedValue({
+        items: [mockIClassMember],
+        meta: { page: 1, limit: 10, total: 1, totalPages: 1 },
+      }),
     };
 
     const module: TestingModule = await Test.createTestingModule({
@@ -166,6 +186,17 @@ describe('ClassesController', () => {
         dto,
       );
       expect(result).toEqual(mockClassMember);
+    });
+  });
+
+  describe('getMembers', () => {
+    it('should return paginated members wrapped in ApiResponse', async () => {
+      const query = Object.assign(new QueryClassMemberDto(), { page: 1, limit: 10 });
+      const result = await controller.getMembers(mockOrgId, mockClassId, query);
+
+      expect(membersService.getMembers).toHaveBeenCalledWith(mockClassId, mockOrgId, query);
+      expect(result.data).toEqual([mockIClassMember]);
+      expect(result.meta?.total).toBe(1);
     });
   });
 

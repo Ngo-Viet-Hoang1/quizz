@@ -21,8 +21,14 @@ import { ParseObjectIdPipe } from '../../common/pipes/parse-object-id.pipe';
 import { ApiResponse } from '../../common/response/api-response';
 import { ClassMembersService } from './class-members.service';
 import { ClassesService } from './classes.service';
-import { AddClassMemberDto, CreateClassDto, QueryClassDto, UpdateClassDto } from './dto';
-import { IClass } from './interfaces/class.interface';
+import {
+  AddClassMemberDto,
+  CreateClassDto,
+  QueryClassMemberDto,
+  QueryClassDto,
+  UpdateClassDto,
+} from './dto';
+import { IClass, IClassMember } from './interfaces/class.interface';
 import { Class } from './schemas/class.schema';
 import { ClassMember } from './schemas/class-member.schema';
 
@@ -110,6 +116,17 @@ export class ClassesController {
     @Body() dto: AddClassMemberDto,
   ): Promise<ClassMember> {
     return this.classMembersService.addMember(id, orgId, userId, dto);
+  }
+
+  @Get(':id/members')
+  @ApiOperation({ summary: 'Get members of a class with pagination' })
+  async getMembers(
+    @CurrentOrg() orgId: string,
+    @Param('id', ParseObjectIdPipe) id: string,
+    @Query() query: QueryClassMemberDto,
+  ): Promise<ApiResponse<IClassMember[]>> {
+    const { items, meta } = await this.classMembersService.getMembers(id, orgId, query);
+    return ApiResponse.success(items, meta);
   }
 
   @Post(':id/join')

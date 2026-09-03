@@ -5,11 +5,15 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
-import { Model } from 'mongoose';
+import { Model, QueryFilter } from 'mongoose';
+import { paginate, PaginateResult } from '../../common/utils/paginate.util';
 import { ClassesService } from './classes.service';
-import { AddClassMemberDto } from './dto';
+import { AddClassMemberDto, QueryClassMemberDto } from './dto';
 import { ClassMemberRole, ClassMemberStatus, ClassStatus } from './enums/class.enum';
+import { IClassMember } from './interfaces/class.interface';
 import { ClassMember, ClassMemberDocument } from './schemas/class-member.schema';
+
+const MEMBER_SORT_FIELDS = ['joinedAt', 'role', 'status'] as const;
 
 @Injectable()
 export class ClassMembersService {
@@ -120,5 +124,24 @@ export class ClassMembersService {
 
     member.status = ClassMemberStatus.REMOVED;
     return member.save();
+  }
+
+  async getMembers(
+    classId: string,
+    orgId: string,
+    query: QueryClassMemberDto,
+  ): Promise<PaginateResult<IClassMember>> {
+    const classDoc = await this.classesService.findOne(classId, orgId);
+
+    const filter: QueryFilter<ClassMemberDocument> = {
+      organizationId: orgId,
+      classId: classDoc._id,
+      ...(query.role && { role: query.role }),
+      ...(query.status && { status: query.status }),
+    };
+
+    return paginate<IClassMember, ClassMemberDocument>(this.classMemberModel, filter, query, {
+      allowedSortFields: MEMBER_SORT_FIELDS,
+    });
   }
 }

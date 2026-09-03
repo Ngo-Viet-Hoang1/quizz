@@ -4,6 +4,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { Types } from 'mongoose';
 import { ClassMembersService } from './class-members.service';
 import { ClassesService } from './classes.service';
+import { QueryClassMemberDto } from './dto';
 import { ClassMemberRole, ClassMemberStatus, ClassStatus } from './enums/class.enum';
 import { ClassMember } from './schemas/class-member.schema';
 import { ClassDocument } from './schemas/class.schema';
@@ -253,6 +254,39 @@ describe('ClassMembersService', () => {
 
       const result = await service.removeMember(mockClassId, mockOrgId, studentUserId);
       expect(result.status).toBe(ClassMemberStatus.REMOVED);
+    });
+  });
+
+  describe('getMembers', () => {
+    it('should return paginated members of class', async () => {
+      const mockClass = createMockClassDoc({});
+      const mockMember = createMockMemberDoc({});
+      classesService.findOne.mockResolvedValue(mockClass as unknown as ClassDocument);
+      mockClassMemberModel.countDocuments.mockReturnValue({
+        exec: jest.fn().mockResolvedValue(1),
+      });
+      mockClassMemberModel.find.mockReturnValue({
+        sort: jest.fn().mockReturnValue({
+          skip: jest.fn().mockReturnValue({
+            limit: jest.fn().mockReturnValue({
+              lean: jest.fn().mockReturnValue({
+                exec: jest.fn().mockResolvedValue([mockMember]),
+              }),
+            }),
+          }),
+        }),
+      });
+
+      const query = Object.assign(new QueryClassMemberDto(), {
+        page: 1,
+        limit: 10,
+        status: ClassMemberStatus.ACTIVE,
+      });
+
+      const result = await service.getMembers(mockClassId, mockOrgId, query);
+
+      expect(result.items).toHaveLength(1);
+      expect(result.meta.total).toBe(1);
     });
   });
 });
