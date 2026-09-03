@@ -1,6 +1,7 @@
 import {
   Body,
   Controller,
+  Delete,
   Get,
   HttpCode,
   HttpStatus,
@@ -121,5 +122,30 @@ export class ClassesController {
     @Param('id', ParseObjectIdPipe) id: string,
   ): Promise<ClassMember> {
     return this.classMembersService.join(id, orgId, userId);
+  }
+
+  @Post(':id/leave')
+  @HttpCode(HttpStatus.OK)
+  @Audit('class.leave')
+  @ApiOperation({ summary: 'Leave a class by student' })
+  leave(
+    @CurrentOrg() orgId: string,
+    @CurrentUser('_id') userId: string,
+    @Param('id', ParseObjectIdPipe) id: string,
+  ): Promise<ClassMember> {
+    return this.classMembersService.removeMember(id, orgId, userId);
+  }
+
+  @Delete(':id/members/:userId')
+  @HttpCode(HttpStatus.OK)
+  @Audit('class.member.remove')
+  @ApiOperation({ summary: 'Remove a member from class by teacher' })
+  removeMember(
+    @CurrentOrg() orgId: string,
+    @CurrentUser('_id') actorId: string,
+    @Param('id', ParseObjectIdPipe) id: string,
+    @Param('userId') targetUserId: string,
+  ): Promise<ClassMember> {
+    return this.classMembersService.removeMember(id, orgId, actorId, targetUserId);
   }
 }

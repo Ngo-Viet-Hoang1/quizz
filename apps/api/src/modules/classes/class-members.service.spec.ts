@@ -1,4 +1,4 @@
-import { BadRequestException, ForbiddenException } from '@nestjs/common';
+import { BadRequestException, ForbiddenException, NotFoundException } from '@nestjs/common';
 import { getModelToken } from '@nestjs/mongoose';
 import { Test, TestingModule } from '@nestjs/testing';
 import { Types } from 'mongoose';
@@ -185,6 +185,74 @@ describe('ClassMembersService', () => {
 
       const result = await service.join(mockClassId, mockOrgId, studentUserId);
       expect(result.status).toBe(ClassMemberStatus.ACTIVE);
+    });
+  });
+
+  describe('removeMember', () => {
+    it('should allow member to leave class on own initiative', async () => {
+      const mockClass = createMockClassDoc({ ownerId: mockUserId });
+      const activeMember = createMockMemberDoc({ status: ClassMemberStatus.ACTIVE });
+      classesService.findOne.mockResolvedValue(mockClass as unknown as ClassDocument);
+      mockClassMemberModel.findOne.mockReturnValue({
+        exec: jest.fn().mockResolvedValue(activeMember),
+      });
+
+      const result = await service.removeMember(mockClassId, mockOrgId, studentUserId);
+      expect(result.status).toBe(ClassMemberStatus.REMOVED);
+    });
+
+    it('should allow owner to remove student from class', async () => {
+      const mockClass = createMockClassDoc({ ownerId: mockUserId });
+      const activeMember = createMockMemberDoc({ status: ClassMemberStatus.ACTIVE });
+      classesService.findOne.mockResolvedValue(mockClass as unknown as ClassDocument);
+      mockClassMemberModel.findOne.mockReturnValue({
+        exec: jest.fn().mockResolvedValue(activeMember),
+      });
+
+      const result = await service.removeMember(mockClassId, mockOrgId, mockUserId, studentUserId);
+      expect(result.status).toBe(ClassMemberStatus.REMOVED);
+    });
+
+    it('should throw ForbiddenException if non-owner tries to remove someone else', async () => {
+      const mockClass = createMockClassDoc({ ownerId: mockUserId });
+      classesService.findOne.mockResolvedValue(mockClass as unknown as ClassDocument);
+
+      await expect(
+        service.removeMember(mockClassId, mockOrgId, otherUserId, studentUserId),
+      ).rejects.toThrow(ForbiddenException);
+    });
+
+    it('should throw BadRequestException if owner tries to remove self from class', async () => {
+      const mockClass = createMockClassDoc({ ownerId: mockUserId });
+      classesService.findOne.mockResolvedValue(mockClass as unknown as ClassDocument);
+
+      await expect(
+        service.removeMember(mockClassId, mockOrgId, mockUserId, mockUserId),
+      ).rejects.toThrow(BadRequestException);
+    });
+
+    it('should throw NotFoundException if member not found in class', async () => {
+      const mockClass = createMockClassDoc({ ownerId: mockUserId });
+      classesService.findOne.mockResolvedValue(mockClass as unknown as ClassDocument);
+      mockClassMemberModel.findOne.mockReturnValue({
+        exec: jest.fn().mockResolvedValue(null),
+      });
+
+      await expect(service.removeMember(mockClassId, mockOrgId, studentUserId)).rejects.toThrow(
+        NotFoundException,
+      );
+    });
+
+    it('should return member directly if already REMOVED', async () => {
+      const mockClass = createMockClassDoc({ ownerId: mockUserId });
+      const removedMember = createMockMemberDoc({ status: ClassMemberStatus.REMOVED });
+      classesService.findOne.mockResolvedValue(mockClass as unknown as ClassDocument);
+      mockClassMemberModel.findOne.mockReturnValue({
+        exec: jest.fn().mockResolvedValue(removedMember),
+      });
+
+      const result = await service.removeMember(mockClassId, mockOrgId, studentUserId);
+      expect(result.status).toBe(ClassMemberStatus.REMOVED);
     });
   });
 });

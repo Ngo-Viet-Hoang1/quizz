@@ -71,6 +71,9 @@ describe('ClassesController', () => {
     const mockClassMembersService = {
       addMember: jest.fn().mockResolvedValue(mockClassMember),
       join: jest.fn().mockResolvedValue(mockClassMember),
+      removeMember: jest
+        .fn()
+        .mockResolvedValue({ ...mockClassMember, status: ClassMemberStatus.REMOVED }),
     };
 
     const module: TestingModule = await Test.createTestingModule({
@@ -172,6 +175,38 @@ describe('ClassesController', () => {
 
       expect(membersService.join).toHaveBeenCalledWith(mockClassId, mockOrgId, studentUserId);
       expect(result).toEqual(mockClassMember);
+    });
+  });
+
+  describe('leave', () => {
+    it('should leave class and return ClassMember with removed status', async () => {
+      const result = await controller.leave(mockOrgId, studentUserId, mockClassId);
+
+      expect(membersService.removeMember).toHaveBeenCalledWith(
+        mockClassId,
+        mockOrgId,
+        studentUserId,
+      );
+      expect(result.status).toBe(ClassMemberStatus.REMOVED);
+    });
+  });
+
+  describe('removeMember', () => {
+    it('should remove member by teacher and return ClassMember with removed status', async () => {
+      const result = await controller.removeMember(
+        mockOrgId,
+        mockUserId,
+        mockClassId,
+        studentUserId,
+      );
+
+      expect(membersService.removeMember).toHaveBeenCalledWith(
+        mockClassId,
+        mockOrgId,
+        mockUserId,
+        studentUserId,
+      );
+      expect(result.status).toBe(ClassMemberStatus.REMOVED);
     });
   });
 });

@@ -1,4 +1,9 @@
-import { BadRequestException, ForbiddenException, Injectable } from '@nestjs/common';
+import {
+  BadRequestException,
+  ForbiddenException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import { ClassesService } from './classes.service';
@@ -87,5 +92,33 @@ export class ClassMembersService {
       status: ClassMemberStatus.ACTIVE,
       joinedAt: new Date(),
     }).save();
+  }
+
+  async removeMember(
+    classId: string,
+    orgId: string,
+    actorId: string,
+    targetUserId?: string,
+  ): Promise<ClassMember> {
+    const classDoc = await this.classesService.findOne(classId, orgId);
+    const userIdToRemove = targetUserId ?? actorId;
+
+    if (userIdToRemove === classDoc.ownerId) {
+      throw new BadRequestException('Class owner cannot be removed from class');
+    }
+
+    if (userIdToRemove !== actorId && classDoc.ownerId !== actorId) {
+      throw new ForbiddenException('Only class owner can remove other members');
+    }
+
+    const member = await this.classMemberModel
+      .findOne({ classId: classDoc._id, userId: userIdToRemove, organizationId: orgId })
+      .exec();
+
+    if (!member) throw new NotFoundException('Member not found in this class');
+    if (member.status === ClassMemberStatus.REMOVED) return member;
+
+    member.status = ClassMemberStatus.REMOVED;
+    return member.save();
   }
 }
