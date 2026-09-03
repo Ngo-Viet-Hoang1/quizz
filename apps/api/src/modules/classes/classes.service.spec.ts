@@ -4,7 +4,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { Types } from 'mongoose';
 import { Quiz } from '../quiz/schemas/quiz.schema';
 import { ClassesService } from './classes.service';
-import { AssignQuizDto, QueryClassDto, UpdateClassDto } from './dto';
+import { AssignQuizDto, QueryClassDto, QueryQuizAssignmentDto, UpdateClassDto } from './dto';
 import { ClassStatus } from './enums/class.enum';
 import { Class } from './schemas/class.schema';
 import { QuizAssignment } from './schemas/quiz-assignment.schema';
@@ -294,6 +294,36 @@ describe('ClassesService', () => {
       await expect(
         service.assignQuiz(mockClassId, mockOrgId, mockUserId, { quizId: mockQuizId }),
       ).rejects.toThrow(NotFoundException);
+    });
+  });
+
+  describe('getClassAssignments', () => {
+    it('should return paginated assignments of class', async () => {
+      const mockClass = createMockClassDoc({});
+      const mockAssignment = createMockAssignmentDoc({});
+      mockClassModel.findOne.mockReturnValue({
+        exec: jest.fn().mockResolvedValue(mockClass),
+      });
+      mockAssignmentModel.countDocuments.mockReturnValue({
+        exec: jest.fn().mockResolvedValue(1),
+      });
+      mockAssignmentModel.find.mockReturnValue({
+        sort: jest.fn().mockReturnValue({
+          skip: jest.fn().mockReturnValue({
+            limit: jest.fn().mockReturnValue({
+              lean: jest.fn().mockReturnValue({
+                exec: jest.fn().mockResolvedValue([mockAssignment]),
+              }),
+            }),
+          }),
+        }),
+      });
+
+      const query = Object.assign(new QueryQuizAssignmentDto(), { page: 1, limit: 10 });
+      const result = await service.getClassAssignments(mockClassId, mockOrgId, query);
+
+      expect(result.items).toHaveLength(1);
+      expect(result.meta.total).toBe(1);
     });
   });
 });

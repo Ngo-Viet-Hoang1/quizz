@@ -27,9 +27,10 @@ import {
   CreateClassDto,
   QueryClassMemberDto,
   QueryClassDto,
+  QueryQuizAssignmentDto,
   UpdateClassDto,
 } from './dto';
-import { IClass, IClassMember } from './interfaces/class.interface';
+import { IClass, IClassMember, IQuizAssignment } from './interfaces/class.interface';
 import { Class } from './schemas/class.schema';
 import { ClassMember } from './schemas/class-member.schema';
 import { QuizAssignment } from './schemas/quiz-assignment.schema';
@@ -194,5 +195,16 @@ export class ClassesController {
     @Body() dto: AssignQuizDto,
   ): Promise<QuizAssignment> {
     return this.classesService.assignQuiz(id, orgId, userId, dto);
+  }
+
+  @Get(':id/assignments')
+  @ApiOperation({ summary: 'Get assigned quizzes for a class with pagination' })
+  async getClassAssignments(
+    @CurrentOrg() orgId: string,
+    @Param('id', ParseObjectIdPipe) id: string,
+    @Query() query: QueryQuizAssignmentDto,
+  ): Promise<ApiResponse<IQuizAssignment[]>> {
+    const { items, meta } = await this.classesService.getClassAssignments(id, orgId, query);
+    return ApiResponse.success(items, meta);
   }
 }

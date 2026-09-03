@@ -11,10 +11,11 @@ import {
   CreateClassDto,
   QueryClassMemberDto,
   QueryClassDto,
+  QueryQuizAssignmentDto,
   UpdateClassDto,
 } from './dto';
 import { ClassMemberRole, ClassMemberStatus, ClassStatus } from './enums/class.enum';
-import { IClass, IClassMember } from './interfaces/class.interface';
+import { IClass, IClassMember, IQuizAssignment } from './interfaces/class.interface';
 import { Class, ClassDocument } from './schemas/class.schema';
 import { ClassMember } from './schemas/class-member.schema';
 import { QuizAssignment } from './schemas/quiz-assignment.schema';
@@ -80,6 +81,18 @@ describe('ClassesController', () => {
     createdAt: new Date(),
   };
 
+  const mockIQuizAssignment: IQuizAssignment = {
+    id: mockAssignmentId,
+    organizationId: mockOrgId,
+    quizId: mockQuizId,
+    quizVersion: 1,
+    classId: mockClassId,
+    assignedBy: mockUserId,
+    dueAt: null,
+    allowLateSubmit: false,
+    createdAt: new Date(),
+  };
+
   beforeEach(async () => {
     const mockClassesService = {
       create: jest.fn().mockResolvedValue(mockClass),
@@ -99,6 +112,10 @@ describe('ClassesController', () => {
         .fn()
         .mockResolvedValue({ ...mockClass, status: ClassStatus.ARCHIVED } as unknown as Class),
       assignQuiz: jest.fn().mockResolvedValue(mockQuizAssignment),
+      getClassAssignments: jest.fn().mockResolvedValue({
+        items: [mockIQuizAssignment],
+        meta: { page: 1, limit: 10, total: 1, totalPages: 1 },
+      }),
     };
 
     const mockClassMembersService = {
@@ -284,6 +301,17 @@ describe('ClassesController', () => {
 
       expect(service.assignQuiz).toHaveBeenCalledWith(mockClassId, mockOrgId, mockUserId, dto);
       expect(result).toEqual(mockQuizAssignment);
+    });
+  });
+
+  describe('getClassAssignments', () => {
+    it('should return paginated assignments wrapped in ApiResponse', async () => {
+      const query = Object.assign(new QueryQuizAssignmentDto(), { page: 1, limit: 10 });
+      const result = await controller.getClassAssignments(mockOrgId, mockClassId, query);
+
+      expect(service.getClassAssignments).toHaveBeenCalledWith(mockClassId, mockOrgId, query);
+      expect(result.data).toEqual([mockIQuizAssignment]);
+      expect(result.meta?.total).toBe(1);
     });
   });
 });

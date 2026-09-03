@@ -8,13 +8,20 @@ import { InjectModel } from '@nestjs/mongoose';
 import { Model, QueryFilter, Types } from 'mongoose';
 import { paginate, PaginateResult } from '../../common/utils/paginate.util';
 import { Quiz, QuizDocument } from '../quiz/schemas/quiz.schema';
-import { AssignQuizDto, CreateClassDto, QueryClassDto, UpdateClassDto } from './dto';
+import {
+  AssignQuizDto,
+  CreateClassDto,
+  QueryClassDto,
+  QueryQuizAssignmentDto,
+  UpdateClassDto,
+} from './dto';
 import { ClassStatus } from './enums/class.enum';
-import { IClass } from './interfaces/class.interface';
+import { IClass, IQuizAssignment } from './interfaces/class.interface';
 import { Class, ClassDocument } from './schemas/class.schema';
 import { QuizAssignment, QuizAssignmentDocument } from './schemas/quiz-assignment.schema';
 
 const CLASS_SORT_FIELDS = ['createdAt', 'name', 'status'] as const;
+const ASSIGNMENT_SORT_FIELDS = ['createdAt', 'dueAt'] as const;
 
 @Injectable()
 export class ClassesService {
@@ -122,6 +129,24 @@ export class ClassesService {
     });
 
     return assignment.save();
+  }
+
+  async getClassAssignments(
+    classId: string,
+    orgId: string,
+    query: QueryQuizAssignmentDto,
+  ): Promise<PaginateResult<IQuizAssignment>> {
+    const classDoc = await this.findOne(classId, orgId);
+
+    const filter: QueryFilter<QuizAssignmentDocument> = {
+      organizationId: orgId,
+      classId: classDoc._id,
+      ...(query.quizId && { quizId: new Types.ObjectId(query.quizId) }),
+    };
+
+    return paginate<IQuizAssignment, QuizAssignmentDocument>(this.assignmentModel, filter, query, {
+      allowedSortFields: ASSIGNMENT_SORT_FIELDS,
+    });
   }
 
   private buildFilter(orgId: string, query: QueryClassDto): QueryFilter<ClassDocument> {
