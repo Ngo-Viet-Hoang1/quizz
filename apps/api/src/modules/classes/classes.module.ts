@@ -1,6 +1,8 @@
 import { Module } from '@nestjs/common';
 import { MongooseModule } from '@nestjs/mongoose';
 import { Quiz, QuizSchema } from '../quiz/schemas/quiz.schema';
+import { ClassesController } from './classes.controller';
+import { ClassesService } from './classes.service';
 import { Class, ClassSchema } from './schemas/class.schema';
 import { ClassMember, ClassMemberSchema } from './schemas/class-member.schema';
 import { QuizAssignment, QuizAssignmentSchema } from './schemas/quiz-assignment.schema';
@@ -14,6 +16,8 @@ import { QuizAssignment, QuizAssignmentSchema } from './schemas/quiz-assignment.
       { name: Quiz.name, schema: QuizSchema },
     ]),
   ],
-  exports: [MongooseModule],
+  controllers: [ClassesController],
+  providers: [ClassesService],
+  exports: [ClassesService, MongooseModule],
 })
 export class ClassesModule {}
