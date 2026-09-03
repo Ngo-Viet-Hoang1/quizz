@@ -19,6 +19,7 @@ import { AuditModule } from './modules/audit/audit.module';
 import { SyncModule } from './modules/sync/sync.module';
 import { AiGenerationModule } from './modules/ai-generation/ai-generation.module';
 import { QueueModule } from './queue/queue.module';
+import { ClassesModule } from './modules/classes/classes.module';
 
 @Module({
   imports: [
@@ -45,6 +46,7 @@ import { QueueModule } from './queue/queue.module';
     SyncModule,
     AiGenerationModule,
     QueueModule,
+    ClassesModule,
   ],
   providers: [
     {
