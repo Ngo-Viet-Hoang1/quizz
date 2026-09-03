@@ -4,7 +4,7 @@ import { ClerkAuthGuard } from '../../common/guards/clerk-auth.guard';
 import { OrgContextGuard } from '../../common/guards/org-context.guard';
 import { ClassesController } from './classes.controller';
 import { ClassesService } from './classes.service';
-import { CreateClassDto, QueryClassDto } from './dto';
+import { CreateClassDto, QueryClassDto, UpdateClassDto } from './dto';
 import { ClassStatus } from './enums/class.enum';
 import { IClass } from './interfaces/class.interface';
 import { Class, ClassDocument } from './schemas/class.schema';
@@ -45,6 +45,12 @@ describe('ClassesController', () => {
         meta: { page: 1, limit: 10, total: 1, totalPages: 1 },
       }),
       findOne: jest.fn().mockResolvedValue(mockClass as unknown as ClassDocument),
+      update: jest
+        .fn()
+        .mockResolvedValue({ ...mockClass, name: 'Lớp 10A1 Nâng cao' } as unknown as Class),
+      archive: jest
+        .fn()
+        .mockResolvedValue({ ...mockClass, status: ClassStatus.ARCHIVED } as unknown as Class),
     };
 
     const module: TestingModule = await Test.createTestingModule({
@@ -99,6 +105,25 @@ describe('ClassesController', () => {
 
       expect(service.findOne).toHaveBeenCalledWith(mockClassId, mockOrgId);
       expect(result).toEqual(mockClass);
+    });
+  });
+
+  describe('update', () => {
+    it('should update and return updated class', async () => {
+      const dto: UpdateClassDto = { name: 'Lớp 10A1 Nâng cao' };
+      const result = await controller.update(mockOrgId, mockUserId, mockClassId, dto);
+
+      expect(service.update).toHaveBeenCalledWith(mockClassId, mockOrgId, mockUserId, dto);
+      expect(result.name).toBe('Lớp 10A1 Nâng cao');
+    });
+  });
+
+  describe('archive', () => {
+    it('should archive and return archived class', async () => {
+      const result = await controller.archive(mockOrgId, mockUserId, mockClassId);
+
+      expect(service.archive).toHaveBeenCalledWith(mockClassId, mockOrgId, mockUserId);
+      expect(result.status).toBe(ClassStatus.ARCHIVED);
     });
   });
 });

@@ -1,9 +1,9 @@
-import { NotFoundException } from '@nestjs/common';
+import { BadRequestException, ForbiddenException, NotFoundException } from '@nestjs/common';
 import { getModelToken } from '@nestjs/mongoose';
 import { Test, TestingModule } from '@nestjs/testing';
 import { Types } from 'mongoose';
 import { ClassesService } from './classes.service';
-import { QueryClassDto } from './dto';
+import { QueryClassDto, UpdateClassDto } from './dto';
 import { ClassStatus } from './enums/class.enum';
 import { Class } from './schemas/class.schema';
 
@@ -20,6 +20,7 @@ describe('ClassesService', () => {
 
   const mockOrgId = 'org-123';
   const mockUserId = 'user-456';
+  const otherUserId = 'user-999';
   const mockClassId = new Types.ObjectId().toHexString();
 
   const createMockClassDoc = (dto: Record<string, unknown> = {}): Record<string, unknown> => ({
@@ -141,6 +142,64 @@ describe('ClassesService', () => {
       });
 
       await expect(service.findOne(mockClassId, mockOrgId)).rejects.toThrow(NotFoundException);
+    });
+  });
+
+  describe('update', () => {
+    it('should allow class owner to update class details', async () => {
+      const mockDoc = createMockClassDoc({ ownerId: mockUserId });
+      mockClassModel.findOne.mockReturnValue({
+        exec: jest.fn().mockResolvedValue(mockDoc),
+      });
+
+      const dto: UpdateClassDto = { name: 'Lớp 10A1 Nâng cao' };
+      const result = await service.update(mockClassId, mockOrgId, mockUserId, dto);
+      expect(result.name).toBe('Lớp 10A1 Nâng cao');
+    });
+
+    it('should throw ForbiddenException if non-owner tries to update class', async () => {
+      const mockDoc = createMockClassDoc({ ownerId: mockUserId });
+      mockClassModel.findOne.mockReturnValue({
+        exec: jest.fn().mockResolvedValue(mockDoc),
+      });
+
+      await expect(
+        service.update(mockClassId, mockOrgId, otherUserId, { name: 'Hacked' }),
+      ).rejects.toThrow(ForbiddenException);
+    });
+  });
+
+  describe('archive', () => {
+    it('should allow class owner to archive active class', async () => {
+      const mockDoc = createMockClassDoc({ ownerId: mockUserId, status: ClassStatus.ACTIVE });
+      mockClassModel.findOne.mockReturnValue({
+        exec: jest.fn().mockResolvedValue(mockDoc),
+      });
+
+      const result = await service.archive(mockClassId, mockOrgId, mockUserId);
+      expect(result.status).toBe(ClassStatus.ARCHIVED);
+    });
+
+    it('should throw ForbiddenException if non-owner tries to archive class', async () => {
+      const mockDoc = createMockClassDoc({ ownerId: mockUserId });
+      mockClassModel.findOne.mockReturnValue({
+        exec: jest.fn().mockResolvedValue(mockDoc),
+      });
+
+      await expect(service.archive(mockClassId, mockOrgId, otherUserId)).rejects.toThrow(
+        ForbiddenException,
+      );
+    });
+
+    it('should throw BadRequestException if class is already archived', async () => {
+      const mockDoc = createMockClassDoc({ ownerId: mockUserId, status: ClassStatus.ARCHIVED });
+      mockClassModel.findOne.mockReturnValue({
+        exec: jest.fn().mockResolvedValue(mockDoc),
+      });
+
+      await expect(service.archive(mockClassId, mockOrgId, mockUserId)).rejects.toThrow(
+        BadRequestException,
+      );
     });
   });
 });

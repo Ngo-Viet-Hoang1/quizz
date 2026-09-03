@@ -1,8 +1,13 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  ForbiddenException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, QueryFilter, Types } from 'mongoose';
 import { paginate, PaginateResult } from '../../common/utils/paginate.util';
-import { CreateClassDto, QueryClassDto } from './dto';
+import { CreateClassDto, QueryClassDto, UpdateClassDto } from './dto';
 import { ClassStatus } from './enums/class.enum';
 import { IClass } from './interfaces/class.interface';
 import { Class, ClassDocument } from './schemas/class.schema';
@@ -44,6 +49,35 @@ export class ClassesService {
 
     if (!classDoc) throw new NotFoundException('Class not found');
     return classDoc;
+  }
+
+  async update(id: string, orgId: string, ownerId: string, dto: UpdateClassDto): Promise<Class> {
+    const classDoc = await this.findOne(id, orgId);
+
+    if (classDoc.ownerId !== ownerId) {
+      throw new ForbiddenException('Only class owner can update class');
+    }
+
+    Object.assign(classDoc, {
+      ...(dto.name && { name: dto.name.trim() }),
+      ...(dto.status && { status: dto.status }),
+    });
+
+    return classDoc.save();
+  }
+
+  async archive(id: string, orgId: string, ownerId: string): Promise<Class> {
+    const classDoc = await this.findOne(id, orgId);
+
+    if (classDoc.ownerId !== ownerId) {
+      throw new ForbiddenException('Only class owner can archive class');
+    }
+    if (classDoc.status === ClassStatus.ARCHIVED) {
+      throw new BadRequestException('Class is already archived');
+    }
+
+    classDoc.status = ClassStatus.ARCHIVED;
+    return classDoc.save();
   }
 
   private buildFilter(orgId: string, query: QueryClassDto): QueryFilter<ClassDocument> {
