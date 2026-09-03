@@ -18,17 +18,22 @@ import { ClerkAuthGuard } from '../../common/guards/clerk-auth.guard';
 import { OrgContextGuard } from '../../common/guards/org-context.guard';
 import { ParseObjectIdPipe } from '../../common/pipes/parse-object-id.pipe';
 import { ApiResponse } from '../../common/response/api-response';
+import { ClassMembersService } from './class-members.service';
 import { ClassesService } from './classes.service';
-import { CreateClassDto, QueryClassDto, UpdateClassDto } from './dto';
+import { AddClassMemberDto, CreateClassDto, QueryClassDto, UpdateClassDto } from './dto';
 import { IClass } from './interfaces/class.interface';
 import { Class } from './schemas/class.schema';
+import { ClassMember } from './schemas/class-member.schema';
 
 @ApiTags('classes')
 @Controller('classes')
 @UseGuards(ClerkAuthGuard, OrgContextGuard)
 @ApiBearerAuth('clerk-auth')
 export class ClassesController {
-  constructor(private readonly classesService: ClassesService) {}
+  constructor(
+    private readonly classesService: ClassesService,
+    private readonly classMembersService: ClassMembersService,
+  ) {}
 
   @Post()
   @HttpCode(HttpStatus.CREATED)
@@ -91,5 +96,18 @@ export class ClassesController {
     @Param('id', ParseObjectIdPipe) id: string,
   ): Promise<Class> {
     return this.classesService.archive(id, orgId, userId);
+  }
+
+  @Post(':id/members')
+  @HttpCode(HttpStatus.CREATED)
+  @Audit('class.member.add')
+  @ApiOperation({ summary: 'Add a student or assistant to class by teacher' })
+  addMember(
+    @CurrentOrg() orgId: string,
+    @CurrentUser('_id') userId: string,
+    @Param('id', ParseObjectIdPipe) id: string,
+    @Body() dto: AddClassMemberDto,
+  ): Promise<ClassMember> {
+    return this.classMembersService.addMember(id, orgId, userId, dto);
   }
 }
