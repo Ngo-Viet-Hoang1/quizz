@@ -14,6 +14,7 @@ type MockModel = jest.Mock & {
   find: jest.Mock;
   countDocuments: jest.Mock;
   updateOne: jest.Mock;
+  deleteOne: jest.Mock;
 };
 
 describe('ClassesService', () => {
@@ -81,6 +82,7 @@ describe('ClassesService', () => {
     mockAssignmentModel.findOne = jest.fn();
     mockAssignmentModel.find = jest.fn();
     mockAssignmentModel.countDocuments = jest.fn();
+    mockAssignmentModel.deleteOne = jest.fn();
 
     mockQuizModel = jest
       .fn()
@@ -324,6 +326,51 @@ describe('ClassesService', () => {
 
       expect(result.items).toHaveLength(1);
       expect(result.meta.total).toBe(1);
+    });
+  });
+
+  describe('removeAssignment', () => {
+    it('should allow owner to delete assignment', async () => {
+      const mockClass = createMockClassDoc({ ownerId: mockUserId });
+      mockClassModel.findOne.mockReturnValue({
+        exec: jest.fn().mockResolvedValue(mockClass),
+      });
+      mockAssignmentModel.deleteOne.mockReturnValue({
+        exec: jest.fn().mockResolvedValue({ deletedCount: 1 }),
+      });
+
+      const result = await service.removeAssignment(
+        mockClassId,
+        mockAssignmentId,
+        mockOrgId,
+        mockUserId,
+      );
+      expect(result.success).toBe(true);
+    });
+
+    it('should throw ForbiddenException if non-owner deletes assignment', async () => {
+      const mockClass = createMockClassDoc({ ownerId: mockUserId });
+      mockClassModel.findOne.mockReturnValue({
+        exec: jest.fn().mockResolvedValue(mockClass),
+      });
+
+      await expect(
+        service.removeAssignment(mockClassId, mockAssignmentId, mockOrgId, otherUserId),
+      ).rejects.toThrow(ForbiddenException);
+    });
+
+    it('should throw NotFoundException if assignment not found', async () => {
+      const mockClass = createMockClassDoc({ ownerId: mockUserId });
+      mockClassModel.findOne.mockReturnValue({
+        exec: jest.fn().mockResolvedValue(mockClass),
+      });
+      mockAssignmentModel.deleteOne.mockReturnValue({
+        exec: jest.fn().mockResolvedValue({ deletedCount: 0 }),
+      });
+
+      await expect(
+        service.removeAssignment(mockClassId, mockAssignmentId, mockOrgId, mockUserId),
+      ).rejects.toThrow(NotFoundException);
     });
   });
 });

@@ -207,4 +207,17 @@ export class ClassesController {
     const { items, meta } = await this.classesService.getClassAssignments(id, orgId, query);
     return ApiResponse.success(items, meta);
   }
+
+  @Delete(':id/assignments/:assignmentId')
+  @HttpCode(HttpStatus.OK)
+  @Audit('class.quiz.unassign')
+  @ApiOperation({ summary: 'Remove a quiz assignment from class by teacher' })
+  removeAssignment(
+    @CurrentOrg() orgId: string,
+    @CurrentUser('_id') userId: string,
+    @Param('id', ParseObjectIdPipe) id: string,
+    @Param('assignmentId', ParseObjectIdPipe) assignmentId: string,
+  ): Promise<{ success: boolean }> {
+    return this.classesService.removeAssignment(id, assignmentId, orgId, userId);
+  }
 }

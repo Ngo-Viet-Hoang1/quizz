@@ -149,6 +149,33 @@ export class ClassesService {
     });
   }
 
+  async removeAssignment(
+    classId: string,
+    assignmentId: string,
+    orgId: string,
+    userId: string,
+  ): Promise<{ success: boolean }> {
+    const classDoc = await this.findOne(classId, orgId);
+
+    if (classDoc.ownerId !== userId) {
+      throw new ForbiddenException('Only class owner can remove assignments');
+    }
+
+    const result = await this.assignmentModel
+      .deleteOne({
+        _id: new Types.ObjectId(assignmentId),
+        classId: classDoc._id,
+        organizationId: orgId,
+      })
+      .exec();
+
+    if (result.deletedCount === 0) {
+      throw new NotFoundException('Quiz assignment not found');
+    }
+
+    return { success: true };
+  }
+
   private buildFilter(orgId: string, query: QueryClassDto): QueryFilter<ClassDocument> {
     const filter: QueryFilter<ClassDocument> = {
       organizationId: orgId,

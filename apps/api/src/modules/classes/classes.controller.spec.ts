@@ -116,6 +116,7 @@ describe('ClassesController', () => {
         items: [mockIQuizAssignment],
         meta: { page: 1, limit: 10, total: 1, totalPages: 1 },
       }),
+      removeAssignment: jest.fn().mockResolvedValue({ success: true }),
     };
 
     const mockClassMembersService = {
@@ -312,6 +313,25 @@ describe('ClassesController', () => {
       expect(service.getClassAssignments).toHaveBeenCalledWith(mockClassId, mockOrgId, query);
       expect(result.data).toEqual([mockIQuizAssignment]);
       expect(result.meta?.total).toBe(1);
+    });
+  });
+
+  describe('removeAssignment', () => {
+    it('should remove quiz assignment from class', async () => {
+      const result = await controller.removeAssignment(
+        mockOrgId,
+        mockUserId,
+        mockClassId,
+        mockAssignmentId,
+      );
+
+      expect(service.removeAssignment).toHaveBeenCalledWith(
+        mockClassId,
+        mockAssignmentId,
+        mockOrgId,
+        mockUserId,
+      );
+      expect(result).toEqual({ success: true });
     });
   });
 });
