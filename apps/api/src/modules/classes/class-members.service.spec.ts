@@ -140,4 +140,51 @@ describe('ClassMembersService', () => {
       expect(result.role).toBe(ClassMemberRole.ASSISTANT);
     });
   });
+
+  describe('join', () => {
+    it('should allow student to join active class', async () => {
+      const mockClass = createMockClassDoc({ ownerId: mockUserId });
+      classesService.findOne.mockResolvedValue(mockClass as unknown as ClassDocument);
+      mockClassMemberModel.findOne.mockReturnValue({
+        exec: jest.fn().mockResolvedValue(null),
+      });
+
+      const result = await service.join(mockClassId, mockOrgId, studentUserId);
+
+      expect(result).toBeDefined();
+      expect(result.userId).toBe(studentUserId);
+      expect(result.role).toBe(ClassMemberRole.STUDENT);
+      expect(result.status).toBe(ClassMemberStatus.ACTIVE);
+    });
+
+    it('should throw BadRequestException if student joins ARCHIVED class', async () => {
+      const mockClass = createMockClassDoc({ ownerId: mockUserId, status: ClassStatus.ARCHIVED });
+      classesService.findOne.mockResolvedValue(mockClass as unknown as ClassDocument);
+
+      await expect(service.join(mockClassId, mockOrgId, studentUserId)).rejects.toThrow(
+        BadRequestException,
+      );
+    });
+
+    it('should throw BadRequestException if owner tries to join own class', async () => {
+      const mockClass = createMockClassDoc({ ownerId: mockUserId });
+      classesService.findOne.mockResolvedValue(mockClass as unknown as ClassDocument);
+
+      await expect(service.join(mockClassId, mockOrgId, mockUserId)).rejects.toThrow(
+        BadRequestException,
+      );
+    });
+
+    it('should return member if already ACTIVE', async () => {
+      const mockClass = createMockClassDoc({ ownerId: mockUserId });
+      const activeMember = createMockMemberDoc({ status: ClassMemberStatus.ACTIVE });
+      classesService.findOne.mockResolvedValue(mockClass as unknown as ClassDocument);
+      mockClassMemberModel.findOne.mockReturnValue({
+        exec: jest.fn().mockResolvedValue(activeMember),
+      });
+
+      const result = await service.join(mockClassId, mockOrgId, studentUserId);
+      expect(result.status).toBe(ClassMemberStatus.ACTIVE);
+    });
+  });
 });

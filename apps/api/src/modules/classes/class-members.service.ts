@@ -55,4 +55,37 @@ export class ClassMembersService {
       joinedAt: new Date(),
     }).save();
   }
+
+  async join(classId: string, orgId: string, userId: string): Promise<ClassMember> {
+    const classDoc = await this.classesService.findOne(classId, orgId);
+
+    if (classDoc.status === ClassStatus.ARCHIVED) {
+      throw new BadRequestException('Cannot join an archived class');
+    }
+    if (classDoc.ownerId === userId) {
+      throw new BadRequestException('Class owner is already the manager of the class');
+    }
+
+    const existing = await this.classMemberModel
+      .findOne({ classId: classDoc._id, userId, organizationId: orgId })
+      .exec();
+
+    if (existing) {
+      if (existing.status === ClassMemberStatus.ACTIVE) {
+        return existing;
+      }
+      existing.status = ClassMemberStatus.ACTIVE;
+      existing.joinedAt = new Date();
+      return existing.save();
+    }
+
+    return new this.classMemberModel({
+      organizationId: orgId,
+      classId: classDoc._id,
+      userId,
+      role: ClassMemberRole.STUDENT,
+      status: ClassMemberStatus.ACTIVE,
+      joinedAt: new Date(),
+    }).save();
+  }
 }

@@ -70,6 +70,7 @@ describe('ClassesController', () => {
 
     const mockClassMembersService = {
       addMember: jest.fn().mockResolvedValue(mockClassMember),
+      join: jest.fn().mockResolvedValue(mockClassMember),
     };
 
     const module: TestingModule = await Test.createTestingModule({
@@ -161,6 +162,15 @@ describe('ClassesController', () => {
         mockUserId,
         dto,
       );
+      expect(result).toEqual(mockClassMember);
+    });
+  });
+
+  describe('join', () => {
+    it('should join class and return ClassMember', async () => {
+      const result = await controller.join(mockOrgId, studentUserId, mockClassId);
+
+      expect(membersService.join).toHaveBeenCalledWith(mockClassId, mockOrgId, studentUserId);
       expect(result).toEqual(mockClassMember);
     });
   });
