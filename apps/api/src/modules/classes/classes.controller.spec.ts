@@ -7,6 +7,7 @@ import { ClassesController } from './classes.controller';
 import { ClassesService } from './classes.service';
 import {
   AddClassMemberDto,
+  AssignQuizDto,
   CreateClassDto,
   QueryClassMemberDto,
   QueryClassDto,
@@ -16,6 +17,7 @@ import { ClassMemberRole, ClassMemberStatus, ClassStatus } from './enums/class.e
 import { IClass, IClassMember } from './interfaces/class.interface';
 import { Class, ClassDocument } from './schemas/class.schema';
 import { ClassMember } from './schemas/class-member.schema';
+import { QuizAssignment } from './schemas/quiz-assignment.schema';
 
 describe('ClassesController', () => {
   let controller: ClassesController;
@@ -27,6 +29,8 @@ describe('ClassesController', () => {
   const studentUserId = 'user-789';
   const mockClassId = '507f1f77bcf86cd799439011';
   const mockMemberId = '507f1f77bcf86cd799439022';
+  const mockQuizId = '507f1f77bcf86cd799439033';
+  const mockAssignmentId = '507f1f77bcf86cd799439044';
 
   const mockClass: Class = {
     _id: new Types.ObjectId(mockClassId),
@@ -64,6 +68,18 @@ describe('ClassesController', () => {
     joinedAt: new Date(),
   };
 
+  const mockQuizAssignment: QuizAssignment = {
+    _id: new Types.ObjectId(mockAssignmentId),
+    organizationId: mockOrgId,
+    quizId: new Types.ObjectId(mockQuizId),
+    quizVersion: 1,
+    classId: new Types.ObjectId(mockClassId),
+    assignedBy: mockUserId,
+    dueAt: null,
+    allowLateSubmit: false,
+    createdAt: new Date(),
+  };
+
   beforeEach(async () => {
     const mockClassesService = {
       create: jest.fn().mockResolvedValue(mockClass),
@@ -82,6 +98,7 @@ describe('ClassesController', () => {
       archive: jest
         .fn()
         .mockResolvedValue({ ...mockClass, status: ClassStatus.ARCHIVED } as unknown as Class),
+      assignQuiz: jest.fn().mockResolvedValue(mockQuizAssignment),
     };
 
     const mockClassMembersService = {
@@ -257,6 +274,16 @@ describe('ClassesController', () => {
         studentUserId,
       );
       expect(result.status).toBe(ClassMemberStatus.REMOVED);
+    });
+  });
+
+  describe('assignQuiz', () => {
+    it('should assign quiz and return QuizAssignment', async () => {
+      const dto: AssignQuizDto = { quizId: mockQuizId };
+      const result = await controller.assignQuiz(mockOrgId, mockUserId, mockClassId, dto);
+
+      expect(service.assignQuiz).toHaveBeenCalledWith(mockClassId, mockOrgId, mockUserId, dto);
+      expect(result).toEqual(mockQuizAssignment);
     });
   });
 });

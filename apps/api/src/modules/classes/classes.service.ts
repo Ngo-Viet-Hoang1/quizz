@@ -7,16 +7,23 @@ import {
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, QueryFilter, Types } from 'mongoose';
 import { paginate, PaginateResult } from '../../common/utils/paginate.util';
-import { CreateClassDto, QueryClassDto, UpdateClassDto } from './dto';
+import { Quiz, QuizDocument } from '../quiz/schemas/quiz.schema';
+import { AssignQuizDto, CreateClassDto, QueryClassDto, UpdateClassDto } from './dto';
 import { ClassStatus } from './enums/class.enum';
 import { IClass } from './interfaces/class.interface';
 import { Class, ClassDocument } from './schemas/class.schema';
+import { QuizAssignment, QuizAssignmentDocument } from './schemas/quiz-assignment.schema';
 
 const CLASS_SORT_FIELDS = ['createdAt', 'name', 'status'] as const;
 
 @Injectable()
 export class ClassesService {
-  constructor(@InjectModel(Class.name) private readonly classModel: Model<ClassDocument>) {}
+  constructor(
+    @InjectModel(Class.name) private readonly classModel: Model<ClassDocument>,
+    @InjectModel(QuizAssignment.name)
+    private readonly assignmentModel: Model<QuizAssignmentDocument>,
+    @InjectModel(Quiz.name) private readonly quizModel: Model<QuizDocument>,
+  ) {}
 
   async create(orgId: string, ownerId: string, dto: CreateClassDto): Promise<Class> {
     return new this.classModel({
@@ -78,6 +85,43 @@ export class ClassesService {
 
     classDoc.status = ClassStatus.ARCHIVED;
     return classDoc.save();
+  }
+
+  async assignQuiz(
+    classId: string,
+    orgId: string,
+    assignedBy: string,
+    dto: AssignQuizDto,
+  ): Promise<QuizAssignment> {
+    const classDoc = await this.findOne(classId, orgId);
+
+    if (classDoc.ownerId !== assignedBy) {
+      throw new ForbiddenException('Only class owner can assign quizzes');
+    }
+    if (classDoc.status === ClassStatus.ARCHIVED) {
+      throw new BadRequestException('Cannot assign quizzes to an archived class');
+    }
+
+    const quiz = await this.quizModel
+      .findOne({ _id: new Types.ObjectId(dto.quizId), organizationId: orgId })
+      .exec();
+
+    if (!quiz) {
+      throw new NotFoundException('Quiz not found');
+    }
+
+    const assignment = new this.assignmentModel({
+      organizationId: orgId,
+      classId: classDoc._id,
+      quizId: quiz._id,
+      quizVersion: dto.quizVersion ?? quiz.version ?? 1,
+      assignedBy,
+      dueAt: dto.dueAt ? new Date(dto.dueAt) : null,
+      allowLateSubmit: dto.allowLateSubmit ?? false,
+      createdAt: new Date(),
+    });
+
+    return assignment.save();
   }
 
   private buildFilter(orgId: string, query: QueryClassDto): QueryFilter<ClassDocument> {

@@ -2,10 +2,12 @@ import { BadRequestException, ForbiddenException, NotFoundException } from '@nes
 import { getModelToken } from '@nestjs/mongoose';
 import { Test, TestingModule } from '@nestjs/testing';
 import { Types } from 'mongoose';
+import { Quiz } from '../quiz/schemas/quiz.schema';
 import { ClassesService } from './classes.service';
-import { QueryClassDto, UpdateClassDto } from './dto';
+import { AssignQuizDto, QueryClassDto, UpdateClassDto } from './dto';
 import { ClassStatus } from './enums/class.enum';
 import { Class } from './schemas/class.schema';
+import { QuizAssignment } from './schemas/quiz-assignment.schema';
 
 type MockModel = jest.Mock & {
   findOne: jest.Mock;
@@ -17,11 +19,15 @@ type MockModel = jest.Mock & {
 describe('ClassesService', () => {
   let service: ClassesService;
   let mockClassModel: MockModel;
+  let mockAssignmentModel: MockModel;
+  let mockQuizModel: MockModel;
 
   const mockOrgId = 'org-123';
   const mockUserId = 'user-456';
   const otherUserId = 'user-999';
   const mockClassId = new Types.ObjectId().toHexString();
+  const mockQuizId = new Types.ObjectId().toHexString();
+  const mockAssignmentId = new Types.ObjectId().toHexString();
 
   const createMockClassDoc = (dto: Record<string, unknown> = {}): Record<string, unknown> => ({
     _id: new Types.ObjectId(mockClassId),
@@ -32,6 +38,28 @@ describe('ClassesService', () => {
     save: jest.fn().mockImplementation(function (this: unknown) {
       return Promise.resolve(this);
     }),
+  });
+
+  const createMockAssignmentDoc = (dto: Record<string, unknown> = {}): Record<string, unknown> => ({
+    _id: new Types.ObjectId(mockAssignmentId),
+    organizationId: mockOrgId,
+    classId: new Types.ObjectId(mockClassId),
+    quizId: new Types.ObjectId(mockQuizId),
+    quizVersion: dto.quizVersion ?? 1,
+    assignedBy: dto.assignedBy ?? mockUserId,
+    dueAt: dto.dueAt ?? null,
+    allowLateSubmit: dto.allowLateSubmit ?? false,
+    createdAt: new Date(),
+    save: jest.fn().mockImplementation(function (this: unknown) {
+      return Promise.resolve(this);
+    }),
+  });
+
+  const createMockQuizDoc = (dto: Record<string, unknown> = {}): Record<string, unknown> => ({
+    _id: new Types.ObjectId(mockQuizId),
+    organizationId: mockOrgId,
+    title: dto.title ?? 'Kiểm tra Hóa học 15p',
+    version: dto.version ?? 1,
   });
 
   beforeEach(async () => {
@@ -45,8 +73,29 @@ describe('ClassesService', () => {
     mockClassModel.countDocuments = jest.fn();
     mockClassModel.updateOne = jest.fn().mockReturnValue({ exec: jest.fn().mockResolvedValue({}) });
 
+    mockAssignmentModel = jest
+      .fn()
+      .mockImplementation((dto: Record<string, unknown>) =>
+        createMockAssignmentDoc(dto),
+      ) as unknown as MockModel;
+    mockAssignmentModel.findOne = jest.fn();
+    mockAssignmentModel.find = jest.fn();
+    mockAssignmentModel.countDocuments = jest.fn();
+
+    mockQuizModel = jest
+      .fn()
+      .mockImplementation((dto: Record<string, unknown>) =>
+        createMockQuizDoc(dto),
+      ) as unknown as MockModel;
+    mockQuizModel.findOne = jest.fn();
+
     const module: TestingModule = await Test.createTestingModule({
-      providers: [ClassesService, { provide: getModelToken(Class.name), useValue: mockClassModel }],
+      providers: [
+        ClassesService,
+        { provide: getModelToken(Class.name), useValue: mockClassModel },
+        { provide: getModelToken(QuizAssignment.name), useValue: mockAssignmentModel },
+        { provide: getModelToken(Quiz.name), useValue: mockQuizModel },
+      ],
     }).compile();
 
     service = module.get<ClassesService>(ClassesService);
@@ -200,6 +249,51 @@ describe('ClassesService', () => {
       await expect(service.archive(mockClassId, mockOrgId, mockUserId)).rejects.toThrow(
         BadRequestException,
       );
+    });
+  });
+
+  describe('assignQuiz', () => {
+    it('should allow teacher to assign quiz to class', async () => {
+      const mockClass = createMockClassDoc({ ownerId: mockUserId });
+      const mockQuiz = createMockQuizDoc({});
+      mockClassModel.findOne.mockReturnValue({
+        exec: jest.fn().mockResolvedValue(mockClass),
+      });
+      mockQuizModel.findOne.mockReturnValue({
+        exec: jest.fn().mockResolvedValue(mockQuiz),
+      });
+
+      const dto: AssignQuizDto = { quizId: mockQuizId };
+      const result = await service.assignQuiz(mockClassId, mockOrgId, mockUserId, dto);
+
+      expect(result).toBeDefined();
+      expect(result.assignedBy).toBe(mockUserId);
+      expect(result.quizVersion).toBe(1);
+    });
+
+    it('should throw ForbiddenException if non-owner assigns quiz', async () => {
+      const mockClass = createMockClassDoc({ ownerId: mockUserId });
+      mockClassModel.findOne.mockReturnValue({
+        exec: jest.fn().mockResolvedValue(mockClass),
+      });
+
+      await expect(
+        service.assignQuiz(mockClassId, mockOrgId, otherUserId, { quizId: mockQuizId }),
+      ).rejects.toThrow(ForbiddenException);
+    });
+
+    it('should throw NotFoundException if quiz not found', async () => {
+      const mockClass = createMockClassDoc({ ownerId: mockUserId });
+      mockClassModel.findOne.mockReturnValue({
+        exec: jest.fn().mockResolvedValue(mockClass),
+      });
+      mockQuizModel.findOne.mockReturnValue({
+        exec: jest.fn().mockResolvedValue(null),
+      });
+
+      await expect(
+        service.assignQuiz(mockClassId, mockOrgId, mockUserId, { quizId: mockQuizId }),
+      ).rejects.toThrow(NotFoundException);
     });
   });
 });

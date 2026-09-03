@@ -23,6 +23,7 @@ import { ClassMembersService } from './class-members.service';
 import { ClassesService } from './classes.service';
 import {
   AddClassMemberDto,
+  AssignQuizDto,
   CreateClassDto,
   QueryClassMemberDto,
   QueryClassDto,
@@ -31,6 +32,7 @@ import {
 import { IClass, IClassMember } from './interfaces/class.interface';
 import { Class } from './schemas/class.schema';
 import { ClassMember } from './schemas/class-member.schema';
+import { QuizAssignment } from './schemas/quiz-assignment.schema';
 
 @ApiTags('classes')
 @Controller('classes')
@@ -179,5 +181,18 @@ export class ClassesController {
     @Param('userId') targetUserId: string,
   ): Promise<ClassMember> {
     return this.classMembersService.removeMember(id, orgId, actorId, targetUserId);
+  }
+
+  @Post(':id/assignments')
+  @HttpCode(HttpStatus.CREATED)
+  @Audit('class.quiz.assign')
+  @ApiOperation({ summary: 'Assign a quiz to class by teacher' })
+  assignQuiz(
+    @CurrentOrg() orgId: string,
+    @CurrentUser('_id') userId: string,
+    @Param('id', ParseObjectIdPipe) id: string,
+    @Body() dto: AssignQuizDto,
+  ): Promise<QuizAssignment> {
+    return this.classesService.assignQuiz(id, orgId, userId, dto);
   }
 }
