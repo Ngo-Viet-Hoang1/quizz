@@ -8,18 +8,22 @@ import { InjectModel } from '@nestjs/mongoose';
 import { Model, QueryFilter } from 'mongoose';
 import { paginate, PaginateResult } from '../../common/utils/paginate.util';
 import { ClassesService } from './classes.service';
-import { AddClassMemberDto, QueryClassMemberDto } from './dto';
+import { AddClassMemberDto, QueryClassDto, QueryClassMemberDto } from './dto';
 import { ClassMemberRole, ClassMemberStatus, ClassStatus } from './enums/class.enum';
-import { IClassMember } from './interfaces/class.interface';
+import { IClass, IClassMember } from './interfaces/class.interface';
+import { Class, ClassDocument } from './schemas/class.schema';
 import { ClassMember, ClassMemberDocument } from './schemas/class-member.schema';
 
 const MEMBER_SORT_FIELDS = ['joinedAt', 'role', 'status'] as const;
+const CLASS_SORT_FIELDS = ['createdAt', 'name', 'status'] as const;
 
 @Injectable()
 export class ClassMembersService {
   constructor(
     @InjectModel(ClassMember.name)
     private readonly classMemberModel: Model<ClassMemberDocument>,
+    @InjectModel(Class.name)
+    private readonly classModel: Model<ClassDocument>,
     private readonly classesService: ClassesService,
   ) {}
 
@@ -142,6 +146,36 @@ export class ClassMembersService {
 
     return paginate<IClassMember, ClassMemberDocument>(this.classMemberModel, filter, query, {
       allowedSortFields: MEMBER_SORT_FIELDS,
+    });
+  }
+
+  async findEnrolledClasses(
+    orgId: string,
+    userId: string,
+    query: QueryClassDto,
+  ): Promise<PaginateResult<IClass>> {
+    const activeMemberships = await this.classMemberModel
+      .find({ organizationId: orgId, userId, status: ClassMemberStatus.ACTIVE })
+      .select('classId')
+      .lean()
+      .exec();
+
+    const classIds = activeMemberships.map((m) => m.classId);
+
+    const filter: QueryFilter<ClassDocument> = {
+      _id: { $in: classIds },
+      organizationId: orgId,
+      ...(query.status && { status: query.status }),
+    };
+
+    if (query.search) {
+      const trimmed = query.search.trim();
+      const escaped = trimmed.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      filter.name = { $regex: escaped, $options: 'i' };
+    }
+
+    return paginate<IClass, ClassDocument>(this.classModel, filter, query, {
+      allowedSortFields: CLASS_SORT_FIELDS,
     });
   }
 }

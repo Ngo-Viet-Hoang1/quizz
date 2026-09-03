@@ -4,10 +4,10 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { Types } from 'mongoose';
 import { ClassMembersService } from './class-members.service';
 import { ClassesService } from './classes.service';
-import { QueryClassMemberDto } from './dto';
+import { QueryClassDto, QueryClassMemberDto } from './dto';
 import { ClassMemberRole, ClassMemberStatus, ClassStatus } from './enums/class.enum';
 import { ClassMember } from './schemas/class-member.schema';
-import { ClassDocument } from './schemas/class.schema';
+import { Class, ClassDocument } from './schemas/class.schema';
 
 type MockModel = jest.Mock & {
   findOne: jest.Mock;
@@ -20,6 +20,7 @@ describe('ClassMembersService', () => {
   let service: ClassMembersService;
   let classesService: jest.Mocked<ClassesService>;
   let mockClassMemberModel: MockModel;
+  let mockClassModel: MockModel;
 
   const mockOrgId = 'org-123';
   const mockUserId = 'user-456';
@@ -62,6 +63,16 @@ describe('ClassMembersService', () => {
       .fn()
       .mockReturnValue({ exec: jest.fn().mockResolvedValue({}) });
 
+    mockClassModel = jest
+      .fn()
+      .mockImplementation((dto: Record<string, unknown>) =>
+        createMockClassDoc(dto),
+      ) as unknown as MockModel;
+    mockClassModel.findOne = jest.fn();
+    mockClassModel.find = jest.fn();
+    mockClassModel.countDocuments = jest.fn();
+    mockClassModel.updateOne = jest.fn().mockReturnValue({ exec: jest.fn().mockResolvedValue({}) });
+
     const mockClassesService = {
       findOne: jest.fn(),
     };
@@ -70,6 +81,7 @@ describe('ClassMembersService', () => {
       providers: [
         ClassMembersService,
         { provide: getModelToken(ClassMember.name), useValue: mockClassMemberModel },
+        { provide: getModelToken(Class.name), useValue: mockClassModel },
         { provide: ClassesService, useValue: mockClassesService },
       ],
     }).compile();
@@ -284,6 +296,40 @@ describe('ClassMembersService', () => {
       });
 
       const result = await service.getMembers(mockClassId, mockOrgId, query);
+
+      expect(result.items).toHaveLength(1);
+      expect(result.meta.total).toBe(1);
+    });
+  });
+
+  describe('findEnrolledClasses', () => {
+    it('should return paginated classes student is enrolled in', async () => {
+      const mockClass = createMockClassDoc({ name: 'Lớp 10A1' });
+      mockClassMemberModel.find.mockReturnValue({
+        select: jest.fn().mockReturnValue({
+          lean: jest.fn().mockReturnValue({
+            exec: jest.fn().mockResolvedValue([{ classId: new Types.ObjectId(mockClassId) }]),
+          }),
+        }),
+      });
+
+      mockClassModel.countDocuments.mockReturnValue({
+        exec: jest.fn().mockResolvedValue(1),
+      });
+      mockClassModel.find.mockReturnValue({
+        sort: jest.fn().mockReturnValue({
+          skip: jest.fn().mockReturnValue({
+            limit: jest.fn().mockReturnValue({
+              lean: jest.fn().mockReturnValue({
+                exec: jest.fn().mockResolvedValue([mockClass]),
+              }),
+            }),
+          }),
+        }),
+      });
+
+      const query = Object.assign(new QueryClassDto(), { page: 1, limit: 10 });
+      const result = await service.findEnrolledClasses(mockOrgId, studentUserId, query);
 
       expect(result.items).toHaveLength(1);
       expect(result.meta.total).toBe(1);

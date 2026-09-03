@@ -94,6 +94,10 @@ describe('ClassesController', () => {
         items: [mockIClassMember],
         meta: { page: 1, limit: 10, total: 1, totalPages: 1 },
       }),
+      findEnrolledClasses: jest.fn().mockResolvedValue({
+        items: [mockIClass],
+        meta: { page: 1, limit: 10, total: 1, totalPages: 1 },
+      }),
     };
 
     const module: TestingModule = await Test.createTestingModule({
@@ -141,6 +145,21 @@ describe('ClassesController', () => {
       const result = await controller.findOwned(mockOrgId, mockUserId, query);
 
       expect(service.findOwnedClasses).toHaveBeenCalledWith(mockOrgId, mockUserId, query);
+      expect(result.data).toEqual([mockIClass]);
+      expect(result.meta?.total).toBe(1);
+    });
+  });
+
+  describe('findEnrolled', () => {
+    it('should return paginated enrolled classes wrapped in ApiResponse', async () => {
+      const query = Object.assign(new QueryClassDto(), { page: 1, limit: 10 });
+      const result = await controller.findEnrolled(mockOrgId, studentUserId, query);
+
+      expect(membersService.findEnrolledClasses).toHaveBeenCalledWith(
+        mockOrgId,
+        studentUserId,
+        query,
+      );
       expect(result.data).toEqual([mockIClass]);
       expect(result.meta?.total).toBe(1);
     });

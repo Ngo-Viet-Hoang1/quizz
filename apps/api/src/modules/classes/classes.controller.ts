@@ -75,6 +75,21 @@ export class ClassesController {
     return ApiResponse.success(items, meta);
   }
 
+  @Get('enrolled')
+  @ApiOperation({ summary: 'Get classes current user is enrolled in as member' })
+  async findEnrolled(
+    @CurrentOrg() orgId: string,
+    @CurrentUser('_id') userId: string,
+    @Query() query: QueryClassDto,
+  ): Promise<ApiResponse<IClass[]>> {
+    const { items, meta } = await this.classMembersService.findEnrolledClasses(
+      orgId,
+      userId,
+      query,
+    );
+    return ApiResponse.success(items, meta);
+  }
+
   @Get(':id')
   @ApiOperation({ summary: 'Get class by ID' })
   findOne(@CurrentOrg() orgId: string, @Param('id', ParseObjectIdPipe) id: string): Promise<Class> {
