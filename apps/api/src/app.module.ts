@@ -21,6 +21,7 @@ import { SyncModule } from './modules/sync/sync.module';
 import { AiGenerationModule } from './modules/ai-generation/ai-generation.module';
 import { SubscriptionsModule } from './modules/subscriptions/subscriptions.module';
 import { QueueModule } from './queue/queue.module';
+import { ClassesModule } from './modules/classes/classes.module';
 
 @Module({
   imports: [
@@ -49,6 +50,7 @@ import { QueueModule } from './queue/queue.module';
     AiGenerationModule,
     SubscriptionsModule,
     QueueModule,
+    ClassesModule,
   ],
   providers: [
     {
