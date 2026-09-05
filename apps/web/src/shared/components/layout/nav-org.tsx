@@ -1,5 +1,6 @@
 'use client';
 
+import * as React from 'react';
 import { useRouter } from 'next/navigation';
 import { useClerk, useOrganization, useOrganizationList } from '@clerk/nextjs';
 import { Avatar, AvatarFallback, AvatarImage } from '@/shared/ui/avatar';
@@ -31,8 +32,8 @@ export function NavOrg() {
 
   if (!isOrgLoaded || !isListLoaded) {
     return (
-      <div className="flex h-16 w-full min-w-0 items-center border-b border-sidebar-border px-3 group-data-[collapsed=true]/sidebar:px-2 group-data-[collapsed=true]/sidebar:justify-center">
-        <div className="h-10 w-full rounded-lg bg-muted/60 animate-pulse border shadow-2xs group-data-[collapsed=true]/sidebar:size-9 group-data-[collapsed=true]/sidebar:rounded-lg" />
+      <div className="flex h-16 w-full min-w-0 items-center justify-center border-b border-sidebar-border px-2">
+        <div className="h-10 w-full rounded-lg bg-muted/60 animate-pulse border shadow-2xs" />
       </div>
     );
   }
@@ -49,7 +50,7 @@ export function NavOrg() {
   const orgList = userMemberships.data ?? [];
 
   return (
-    <div className="flex h-16 w-full min-w-0 items-center border-b border-sidebar-border px-3 group-data-[collapsed=true]/sidebar:px-2 group-data-[collapsed=true]/sidebar:justify-center">
+    <div className="flex h-16 w-full min-w-0 items-center justify-center border-b border-sidebar-border px-2">
       <DropdownMenu>
         {/* Tooltip wraps Trigger so when collapsed it shows Org Name on hover */}
         <Tooltip>
@@ -75,11 +76,11 @@ export function NavOrg() {
                     </Avatar>
 
                     {/* Organization Info: auto hidden when collapsed via CSS */}
-                    <div className="flex flex-1 min-w-0 flex-col overflow-hidden group-data-[collapsed=true]/sidebar:hidden">
-                      <span className="truncate text-xs font-semibold text-sidebar-foreground">
+                    <div className="flex-1 min-w-0 overflow-hidden group-data-[collapsed=true]/sidebar:hidden">
+                      <div className="truncate text-xs font-semibold text-sidebar-foreground">
                         {organization?.name || 'Select Organization'}
-                      </span>
-                      <span className="truncate text-[10px] text-muted-foreground">Workspace</span>
+                      </div>
+                      <div className="truncate text-[10px] text-muted-foreground">Workspace</div>
                     </div>
 
                     {/* Chevron: auto hidden when collapsed */}
@@ -89,11 +90,7 @@ export function NavOrg() {
               />
             }
           />
-          <TooltipContent
-            side="right"
-            align="center"
-            className="hidden group-data-[collapsed=true]/sidebar:block"
-          >
+          <TooltipContent side="right" align="center">
             <span>{organization?.name || 'Select Organization'}</span>
           </TooltipContent>
         </Tooltip>
