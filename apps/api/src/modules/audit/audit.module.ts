@@ -3,10 +3,12 @@ import { MongooseModule } from '@nestjs/mongoose';
 import { APP_INTERCEPTOR } from '@nestjs/core';
 import { AuditLog, AuditLogSchema } from './schemas/audit-log.schema';
 import { AuditService } from './audit.service';
+import { AuditController } from './audit.controller';
 import { AuditInterceptor } from '../../common/interceptors/audit.interceptor';
 
 @Module({
   imports: [MongooseModule.forFeature([{ name: AuditLog.name, schema: AuditLogSchema }])],
+  controllers: [AuditController],
   providers: [
     AuditService,
     {
