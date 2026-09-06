@@ -1,0 +1,31 @@
+import { apiClient, useApiClient } from '@/shared/lib/api-client';
+import {
+  CreateQuizInput,
+  QuizItem,
+  QuizQueryParams,
+  ShareQuizResult,
+  UpdateQuizInput,
+} from '../types';
+
+export const quizKeys = {
+  all: ['quizzes'] as const,
+  lists: () => [...quizKeys.all, 'list'] as const,
+  list: (params?: QuizQueryParams) => [...quizKeys.lists(), params ?? {}] as const,
+  details: () => [...quizKeys.all, 'detail'] as const,
+  detail: (id: string) => [...quizKeys.details(), id] as const,
+};
+
+export const createQuizApi = (client = apiClient) => ({
+  getQuizzes: (params?: QuizQueryParams) => client.get<QuizItem[]>('/quizzes', { params }),
+  getQuizById: (id: string) => client.get<QuizItem>(`/quizzes/${id}`),
+  createQuiz: (data: CreateQuizInput) => client.post<QuizItem>('/quizzes', data),
+  updateQuiz: (id: string, data: UpdateQuizInput) => client.patch<QuizItem>(`/quizzes/${id}`, data),
+  publishQuiz: (id: string) => client.post<QuizItem>(`/quizzes/${id}/publish`),
+  archiveQuiz: (id: string) => client.post<QuizItem>(`/quizzes/${id}/archive`),
+  cloneQuiz: (id: string) => client.post<QuizItem>(`/quizzes/${id}/clone`),
+  shareQuiz: (id: string) => client.post<ShareQuizResult>(`/quizzes/${id}/share`),
+  deleteQuiz: (id: string) => client.delete<{ deleted: boolean; id: string }>(`/quizzes/${id}`),
+});
+
+export const quizApi = createQuizApi();
+export const useQuizApi = () => createQuizApi(useApiClient());

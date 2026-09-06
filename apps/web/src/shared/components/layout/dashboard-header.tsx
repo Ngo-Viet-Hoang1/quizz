@@ -4,6 +4,7 @@ import { useUIStore } from '@/shared/stores/ui-store';
 import { Button } from '@/shared/ui/button';
 import { Sheet, SheetContent, SheetTitle, SheetTrigger } from '@/shared/ui/sheet';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/shared/ui/tooltip';
+import { useQuiz } from '@/features/quizzes/hooks';
 import {
   Bell,
   ChevronRight,
@@ -36,6 +37,26 @@ const pathNameMap: Record<string, string> = {
   create: 'Create',
   edit: 'Edit',
 };
+
+function QuizBreadcrumbTitle({ id }: { id: string }) {
+  const { data: quiz, isLoading } = useQuiz(id);
+  if (isLoading && !quiz) {
+    return <span className="opacity-60">Loading...</span>;
+  }
+  return <>{quiz?.title || 'Quiz Details'}</>;
+}
+
+function BreadcrumbTitle({ segment, prevSegment }: { segment: string; prevSegment?: string }) {
+  if (pathNameMap[segment]) {
+    return <>{pathNameMap[segment]}</>;
+  }
+
+  if (prevSegment === 'quizzes') {
+    return <QuizBreadcrumbTitle id={segment} />;
+  }
+
+  return <>{segment}</>;
+}
 
 export function DashboardHeader() {
   const pathname = usePathname();
@@ -111,22 +132,22 @@ export function DashboardHeader() {
           </Link>
           {segments.map((segment, index) => {
             const isLast = index === segments.length - 1;
-            const title = pathNameMap[segment] || segment;
+            const prevSegment = index > 0 ? segments[index - 1] : undefined;
             const href = '/' + segments.slice(0, index + 1).join('/');
 
             return (
               <Fragment key={href}>
                 <ChevronRight className="size-3 text-muted-foreground/50 shrink-0" />
                 {isLast ? (
-                  <span className="font-semibold text-foreground truncate max-w-25 sm:max-w-40 lg:max-w-55">
-                    {title}
+                  <span className="font-semibold text-foreground truncate max-w-35 sm:max-w-60 lg:max-w-80">
+                    <BreadcrumbTitle segment={segment} prevSegment={prevSegment} />
                   </span>
                 ) : (
                   <Link
                     href={href}
-                    className="hover:text-foreground transition-colors truncate max-w-20 sm:max-w-30"
+                    className="hover:text-foreground transition-colors truncate max-w-20 sm:max-w-35"
                   >
-                    {title}
+                    <BreadcrumbTitle segment={segment} prevSegment={prevSegment} />
                   </Link>
                 )}
               </Fragment>

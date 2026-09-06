@@ -35,8 +35,24 @@ export function createApiClientInstance(getToken?: () => Promise<string | null>)
           if (token) {
             config.headers.Authorization = `Bearer ${token}`;
           }
-        } catch {
-          // Token fetch failed
+        } catch (error) {
+          console.warn('[apiClient] Failed to retrieve token from getToken callback:', error);
+        }
+      } else if (typeof window !== 'undefined') {
+        try {
+          const clerk = (
+            window as unknown as {
+              Clerk?: { session?: { getToken: () => Promise<string | null> } };
+            }
+          )?.Clerk;
+          if (clerk?.session) {
+            const token = await clerk.session.getToken();
+            if (token) {
+              config.headers.Authorization = `Bearer ${token}`;
+            }
+          }
+        } catch (error) {
+          console.warn('[apiClient] Failed to retrieve token from window.Clerk:', error);
         }
       }
 
