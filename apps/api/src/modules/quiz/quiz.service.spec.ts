@@ -10,6 +10,7 @@ import {
   QuizStatus,
   QuizVisibility,
 } from './enums';
+import { QuizVersionService } from './quiz-version.service';
 import { QuizService } from './quiz.service';
 import { Quiz } from './schemas/quiz.schema';
 
@@ -24,6 +25,7 @@ type MockQuizModel = jest.Mock & {
 describe('QuizService', () => {
   let service: QuizService;
   let mockQuizModel: MockQuizModel;
+  let mockQuizVersionService: { freezeSnapshot: jest.Mock };
 
   const mockOrgId = 'org_123';
   const mockUserId = 'user_abc';
@@ -77,12 +79,20 @@ describe('QuizService', () => {
       countDocuments: jest.fn(),
     });
 
+    mockQuizVersionService = {
+      freezeSnapshot: jest.fn().mockResolvedValue(undefined),
+    };
+
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         QuizService,
         {
           provide: getModelToken(Quiz.name),
           useValue: mockQuizModel,
+        },
+        {
+          provide: QuizVersionService,
+          useValue: mockQuizVersionService,
         },
       ],
     }).compile();
@@ -152,6 +162,62 @@ describe('QuizService', () => {
     });
   });
 
+  describe('update', () => {
+    it('should update draft quiz without bumping version or creating snapshot', async () => {
+      const draftDoc = createMockQuizDoc({ status: QuizStatus.DRAFT, version: 1 });
+      mockQuizModel.findOne.mockReturnValue({
+        lean: jest.fn().mockReturnValue({
+          exec: jest.fn().mockResolvedValue(draftDoc),
+        }),
+      });
+
+      const updatedDoc = { ...draftDoc, title: 'Updated Draft Title' };
+      mockQuizModel.findOneAndUpdate.mockReturnValue({
+        lean: jest.fn().mockReturnValue({
+          exec: jest.fn().mockResolvedValue(updatedDoc),
+        }),
+      });
+
+      const result = await service.update(mockQuizId, mockOrgId, { title: 'Updated Draft Title' });
+
+      expect(result.title).toBe('Updated Draft Title');
+      expect(mockQuizModel.findOneAndUpdate).toHaveBeenCalledWith(
+        { _id: mockQuizId, organizationId: mockOrgId, deletedAt: null },
+        expect.objectContaining({ version: 1, title: 'Updated Draft Title' }),
+        { new: true },
+      );
+      expect(mockQuizVersionService.freezeSnapshot).not.toHaveBeenCalled();
+    });
+
+    it('should bump version and freeze snapshot when updating a PUBLISHED quiz', async () => {
+      const publishedDoc = createMockQuizDoc({ status: QuizStatus.PUBLISHED, version: 1 });
+      mockQuizModel.findOne.mockReturnValue({
+        lean: jest.fn().mockReturnValue({
+          exec: jest.fn().mockResolvedValue(publishedDoc),
+        }),
+      });
+
+      const updatedDoc = { ...publishedDoc, title: 'Updated Published Title', version: 2 };
+      mockQuizModel.findOneAndUpdate.mockReturnValue({
+        lean: jest.fn().mockReturnValue({
+          exec: jest.fn().mockResolvedValue(updatedDoc),
+        }),
+      });
+
+      const result = await service.update(mockQuizId, mockOrgId, {
+        title: 'Updated Published Title',
+      });
+
+      expect(result.version).toBe(2);
+      expect(mockQuizModel.findOneAndUpdate).toHaveBeenCalledWith(
+        { _id: mockQuizId, organizationId: mockOrgId, deletedAt: null },
+        expect.objectContaining({ version: 2, title: 'Updated Published Title' }),
+        { new: true },
+      );
+      expect(mockQuizVersionService.freezeSnapshot).toHaveBeenCalledWith(updatedDoc, 2);
+    });
+  });
+
   describe('publish', () => {
     it('should throw NotFoundException if quiz not found', async () => {
       mockQuizModel.findOne.mockReturnValue({
@@ -198,12 +264,12 @@ describe('QuizService', () => {
 
       await expect(service.publish(mockQuizId, mockOrgId)).rejects.toThrow(BadRequestException);
       await expect(service.publish(mockQuizId, mockOrgId)).rejects.toThrow(
-        'Question "Invalid Question" must have at least one correct option',
+        'Question "Invalid Question" has invalid answer configuration',
       );
     });
 
-    it('should successfully publish a valid quiz', async () => {
-      const mockDoc = createMockQuizDoc();
+    it('should freeze snapshot in quiz_versions and update status to PUBLISHED', async () => {
+      const mockDoc = createMockQuizDoc({ version: 1 });
       mockQuizModel.findOne.mockReturnValue({
         lean: jest.fn().mockReturnValue({
           exec: jest.fn().mockResolvedValue(mockDoc),
@@ -218,7 +284,9 @@ describe('QuizService', () => {
       });
 
       const result = await service.publish(mockQuizId, mockOrgId);
+
       expect(result.status).toBe(QuizStatus.PUBLISHED);
+      expect(mockQuizVersionService.freezeSnapshot).toHaveBeenCalledWith(mockDoc, 1);
       expect(mockQuizModel.findOneAndUpdate).toHaveBeenCalledWith(
         { _id: mockQuizId, organizationId: mockOrgId, deletedAt: null },
         { status: QuizStatus.PUBLISHED },
