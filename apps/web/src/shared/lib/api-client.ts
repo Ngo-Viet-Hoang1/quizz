@@ -1,11 +1,16 @@
 import { useAuth } from '@clerk/nextjs';
-import { ApiError, ApiResponse } from '@repo/shared-types';
+import { ApiError, ApiResponse, PaginationMeta } from '@repo/shared-types';
 import axios, { AxiosInstance, AxiosRequestConfig, AxiosResponse } from 'axios';
 import * as React from 'react';
 import { toast } from 'sonner';
 
 export interface CustomRequestConfig extends AxiosRequestConfig {
   skipToast?: boolean;
+}
+
+export interface PaginatedResponse<T> {
+  data: T;
+  meta?: PaginationMeta;
 }
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4000/api/v1';
@@ -105,6 +110,16 @@ export function createApiClientInstance(getToken?: () => Promise<string | null>)
     get: async <T>(url: string, config?: CustomRequestConfig): Promise<T> => {
       const res = await instance.get<ApiResponse<T>>(url, config);
       return res.data.data as T;
+    },
+    getPaginated: async <T>(
+      url: string,
+      config?: CustomRequestConfig,
+    ): Promise<PaginatedResponse<T>> => {
+      const res = await instance.get<ApiResponse<T>>(url, config);
+      return {
+        data: res.data.data as T,
+        meta: res.data.meta,
+      };
     },
     post: async <T>(url: string, body?: unknown, config?: CustomRequestConfig): Promise<T> => {
       const res = await instance.post<ApiResponse<T>>(url, body, config);

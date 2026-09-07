@@ -38,6 +38,7 @@ interface DataTableProps<TData extends RowData> {
   onPageSizeChange?: (pageSize: number) => void;
   pageSizeOptions?: number[];
   onSortChange?: (sorting: SortingState) => void;
+  onRowClick?: (row: TData) => void;
   renderBulkActions?: (selectedRows: TData[]) => React.ReactNode;
 }
 
@@ -61,6 +62,7 @@ export function DataTable<TData extends RowData>({
   onPageSizeChange,
   pageSizeOptions,
   onSortChange,
+  onRowClick,
   renderBulkActions,
 }: DataTableProps<TData>) {
   const [internalSorting, setInternalSorting] = React.useState<SortingState>([]);
@@ -138,11 +140,11 @@ export function DataTable<TData extends RowData>({
       {/* 3. Table Container */}
       <div className="overflow-hidden rounded-xl border bg-card shadow-sm">
         <Table>
-          <TableHeader className="bg-muted/40">
+          <TableHeader className="sticky top-0 z-10 bg-card/95 backdrop-blur-sm border-b border-border/60">
             {table.getHeaderGroups().map((headerGroup) => (
-              <TableRow key={headerGroup.id}>
+              <TableRow key={headerGroup.id} className="hover:bg-transparent">
                 {headerGroup.headers.map((header) => (
-                  <TableHead key={header.id} className="font-mono text-xs uppercase">
+                  <TableHead key={header.id} className="font-mono text-xs uppercase h-10">
                     {header.isPlaceholder ? null : <table.FlexRender header={header} />}
                   </TableHead>
                 ))}
@@ -153,10 +155,10 @@ export function DataTable<TData extends RowData>({
             {isLoading ? (
               // Skeleton Loading Rows
               Array.from({ length: skeletonRowCount }).map((_, idx) => (
-                <TableRow key={idx} className="h-14">
+                <TableRow key={idx} className="h-11">
                   {columns.map((_, colIdx) => (
                     <TableCell key={colIdx}>
-                      <Skeleton className="h-4 w-full rounded" />
+                      <Skeleton className="h-3.5 w-full rounded" />
                     </TableCell>
                   ))}
                 </TableRow>
@@ -166,10 +168,13 @@ export function DataTable<TData extends RowData>({
                 <TableRow
                   key={row.id}
                   data-state={row.getIsSelected() && 'selected'}
-                  className="h-14 transition-colors hover:bg-muted/40 data-[state=selected]:bg-muted/60"
+                  onClick={() => onRowClick?.(row.original)}
+                  className={`group/row h-11 transition-colors hover:bg-muted/40 data-[state=selected]:bg-muted/60 border-b border-border/40 ${
+                    onRowClick ? 'cursor-pointer' : ''
+                  }`}
                 >
                   {row.getVisibleCells().map((cell) => (
-                    <TableCell key={cell.id} className="font-mono">
+                    <TableCell key={cell.id} className="font-mono py-1.5">
                       <table.FlexRender cell={cell} />
                     </TableCell>
                   ))}
