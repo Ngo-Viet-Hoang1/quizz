@@ -3,7 +3,9 @@ import { MongooseModule } from '@nestjs/mongoose';
 import { ClassMember, ClassMemberSchema } from '../classes/schemas/class-member.schema';
 import { QuizAssignment, QuizAssignmentSchema } from '../classes/schemas/quiz-assignment.schema';
 import { Quiz, QuizSchema } from '../quiz/schemas/quiz.schema';
+import { ExamAttemptsController } from './exam-attempts.controller';
 import { ExamAttempt, ExamAttemptSchema } from './schemas/exam-attempt.schema';
+import { ExamAttemptStartService } from './services/exam-attempt-start.service';
 
 @Module({
   imports: [
@@ -14,8 +16,8 @@ import { ExamAttempt, ExamAttemptSchema } from './schemas/exam-attempt.schema';
       { name: ClassMember.name, schema: ClassMemberSchema },
     ]),
   ],
-  controllers: [],
-  providers: [],
-  exports: [MongooseModule],
+  controllers: [ExamAttemptsController],
+  providers: [ExamAttemptStartService],
+  exports: [ExamAttemptStartService, MongooseModule],
 })
 export class ExamAttemptsModule {}
