@@ -22,6 +22,7 @@ import { SubmitAnswerDto } from './dto/submit-answer.dto';
 import { IExamAttempt, StartExamAttemptResponse } from './interfaces/exam-attempt.interface';
 import { ExamAttemptProgressService } from './services/exam-attempt-progress.service';
 import { ExamAttemptStartService } from './services/exam-attempt-start.service';
+import { ExamAttemptSubmitService } from './services/exam-attempt-submit.service';
 
 @ApiTags('exam-attempts')
 @Controller('exam-attempts')
@@ -31,6 +32,7 @@ export class ExamAttemptsController {
   constructor(
     private readonly startService: ExamAttemptStartService,
     private readonly progressService: ExamAttemptProgressService,
+    private readonly submitService: ExamAttemptSubmitService,
   ) {}
 
   @Post('start')
@@ -71,6 +73,19 @@ export class ExamAttemptsController {
     @Body() dto: RecordViolationDto,
   ): Promise<ApiResponse<IExamAttempt>> {
     const result = await this.progressService.recordViolation(orgId, userId, attemptId, dto);
+    return ApiResponse.success(result);
+  }
+
+  @Post(':id/submit')
+  @HttpCode(HttpStatus.OK)
+  @Audit('exam_attempt.submit')
+  @ApiOperation({ summary: 'Submit and finalize an exam attempt with auto-grading' })
+  async submit(
+    @CurrentOrg() orgId: string,
+    @CurrentUser('_id') userId: string,
+    @Param('id', ParseObjectIdPipe) attemptId: string,
+  ): Promise<ApiResponse<IExamAttempt>> {
+    const result = await this.submitService.submitAttempt(orgId, userId, attemptId);
     return ApiResponse.success(result);
   }
 }

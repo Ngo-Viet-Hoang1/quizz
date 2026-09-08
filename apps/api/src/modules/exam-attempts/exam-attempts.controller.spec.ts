@@ -9,11 +9,13 @@ import { ExamAttemptsController } from './exam-attempts.controller';
 import { IExamAttempt, StartExamAttemptResponse } from './interfaces/exam-attempt.interface';
 import { ExamAttemptProgressService } from './services/exam-attempt-progress.service';
 import { ExamAttemptStartService } from './services/exam-attempt-start.service';
+import { ExamAttemptSubmitService } from './services/exam-attempt-submit.service';
 
 describe('ExamAttemptsController', () => {
   let controller: ExamAttemptsController;
   let startService: jest.Mocked<ExamAttemptStartService>;
   let progressService: jest.Mocked<ExamAttemptProgressService>;
+  let submitService: jest.Mocked<ExamAttemptSubmitService>;
 
   const mockOrgId = 'org_123';
   const mockUserId = 'user_456';
@@ -28,11 +30,16 @@ describe('ExamAttemptsController', () => {
       recordViolation: jest.fn(),
     };
 
+    const mockSubmitService = {
+      submitAttempt: jest.fn(),
+    };
+
     const module: TestingModule = await Test.createTestingModule({
       controllers: [ExamAttemptsController],
       providers: [
         { provide: ExamAttemptStartService, useValue: mockStartService },
         { provide: ExamAttemptProgressService, useValue: mockProgressService },
+        { provide: ExamAttemptSubmitService, useValue: mockSubmitService },
       ],
     })
       .overrideGuard(ClerkAuthGuard)
@@ -44,6 +51,7 @@ describe('ExamAttemptsController', () => {
     controller = module.get<ExamAttemptsController>(ExamAttemptsController);
     startService = module.get(ExamAttemptStartService);
     progressService = module.get(ExamAttemptProgressService);
+    submitService = module.get(ExamAttemptSubmitService);
   });
 
   describe('start', () => {
@@ -128,6 +136,31 @@ describe('ExamAttemptsController', () => {
         mockUserId,
         mockAttemptId,
         dto,
+      );
+      expect(response.success).toBe(true);
+      expect(response.data).toEqual(mockAttempt);
+    });
+  });
+
+  describe('submit', () => {
+    it('should call submitService.submitAttempt and return wrapped ApiResponse', async () => {
+      const mockAttemptId = new Types.ObjectId().toString();
+      const mockAttempt = {
+        _id: new Types.ObjectId(mockAttemptId),
+        organizationId: mockOrgId,
+        userId: mockUserId,
+        status: ExamAttemptStatus.SUBMITTED,
+        score: 10,
+      } as unknown as IExamAttempt;
+
+      submitService.submitAttempt.mockResolvedValue(mockAttempt);
+
+      const response = await controller.submit(mockOrgId, mockUserId, mockAttemptId);
+
+      expect(submitService.submitAttempt).toHaveBeenCalledWith(
+        mockOrgId,
+        mockUserId,
+        mockAttemptId,
       );
       expect(response.success).toBe(true);
       expect(response.data).toEqual(mockAttempt);
