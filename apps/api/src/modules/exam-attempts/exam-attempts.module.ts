@@ -1,0 +1,21 @@
+import { Module } from '@nestjs/common';
+import { MongooseModule } from '@nestjs/mongoose';
+import { ClassMember, ClassMemberSchema } from '../classes/schemas/class-member.schema';
+import { QuizAssignment, QuizAssignmentSchema } from '../classes/schemas/quiz-assignment.schema';
+import { Quiz, QuizSchema } from '../quiz/schemas/quiz.schema';
+import { ExamAttempt, ExamAttemptSchema } from './schemas/exam-attempt.schema';
+
+@Module({
+  imports: [
+    MongooseModule.forFeature([
+      { name: ExamAttempt.name, schema: ExamAttemptSchema },
+      { name: Quiz.name, schema: QuizSchema },
+      { name: QuizAssignment.name, schema: QuizAssignmentSchema },
+      { name: ClassMember.name, schema: ClassMemberSchema },
+    ]),
+  ],
+  controllers: [],
+  providers: [],
+  exports: [MongooseModule],
+})
+export class ExamAttemptsModule {}
