@@ -5,11 +5,14 @@ import { QuizAssignment, QuizAssignmentSchema } from '../classes/schemas/quiz-as
 import { Quiz, QuizSchema } from '../quiz/schemas/quiz.schema';
 import { ExamAttemptsController } from './exam-attempts.controller';
 import { ExamAttempt, ExamAttemptSchema } from './schemas/exam-attempt.schema';
-import { AutoGradingService } from './services/auto-grading.service';
-import { ExamAttemptProgressService } from './services/exam-attempt-progress.service';
-import { ExamAttemptQueryService } from './services/exam-attempt-query.service';
-import { ExamAttemptStartService } from './services/exam-attempt-start.service';
-import { ExamAttemptSubmitService } from './services/exam-attempt-submit.service';
+import {
+  AutoGradingService,
+  ExamAttemptProgressService,
+  ExamAttemptQueryService,
+  ExamAttemptStartService,
+  ExamAttemptSubmitService,
+} from './services';
+import { ExamAttemptsScheduler } from './tasks/exam-attempts.scheduler';
 
 @Module({
   imports: [
@@ -27,6 +30,7 @@ import { ExamAttemptSubmitService } from './services/exam-attempt-submit.service
     AutoGradingService,
     ExamAttemptSubmitService,
     ExamAttemptQueryService,
+    ExamAttemptsScheduler,
   ],
   exports: [
     ExamAttemptStartService,
