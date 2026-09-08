@@ -16,6 +16,7 @@ import { ClerkAuthGuard } from '../../common/guards/clerk-auth.guard';
 import { OrgContextGuard } from '../../common/guards/org-context.guard';
 import { ParseObjectIdPipe } from '../../common/pipes/parse-object-id.pipe';
 import { ApiResponse } from '../../common/response/api-response';
+import { RecordViolationDto } from './dto/record-violation.dto';
 import { StartExamAttemptDto } from './dto/start-exam-attempt.dto';
 import { SubmitAnswerDto } from './dto/submit-answer.dto';
 import { IExamAttempt, StartExamAttemptResponse } from './interfaces/exam-attempt.interface';
@@ -56,6 +57,20 @@ export class ExamAttemptsController {
     @Body() dto: SubmitAnswerDto,
   ): Promise<ApiResponse<IExamAttempt>> {
     const result = await this.progressService.saveAnswer(orgId, userId, attemptId, dto);
+    return ApiResponse.success(result);
+  }
+
+  @Post(':id/violations')
+  @HttpCode(HttpStatus.OK)
+  @Audit('exam_attempt.violation')
+  @ApiOperation({ summary: 'Record proctoring or integrity violation during exam attempt' })
+  async recordViolation(
+    @CurrentOrg() orgId: string,
+    @CurrentUser('_id') userId: string,
+    @Param('id', ParseObjectIdPipe) attemptId: string,
+    @Body() dto: RecordViolationDto,
+  ): Promise<ApiResponse<IExamAttempt>> {
+    const result = await this.progressService.recordViolation(orgId, userId, attemptId, dto);
     return ApiResponse.success(result);
   }
 }

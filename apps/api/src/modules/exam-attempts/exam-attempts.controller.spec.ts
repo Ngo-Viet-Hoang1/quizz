@@ -2,7 +2,9 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { Types } from 'mongoose';
 import { ClerkAuthGuard } from '../../common/guards/clerk-auth.guard';
 import { OrgContextGuard } from '../../common/guards/org-context.guard';
+import { RecordViolationDto } from './dto/record-violation.dto';
 import { ExamAttemptStatus } from './enums/exam-attempt-status.enum';
+import { ViolationType } from './enums/violation-type.enum';
 import { ExamAttemptsController } from './exam-attempts.controller';
 import { IExamAttempt, StartExamAttemptResponse } from './interfaces/exam-attempt.interface';
 import { ExamAttemptProgressService } from './services/exam-attempt-progress.service';
@@ -23,6 +25,7 @@ describe('ExamAttemptsController', () => {
 
     const mockProgressService = {
       saveAnswer: jest.fn(),
+      recordViolation: jest.fn(),
     };
 
     const module: TestingModule = await Test.createTestingModule({
@@ -95,6 +98,32 @@ describe('ExamAttemptsController', () => {
       const response = await controller.saveAnswer(mockOrgId, mockUserId, mockAttemptId, dto);
 
       expect(progressService.saveAnswer).toHaveBeenCalledWith(
+        mockOrgId,
+        mockUserId,
+        mockAttemptId,
+        dto,
+      );
+      expect(response.success).toBe(true);
+      expect(response.data).toEqual(mockAttempt);
+    });
+  });
+
+  describe('recordViolation', () => {
+    it('should call progressService.recordViolation and return wrapped ApiResponse', async () => {
+      const mockAttemptId = new Types.ObjectId().toString();
+      const mockAttempt = {
+        _id: new Types.ObjectId(mockAttemptId),
+        organizationId: mockOrgId,
+        userId: mockUserId,
+        status: ExamAttemptStatus.IN_PROGRESS,
+      } as unknown as IExamAttempt;
+
+      progressService.recordViolation.mockResolvedValue(mockAttempt);
+
+      const dto: RecordViolationDto = { type: ViolationType.TAB_SWITCH };
+      const response = await controller.recordViolation(mockOrgId, mockUserId, mockAttemptId, dto);
+
+      expect(progressService.recordViolation).toHaveBeenCalledWith(
         mockOrgId,
         mockUserId,
         mockAttemptId,
