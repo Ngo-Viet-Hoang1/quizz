@@ -1,11 +1,13 @@
 import {
   Body,
   Controller,
+  Get,
   HttpCode,
   HttpStatus,
   Param,
   Post,
   Put,
+  Query,
   UseGuards,
 } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
@@ -16,11 +18,17 @@ import { ClerkAuthGuard } from '../../common/guards/clerk-auth.guard';
 import { OrgContextGuard } from '../../common/guards/org-context.guard';
 import { ParseObjectIdPipe } from '../../common/pipes/parse-object-id.pipe';
 import { ApiResponse } from '../../common/response/api-response';
+import { QueryExamAttemptDto } from './dto/query-exam-attempt.dto';
 import { RecordViolationDto } from './dto/record-violation.dto';
 import { StartExamAttemptDto } from './dto/start-exam-attempt.dto';
 import { SubmitAnswerDto } from './dto/submit-answer.dto';
-import { IExamAttempt, StartExamAttemptResponse } from './interfaces/exam-attempt.interface';
+import {
+  ExamAttemptDetailResponse,
+  IExamAttempt,
+  StartExamAttemptResponse,
+} from './interfaces/exam-attempt.interface';
 import { ExamAttemptProgressService } from './services/exam-attempt-progress.service';
+import { ExamAttemptQueryService } from './services/exam-attempt-query.service';
 import { ExamAttemptStartService } from './services/exam-attempt-start.service';
 import { ExamAttemptSubmitService } from './services/exam-attempt-submit.service';
 
@@ -33,6 +41,7 @@ export class ExamAttemptsController {
     private readonly startService: ExamAttemptStartService,
     private readonly progressService: ExamAttemptProgressService,
     private readonly submitService: ExamAttemptSubmitService,
+    private readonly queryService: ExamAttemptQueryService,
   ) {}
 
   @Post('start')
@@ -86,6 +95,28 @@ export class ExamAttemptsController {
     @Param('id', ParseObjectIdPipe) attemptId: string,
   ): Promise<ApiResponse<IExamAttempt>> {
     const result = await this.submitService.submitAttempt(orgId, userId, attemptId);
+    return ApiResponse.success(result);
+  }
+
+  @Get('my-history')
+  @ApiOperation({ summary: 'Get paginated history of exam attempts for current user' })
+  async getMyHistory(
+    @CurrentOrg() orgId: string,
+    @CurrentUser('_id') userId: string,
+    @Query() query: QueryExamAttemptDto,
+  ): Promise<ApiResponse<IExamAttempt[]>> {
+    const result = await this.queryService.getMyHistory(orgId, userId, query);
+    return ApiResponse.success(result.items, result.meta);
+  }
+
+  @Get(':id')
+  @ApiOperation({ summary: 'Get detail of a specific exam attempt' })
+  async getAttemptDetail(
+    @CurrentOrg() orgId: string,
+    @CurrentUser('_id') userId: string,
+    @Param('id', ParseObjectIdPipe) attemptId: string,
+  ): Promise<ApiResponse<ExamAttemptDetailResponse>> {
+    const result = await this.queryService.getAttemptDetail(orgId, userId, attemptId);
     return ApiResponse.success(result);
   }
 }

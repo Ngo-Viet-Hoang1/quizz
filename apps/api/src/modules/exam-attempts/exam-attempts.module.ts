@@ -7,6 +7,7 @@ import { ExamAttemptsController } from './exam-attempts.controller';
 import { ExamAttempt, ExamAttemptSchema } from './schemas/exam-attempt.schema';
 import { AutoGradingService } from './services/auto-grading.service';
 import { ExamAttemptProgressService } from './services/exam-attempt-progress.service';
+import { ExamAttemptQueryService } from './services/exam-attempt-query.service';
 import { ExamAttemptStartService } from './services/exam-attempt-start.service';
 import { ExamAttemptSubmitService } from './services/exam-attempt-submit.service';
 
@@ -25,12 +26,14 @@ import { ExamAttemptSubmitService } from './services/exam-attempt-submit.service
     ExamAttemptProgressService,
     AutoGradingService,
     ExamAttemptSubmitService,
+    ExamAttemptQueryService,
   ],
   exports: [
     ExamAttemptStartService,
     ExamAttemptProgressService,
     AutoGradingService,
     ExamAttemptSubmitService,
+    ExamAttemptQueryService,
     MongooseModule,
   ],
 })

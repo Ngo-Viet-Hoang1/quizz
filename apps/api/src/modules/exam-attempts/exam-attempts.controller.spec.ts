@@ -2,12 +2,18 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { Types } from 'mongoose';
 import { ClerkAuthGuard } from '../../common/guards/clerk-auth.guard';
 import { OrgContextGuard } from '../../common/guards/org-context.guard';
+import { QueryExamAttemptDto } from './dto/query-exam-attempt.dto';
 import { RecordViolationDto } from './dto/record-violation.dto';
 import { ExamAttemptStatus } from './enums/exam-attempt-status.enum';
 import { ViolationType } from './enums/violation-type.enum';
 import { ExamAttemptsController } from './exam-attempts.controller';
-import { IExamAttempt, StartExamAttemptResponse } from './interfaces/exam-attempt.interface';
+import {
+  ExamAttemptDetailResponse,
+  IExamAttempt,
+  StartExamAttemptResponse,
+} from './interfaces/exam-attempt.interface';
 import { ExamAttemptProgressService } from './services/exam-attempt-progress.service';
+import { ExamAttemptQueryService } from './services/exam-attempt-query.service';
 import { ExamAttemptStartService } from './services/exam-attempt-start.service';
 import { ExamAttemptSubmitService } from './services/exam-attempt-submit.service';
 
@@ -16,6 +22,7 @@ describe('ExamAttemptsController', () => {
   let startService: jest.Mocked<ExamAttemptStartService>;
   let progressService: jest.Mocked<ExamAttemptProgressService>;
   let submitService: jest.Mocked<ExamAttemptSubmitService>;
+  let queryService: jest.Mocked<ExamAttemptQueryService>;
 
   const mockOrgId = 'org_123';
   const mockUserId = 'user_456';
@@ -34,12 +41,18 @@ describe('ExamAttemptsController', () => {
       submitAttempt: jest.fn(),
     };
 
+    const mockQueryService = {
+      getMyHistory: jest.fn(),
+      getAttemptDetail: jest.fn(),
+    };
+
     const module: TestingModule = await Test.createTestingModule({
       controllers: [ExamAttemptsController],
       providers: [
         { provide: ExamAttemptStartService, useValue: mockStartService },
         { provide: ExamAttemptProgressService, useValue: mockProgressService },
         { provide: ExamAttemptSubmitService, useValue: mockSubmitService },
+        { provide: ExamAttemptQueryService, useValue: mockQueryService },
       ],
     })
       .overrideGuard(ClerkAuthGuard)
@@ -52,6 +65,7 @@ describe('ExamAttemptsController', () => {
     startService = module.get(ExamAttemptStartService);
     progressService = module.get(ExamAttemptProgressService);
     submitService = module.get(ExamAttemptSubmitService);
+    queryService = module.get(ExamAttemptQueryService);
   });
 
   describe('start', () => {
@@ -164,6 +178,64 @@ describe('ExamAttemptsController', () => {
       );
       expect(response.success).toBe(true);
       expect(response.data).toEqual(mockAttempt);
+    });
+  });
+
+  describe('getMyHistory', () => {
+    it('should call queryService.getMyHistory and return paginated ApiResponse', async () => {
+      const mockAttempts = [
+        {
+          _id: new Types.ObjectId(),
+          organizationId: mockOrgId,
+          userId: mockUserId,
+        } as unknown as IExamAttempt,
+      ];
+      const mockMeta = { page: 1, limit: 10, total: 1, totalPages: 1 };
+
+      queryService.getMyHistory.mockResolvedValue({
+        items: mockAttempts,
+        meta: mockMeta,
+      });
+
+      const query: QueryExamAttemptDto = {
+        page: 1,
+        limit: 10,
+        sortBy: 'createdAt',
+        sortOrder: 'desc',
+      };
+      const response = await controller.getMyHistory(mockOrgId, mockUserId, query);
+
+      expect(queryService.getMyHistory).toHaveBeenCalledWith(mockOrgId, mockUserId, query);
+      expect(response.success).toBe(true);
+      expect(response.data).toEqual(mockAttempts);
+      expect(response.meta).toEqual(mockMeta);
+    });
+  });
+
+  describe('getAttemptDetail', () => {
+    it('should call queryService.getAttemptDetail and return wrapped ApiResponse', async () => {
+      const mockAttemptId = new Types.ObjectId().toString();
+      const mockDetail: ExamAttemptDetailResponse = {
+        attempt: {
+          _id: new Types.ObjectId(mockAttemptId),
+          organizationId: mockOrgId,
+          userId: mockUserId,
+        } as unknown as IExamAttempt,
+        quizTitle: 'Midterm Exam',
+        questions: [],
+      };
+
+      queryService.getAttemptDetail.mockResolvedValue(mockDetail);
+
+      const response = await controller.getAttemptDetail(mockOrgId, mockUserId, mockAttemptId);
+
+      expect(queryService.getAttemptDetail).toHaveBeenCalledWith(
+        mockOrgId,
+        mockUserId,
+        mockAttemptId,
+      );
+      expect(response.success).toBe(true);
+      expect(response.data).toEqual(mockDetail);
     });
   });
 });
