@@ -5,6 +5,7 @@ import { QuizAssignment, QuizAssignmentSchema } from '../classes/schemas/quiz-as
 import { Quiz, QuizSchema } from '../quiz/schemas/quiz.schema';
 import { ExamAttemptsController } from './exam-attempts.controller';
 import { ExamAttempt, ExamAttemptSchema } from './schemas/exam-attempt.schema';
+import { ExamAttemptProgressService } from './services/exam-attempt-progress.service';
 import { ExamAttemptStartService } from './services/exam-attempt-start.service';
 
 @Module({
@@ -17,7 +18,7 @@ import { ExamAttemptStartService } from './services/exam-attempt-start.service';
     ]),
   ],
   controllers: [ExamAttemptsController],
-  providers: [ExamAttemptStartService],
-  exports: [ExamAttemptStartService, MongooseModule],
+  providers: [ExamAttemptStartService, ExamAttemptProgressService],
+  exports: [ExamAttemptStartService, ExamAttemptProgressService, MongooseModule],
 })
 export class ExamAttemptsModule {}

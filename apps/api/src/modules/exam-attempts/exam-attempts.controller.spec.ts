@@ -5,11 +5,13 @@ import { OrgContextGuard } from '../../common/guards/org-context.guard';
 import { ExamAttemptStatus } from './enums/exam-attempt-status.enum';
 import { ExamAttemptsController } from './exam-attempts.controller';
 import { IExamAttempt, StartExamAttemptResponse } from './interfaces/exam-attempt.interface';
+import { ExamAttemptProgressService } from './services/exam-attempt-progress.service';
 import { ExamAttemptStartService } from './services/exam-attempt-start.service';
 
 describe('ExamAttemptsController', () => {
   let controller: ExamAttemptsController;
   let startService: jest.Mocked<ExamAttemptStartService>;
+  let progressService: jest.Mocked<ExamAttemptProgressService>;
 
   const mockOrgId = 'org_123';
   const mockUserId = 'user_456';
@@ -19,9 +21,16 @@ describe('ExamAttemptsController', () => {
       startAttempt: jest.fn(),
     };
 
+    const mockProgressService = {
+      saveAnswer: jest.fn(),
+    };
+
     const module: TestingModule = await Test.createTestingModule({
       controllers: [ExamAttemptsController],
-      providers: [{ provide: ExamAttemptStartService, useValue: mockStartService }],
+      providers: [
+        { provide: ExamAttemptStartService, useValue: mockStartService },
+        { provide: ExamAttemptProgressService, useValue: mockProgressService },
+      ],
     })
       .overrideGuard(ClerkAuthGuard)
       .useValue({ canActivate: () => true })
@@ -31,6 +40,7 @@ describe('ExamAttemptsController', () => {
 
     controller = module.get<ExamAttemptsController>(ExamAttemptsController);
     startService = module.get(ExamAttemptStartService);
+    progressService = module.get(ExamAttemptProgressService);
   });
 
   describe('start', () => {
@@ -66,6 +76,32 @@ describe('ExamAttemptsController', () => {
       expect(startService.startAttempt).toHaveBeenCalledWith(mockOrgId, mockUserId, dto);
       expect(response.success).toBe(true);
       expect(response.data).toEqual(mockResult);
+    });
+  });
+
+  describe('saveAnswer', () => {
+    it('should call progressService.saveAnswer and return wrapped ApiResponse', async () => {
+      const mockAttemptId = new Types.ObjectId().toString();
+      const mockAttempt = {
+        _id: new Types.ObjectId(mockAttemptId),
+        organizationId: mockOrgId,
+        userId: mockUserId,
+        status: ExamAttemptStatus.IN_PROGRESS,
+      } as unknown as IExamAttempt;
+
+      progressService.saveAnswer.mockResolvedValue(mockAttempt);
+
+      const dto = { questionId: new Types.ObjectId().toString(), selectedOptionIds: [] };
+      const response = await controller.saveAnswer(mockOrgId, mockUserId, mockAttemptId, dto);
+
+      expect(progressService.saveAnswer).toHaveBeenCalledWith(
+        mockOrgId,
+        mockUserId,
+        mockAttemptId,
+        dto,
+      );
+      expect(response.success).toBe(true);
+      expect(response.data).toEqual(mockAttempt);
     });
   });
 });
