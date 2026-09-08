@@ -14,6 +14,7 @@ import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { Audit } from '../../common/decorators/audit.decorator';
 import { CurrentOrg } from '../../common/decorators/current-org.decorator';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
+import { PaginationQueryDto } from '../../common/dto/pagination-query.dto';
 import { ClerkAuthGuard } from '../../common/guards/clerk-auth.guard';
 import { OrgContextGuard } from '../../common/guards/org-context.guard';
 import { ParseObjectIdPipe } from '../../common/pipes/parse-object-id.pipe';
@@ -106,6 +107,17 @@ export class ExamAttemptsController {
     @Query() query: QueryExamAttemptDto,
   ): Promise<ApiResponse<IExamAttempt[]>> {
     const result = await this.queryService.getMyHistory(orgId, userId, query);
+    return ApiResponse.success(result.items, result.meta);
+  }
+
+  @Get('assignment/:assignmentId')
+  @ApiOperation({ summary: 'Get class assignment gradebook of student attempts for teachers' })
+  async getAssignmentGradebook(
+    @CurrentOrg() orgId: string,
+    @Param('assignmentId', ParseObjectIdPipe) assignmentId: string,
+    @Query() query: PaginationQueryDto,
+  ): Promise<ApiResponse<IExamAttempt[]>> {
+    const result = await this.queryService.getAssignmentGradebook(orgId, assignmentId, query);
     return ApiResponse.success(result.items, result.meta);
   }
 

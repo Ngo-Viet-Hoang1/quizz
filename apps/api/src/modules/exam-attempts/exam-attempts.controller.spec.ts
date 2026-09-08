@@ -44,6 +44,7 @@ describe('ExamAttemptsController', () => {
     const mockQueryService = {
       getMyHistory: jest.fn(),
       getAttemptDetail: jest.fn(),
+      getAssignmentGradebook: jest.fn(),
     };
 
     const module: TestingModule = await Test.createTestingModule({
@@ -206,6 +207,39 @@ describe('ExamAttemptsController', () => {
       const response = await controller.getMyHistory(mockOrgId, mockUserId, query);
 
       expect(queryService.getMyHistory).toHaveBeenCalledWith(mockOrgId, mockUserId, query);
+      expect(response.success).toBe(true);
+      expect(response.data).toEqual(mockAttempts);
+      expect(response.meta).toEqual(mockMeta);
+    });
+  });
+
+  describe('getAssignmentGradebook', () => {
+    it('should call queryService.getAssignmentGradebook and return paginated ApiResponse', async () => {
+      const mockAssignmentId = new Types.ObjectId().toString();
+      const mockAttempts = [
+        {
+          _id: new Types.ObjectId(),
+          organizationId: mockOrgId,
+          assignmentId: new Types.ObjectId(mockAssignmentId),
+          userId: mockUserId,
+          score: 10,
+        } as unknown as IExamAttempt,
+      ];
+      const mockMeta = { page: 1, limit: 10, total: 1, totalPages: 1 };
+
+      queryService.getAssignmentGradebook.mockResolvedValue({
+        items: mockAttempts,
+        meta: mockMeta,
+      });
+
+      const query = { page: 1, limit: 10, sortBy: 'score', sortOrder: 'desc' as const };
+      const response = await controller.getAssignmentGradebook(mockOrgId, mockAssignmentId, query);
+
+      expect(queryService.getAssignmentGradebook).toHaveBeenCalledWith(
+        mockOrgId,
+        mockAssignmentId,
+        query,
+      );
       expect(response.success).toBe(true);
       expect(response.data).toEqual(mockAttempts);
       expect(response.meta).toEqual(mockMeta);
