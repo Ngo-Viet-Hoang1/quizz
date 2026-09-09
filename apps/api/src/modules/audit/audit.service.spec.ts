@@ -147,7 +147,7 @@ describe('AuditService', () => {
       expect(mockAuditLogModel.find).toHaveBeenCalledWith(
         {
           orgId: 'org_test',
-          action: 'class.member.remove',
+          action: { $regex: 'class\\.member\\.remove', $options: 'i' },
           resourceType: 'class',
           userId: 'user_123',
           statusCode: 200,
