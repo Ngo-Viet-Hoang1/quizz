@@ -46,6 +46,7 @@ export interface ClassAssignmentItem {
   quizVersion: number;
   classId: string;
   assignedBy: string;
+  startAt?: string | null;
   dueAt: string | null;
   allowLateSubmit: boolean;
   createdAt: string;
@@ -95,6 +96,7 @@ export interface AddClassMemberInput {
 export interface AssignQuizInput {
   quizId: string;
   quizVersion?: number;
+  startAt?: string;
   dueAt?: string;
   allowLateSubmit?: boolean;
 }

@@ -11,7 +11,6 @@ import {
   Pencil,
   Plus,
   Shield,
-  Sparkles,
 } from 'lucide-react';
 import { Badge } from '@/shared/ui/badge';
 import { Button, buttonVariants } from '@/shared/ui/button';
@@ -115,7 +114,7 @@ export function ClassDetailHeader({
                 onClick={onAssignQuiz}
                 className="gap-1.5 shadow-xs"
               >
-                <Sparkles className="h-4 w-4 text-primary" />
+                <Plus className="h-4 w-4" />
                 <span>Assign Quiz</span>
               </Button>
               <Button size="sm" onClick={onAddMember} className="gap-1.5 shadow-xs">

@@ -1,7 +1,7 @@
 'use client';
 
 import { useAuth } from '@clerk/nextjs';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { quizKeys, useQuizApi } from '../api';
 import {
   CreateQuizInput,
@@ -18,6 +18,24 @@ export function useQuizzes(params?: QuizQueryParams) {
   return useQuery<QuizItem[]>({
     queryKey: quizKeys.list(params),
     queryFn: () => api.getQuizzes(params),
+    enabled: isLoaded && Boolean(orgId),
+  });
+}
+
+export function useInfiniteQuizzes(params?: Omit<QuizQueryParams, 'page'>) {
+  const { isLoaded, orgId } = useAuth();
+  const api = useQuizApi();
+
+  return useInfiniteQuery({
+    queryKey: [...quizKeys.lists(), 'infinite', params ?? {}],
+    queryFn: ({ pageParam = 1 }) =>
+      api.getQuizzesPaginated({ ...params, page: pageParam as number, limit: params?.limit ?? 4 }),
+    initialPageParam: 1,
+    getNextPageParam: (lastPage) => {
+      const meta = lastPage.meta;
+      if (!meta) return undefined;
+      return meta.page < meta.totalPages ? meta.page + 1 : undefined;
+    },
     enabled: isLoaded && Boolean(orgId),
   });
 }
