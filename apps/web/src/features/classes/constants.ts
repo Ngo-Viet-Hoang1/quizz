@@ -1,16 +1,16 @@
+import { FilterOption } from '@/shared/components/data-table';
 import { ClassMemberRole, ClassMemberStatus, ClassQueryParams, ClassStatus } from './types';
 
 export const DEFAULT_CLASS_PARAMS: ClassQueryParams = {
   page: 1,
   limit: 10,
-  status: 'ALL',
 };
 
-export const CLASS_STATUS_OPTIONS = [
+export const CLASS_STATUS_OPTIONS: FilterOption[] = [
   { label: 'All Classes', value: 'ALL' },
   { label: 'Active', value: ClassStatus.ACTIVE },
   { label: 'Archived', value: ClassStatus.ARCHIVED },
-] as const;
+];
 
 export const MEMBER_ROLE_OPTIONS = [
   { label: 'Student', value: ClassMemberRole.STUDENT },
