@@ -2,8 +2,13 @@
 
 import * as React from 'react';
 import { SortingState } from '@tanstack/react-table';
-import { Copy, Download, Check } from 'lucide-react';
-import { DataTable, FilterOption } from '@/shared/components/data-table';
+import { Copy, Download } from 'lucide-react';
+import {
+  DataTable,
+  FilterOption,
+  copyBulkIds,
+  exportBulkJson,
+} from '@/shared/components/data-table';
 import { useDebounce } from '@/shared/hooks';
 import { Button } from '@/shared/ui/button';
 import { AuditLogItem, AuditLogQueryParams, DEFAULT_AUDIT_LOG_PARAMS } from '../types';
@@ -29,7 +34,6 @@ export function AuditTable() {
 
   const [selectedLog, setSelectedLog] = React.useState<AuditLogItem | null>(null);
   const [isSheetOpen, setIsSheetOpen] = React.useState(false);
-  const [copiedBulk, setCopiedBulk] = React.useState(false);
 
   const handleViewDetails = React.useCallback((log: AuditLogItem) => {
     setSelectedLog(log);
@@ -54,24 +58,6 @@ export function AuditTable() {
   const meta = response?.meta;
 
   const columns = React.useMemo(() => createAuditColumns(handleViewDetails), [handleViewDetails]);
-
-  const handleCopySelectedIds = (selected: AuditLogItem[]) => {
-    const ids = selected.map((item) => item._id).join('\n');
-    navigator.clipboard.writeText(ids);
-    setCopiedBulk(true);
-    setTimeout(() => setCopiedBulk(false), 2000);
-  };
-
-  const handleExportSelectedJson = (selected: AuditLogItem[]) => {
-    const dataStr =
-      'data:text/json;charset=utf-8,' + encodeURIComponent(JSON.stringify(selected, null, 2));
-    const downloadAnchor = document.createElement('a');
-    downloadAnchor.setAttribute('href', dataStr);
-    downloadAnchor.setAttribute('download', `audit-logs-export-${Date.now()}.json`);
-    document.body.appendChild(downloadAnchor);
-    downloadAnchor.click();
-    downloadAnchor.remove();
-  };
 
   return (
     <div className="w-full space-y-4">
@@ -106,24 +92,16 @@ export function AuditTable() {
             <Button
               variant="outline"
               size="sm"
-              className="h-7 text-xs font-mono"
-              onClick={() => handleCopySelectedIds(selected)}
+              className="h-7 text-xs font-mono cursor-pointer"
+              onClick={() => copyBulkIds(selected, '_id')}
             >
-              {copiedBulk ? (
-                <>
-                  <Check className="h-3 w-3 mr-1 text-emerald-500" /> Copied IDs
-                </>
-              ) : (
-                <>
-                  <Copy className="h-3 w-3 mr-1" /> Copy IDs
-                </>
-              )}
+              <Copy className="h-3 w-3 mr-1" /> Copy IDs
             </Button>
             <Button
               variant="outline"
               size="sm"
-              className="h-7 text-xs font-mono"
-              onClick={() => handleExportSelectedJson(selected)}
+              className="h-7 text-xs font-mono cursor-pointer"
+              onClick={() => exportBulkJson(selected, 'audit-logs-export')}
             >
               <Download className="h-3 w-3 mr-1" /> Export JSON
             </Button>
