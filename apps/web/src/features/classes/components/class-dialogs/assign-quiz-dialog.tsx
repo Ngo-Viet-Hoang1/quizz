@@ -15,7 +15,6 @@ import {
   Search,
   X,
 } from 'lucide-react';
-import { Badge } from '@/shared/ui/badge';
 import { Button } from '@/shared/ui/button';
 import {
   Dialog,
@@ -28,7 +27,12 @@ import { Input } from '@/shared/ui/input';
 import { Label } from '@/shared/ui/label';
 import { Switch } from '@/shared/ui/switch';
 import { useDebounce } from '@/shared/hooks';
-import { useInfiniteQuizzes, QuizDifficulty, QuizItem } from '@/features/quizzes';
+import {
+  toLocalDatetimeInput,
+  getMinDueDatetimeInput,
+  validateAssignmentDates,
+} from '@/shared/lib/date';
+import { useInfiniteQuizzes, DifficultyBadge, QuizItem } from '@/features/quizzes';
 import { useAssignQuizToClass } from '../../hooks';
 
 interface AssignQuizDialogProps {
@@ -149,56 +153,12 @@ export function AssignQuizDialog({ classId, open, onOpenChange }: AssignQuizDial
     onOpenChange(false);
   };
 
-  const getDifficultyBadge = (difficulty: QuizDifficulty) => {
-    switch (difficulty) {
-      case QuizDifficulty.EASY:
-        return (
-          <Badge
-            variant="outline"
-            className="border-emerald-500/30 text-emerald-500 bg-emerald-500/10 text-[10px] px-1.5 py-0"
-          >
-            Easy
-          </Badge>
-        );
-      case QuizDifficulty.HARD:
-        return (
-          <Badge
-            variant="outline"
-            className="border-rose-500/30 text-rose-500 bg-rose-500/10 text-[10px] px-1.5 py-0"
-          >
-            Hard
-          </Badge>
-        );
-      default:
-        return (
-          <Badge
-            variant="outline"
-            className="border-amber-500/30 text-amber-500 bg-amber-500/10 text-[10px] px-1.5 py-0"
-          >
-            Medium
-          </Badge>
-        );
-    }
-  };
-
-  const toLocalDatetimeString = (date: Date) => {
-    const pad = (n: number) => String(n).padStart(2, '0');
-    const year = date.getFullYear();
-    const month = pad(date.getMonth() + 1);
-    const day = pad(date.getDate());
-    const hours = pad(date.getHours());
-    const minutes = pad(date.getMinutes());
-    return `${year}-${month}-${day}T${hours}:${minutes}`;
-  };
-
   const minStartDateTime = React.useMemo(() => {
-    return toLocalDatetimeString(new Date());
+    return toLocalDatetimeInput(new Date());
   }, [open]);
 
   const minDueDateTime = React.useMemo(() => {
-    const baseDate = startAt ? new Date(startAt) : new Date();
-    const durationMs = (selectedQuiz?.timeLimitSec || 0) * 1000;
-    return toLocalDatetimeString(new Date(baseDate.getTime() + durationMs));
+    return getMinDueDatetimeInput(startAt, selectedQuiz?.timeLimitSec);
   }, [startAt, selectedQuiz?.timeLimitSec]);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -209,33 +169,10 @@ export function AssignQuizDialog({ classId, open, onOpenChange }: AssignQuizDial
       return;
     }
 
-    const now = new Date();
-    const nowWithBuffer = new Date(now.getTime() - 2 * 60 * 1000);
-
-    if (startAt) {
-      const startDate = new Date(startAt);
-      if (startDate < nowWithBuffer) {
-        setError('Start time cannot be set in the past');
-        return;
-      }
-    }
-
-    if (dueAt) {
-      const effectiveStart = startAt ? new Date(startAt) : now;
-      const timeLimitMs = (selectedQuiz?.timeLimitSec || 0) * 1000;
-      const minDue = new Date(effectiveStart.getTime() + timeLimitMs);
-
-      if (new Date(dueAt) < minDue) {
-        const timeLimitMins = Math.round((selectedQuiz?.timeLimitSec || 0) / 60);
-        if (timeLimitMins > 0) {
-          setError(
-            `Due date must be at least ${timeLimitMins} minute(s) after start time to allow full quiz completion`,
-          );
-        } else {
-          setError('Due date must be after start time');
-        }
-        return;
-      }
+    const dateValidationError = validateAssignmentDates(startAt, dueAt, selectedQuiz?.timeLimitSec);
+    if (dateValidationError) {
+      setError(dateValidationError);
+      return;
     }
 
     try {
@@ -248,6 +185,7 @@ export function AssignQuizDialog({ classId, open, onOpenChange }: AssignQuizDial
           allowLateSubmit,
         },
       });
+
       toast.success('Quiz assigned to class successfully');
       handleClose();
     } catch (err: unknown) {
@@ -389,7 +327,7 @@ export function AssignQuizDialog({ classId, open, onOpenChange }: AssignQuizDial
                                 <span className="font-medium text-xs truncate max-w-65">
                                   {quiz.title}
                                 </span>
-                                {getDifficultyBadge(quiz.difficulty)}
+                                <DifficultyBadge difficulty={quiz.difficulty} />
                               </div>
                               <div className="flex items-center gap-3 text-[11px] text-muted-foreground">
                                 <span>{quiz.questionCount || 0} Questions</span>
@@ -445,8 +383,9 @@ export function AssignQuizDialog({ classId, open, onOpenChange }: AssignQuizDial
                       <h4 className="text-xs font-semibold text-foreground truncate">
                         {selectedQuiz.title}
                       </h4>
-                      {getDifficultyBadge(selectedQuiz.difficulty)}
+                      <DifficultyBadge difficulty={selectedQuiz.difficulty} />
                     </div>
+
                     {selectedQuiz.description && (
                       <p className="text-[11px] text-muted-foreground line-clamp-1">
                         {selectedQuiz.description}

@@ -8,17 +8,11 @@ import { Badge } from '@/shared/ui/badge';
 import { DataTableColumnHeader, type DataTableFeatures } from '@/shared/components/data-table';
 import { formatDate, formatDuration } from '@/shared/lib/date';
 import { cn } from '@/shared/lib/utils';
-import { QuizDifficulty, QuizItem, QuizSourceType, QuizStatus } from '../../types';
+import { QuizItem, QuizSourceType, QuizStatus } from '../../types';
 import { QuizRowActions } from './quiz-actions';
+import { DifficultyBadge } from '../difficulty-badge';
 
 const columnHelper = createColumnHelper<DataTableFeatures, QuizItem>();
-
-const difficultyColorMap: Record<QuizDifficulty, string> = {
-  [QuizDifficulty.EASY]: 'border-emerald-500/30 bg-emerald-500/10 text-emerald-500',
-  [QuizDifficulty.MEDIUM]: 'border-amber-500/30 bg-amber-500/10 text-amber-500',
-  [QuizDifficulty.HARD]: 'border-rose-500/30 bg-rose-500/10 text-rose-500',
-  [QuizDifficulty.MIXED]: 'border-purple-500/30 bg-purple-500/10 text-purple-500',
-};
 
 const statusColorMap: Record<string, { className: string; label: string }> = {
   [QuizStatus.PUBLISHED]: {
@@ -85,14 +79,7 @@ export function createQuizColumns(onShare?: (quiz: QuizItem) => void) {
     columnHelper.accessor('difficulty', {
       header: ({ column }) => <DataTableColumnHeader column={column} title="DIFFICULTY" />,
       cell: ({ row }) => {
-        const diff = (row.getValue('difficulty') as QuizDifficulty) || QuizDifficulty.MEDIUM;
-        const colorClass = difficultyColorMap[diff] || difficultyColorMap[QuizDifficulty.MEDIUM];
-
-        return (
-          <Badge variant="outline" className={`capitalize text-xs font-mono ${colorClass}`}>
-            {diff}
-          </Badge>
-        );
+        return <DifficultyBadge difficulty={row.original.difficulty} />;
       },
     }),
 
