@@ -155,7 +155,7 @@ describe('ClassMembersService', () => {
   });
 
   describe('join', () => {
-    it('should allow student to join active class', async () => {
+    it('should allow student to join active class with PENDING status', async () => {
       const mockClass = createMockClassDoc({ ownerId: mockUserId });
       classesService.findOne.mockResolvedValue(mockClass as unknown as ClassDocument);
       mockClassMemberModel.findOne.mockReturnValue({
@@ -167,7 +167,7 @@ describe('ClassMembersService', () => {
       expect(result).toBeDefined();
       expect(result.userId).toBe(studentUserId);
       expect(result.role).toBe(ClassMemberRole.STUDENT);
-      expect(result.status).toBe(ClassMemberStatus.ACTIVE);
+      expect(result.status).toBe(ClassMemberStatus.PENDING);
     });
 
     it('should throw BadRequestException if student joins ARCHIVED class', async () => {
@@ -188,7 +188,7 @@ describe('ClassMembersService', () => {
       );
     });
 
-    it('should return member if already ACTIVE', async () => {
+    it('should return member if already ACTIVE or PENDING', async () => {
       const mockClass = createMockClassDoc({ ownerId: mockUserId });
       const activeMember = createMockMemberDoc({ status: ClassMemberStatus.ACTIVE });
       classesService.findOne.mockResolvedValue(mockClass as unknown as ClassDocument);

@@ -84,10 +84,13 @@ export class ClassMembersService {
       .exec();
 
     if (existing) {
-      if (existing.status === ClassMemberStatus.ACTIVE) {
+      if (
+        existing.status === ClassMemberStatus.ACTIVE ||
+        existing.status === ClassMemberStatus.PENDING
+      ) {
         return existing;
       }
-      existing.status = ClassMemberStatus.ACTIVE;
+      existing.status = ClassMemberStatus.PENDING;
       existing.joinedAt = new Date();
       return existing.save();
     }
@@ -97,7 +100,7 @@ export class ClassMembersService {
       classId: classDoc._id,
       userId,
       role: ClassMemberRole.STUDENT,
-      status: ClassMemberStatus.ACTIVE,
+      status: ClassMemberStatus.PENDING,
       joinedAt: new Date(),
     }).save();
   }
