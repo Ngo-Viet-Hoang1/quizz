@@ -27,6 +27,7 @@ export interface IQuizAssignment {
   quizVersion: number;
   classId: string;
   assignedBy: string;
+  startAt?: Date | null;
   dueAt: Date | null;
   allowLateSubmit: boolean;
   createdAt: Date;
