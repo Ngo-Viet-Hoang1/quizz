@@ -23,6 +23,9 @@ export class QuizAssignment {
   assignedBy!: string;
 
   @Prop({ type: Date, default: null })
+  startAt!: Date | null;
+
+  @Prop({ type: Date, default: null })
   dueAt!: Date | null;
 
   @Prop({ type: Boolean, default: false })

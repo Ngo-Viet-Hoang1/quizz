@@ -155,7 +155,7 @@ describe('ClassMembersService', () => {
   });
 
   describe('join', () => {
-    it('should allow student to join active class', async () => {
+    it('should allow student to join active class with PENDING status', async () => {
       const mockClass = createMockClassDoc({ ownerId: mockUserId });
       classesService.findOne.mockResolvedValue(mockClass as unknown as ClassDocument);
       mockClassMemberModel.findOne.mockReturnValue({
@@ -167,7 +167,7 @@ describe('ClassMembersService', () => {
       expect(result).toBeDefined();
       expect(result.userId).toBe(studentUserId);
       expect(result.role).toBe(ClassMemberRole.STUDENT);
-      expect(result.status).toBe(ClassMemberStatus.ACTIVE);
+      expect(result.status).toBe(ClassMemberStatus.PENDING);
     });
 
     it('should throw BadRequestException if student joins ARCHIVED class', async () => {
@@ -188,7 +188,7 @@ describe('ClassMembersService', () => {
       );
     });
 
-    it('should return member if already ACTIVE', async () => {
+    it('should return member if already ACTIVE or PENDING', async () => {
       const mockClass = createMockClassDoc({ ownerId: mockUserId });
       const activeMember = createMockMemberDoc({ status: ClassMemberStatus.ACTIVE });
       classesService.findOne.mockResolvedValue(mockClass as unknown as ClassDocument);
@@ -333,6 +333,115 @@ describe('ClassMembersService', () => {
 
       expect(result.items).toHaveLength(1);
       expect(result.meta.total).toBe(1);
+    });
+  });
+
+  describe('approveMember', () => {
+    it('should approve pending member and change status to ACTIVE', async () => {
+      const mockClass = createMockClassDoc({ ownerId: mockUserId });
+      const pendingMember = createMockMemberDoc({ status: ClassMemberStatus.PENDING });
+      classesService.findOne.mockResolvedValue(mockClass as unknown as ClassDocument);
+      mockClassMemberModel.findOne.mockReturnValue({
+        exec: jest.fn().mockResolvedValue(pendingMember),
+      });
+
+      const result = await service.approveMember(mockClassId, mockOrgId, mockUserId, studentUserId);
+
+      expect(result.status).toBe(ClassMemberStatus.ACTIVE);
+      expect(pendingMember.save).toHaveBeenCalled();
+    });
+
+    it('should throw ForbiddenException if actor is not class owner', async () => {
+      const mockClass = createMockClassDoc({ ownerId: mockUserId });
+      classesService.findOne.mockResolvedValue(mockClass as unknown as ClassDocument);
+
+      await expect(
+        service.approveMember(mockClassId, mockOrgId, 'other_user', studentUserId),
+      ).rejects.toThrow(ForbiddenException);
+    });
+
+    it('should throw BadRequestException if class is ARCHIVED', async () => {
+      const mockClass = createMockClassDoc({ ownerId: mockUserId, status: ClassStatus.ARCHIVED });
+      classesService.findOne.mockResolvedValue(mockClass as unknown as ClassDocument);
+
+      await expect(
+        service.approveMember(mockClassId, mockOrgId, mockUserId, studentUserId),
+      ).rejects.toThrow(BadRequestException);
+    });
+
+    it('should throw NotFoundException if member not found', async () => {
+      const mockClass = createMockClassDoc({ ownerId: mockUserId });
+      classesService.findOne.mockResolvedValue(mockClass as unknown as ClassDocument);
+      mockClassMemberModel.findOne.mockReturnValue({
+        exec: jest.fn().mockResolvedValue(null),
+      });
+
+      await expect(
+        service.approveMember(mockClassId, mockOrgId, mockUserId, studentUserId),
+      ).rejects.toThrow(NotFoundException);
+    });
+
+    it('should return member directly if already ACTIVE', async () => {
+      const mockClass = createMockClassDoc({ ownerId: mockUserId });
+      const activeMember = createMockMemberDoc({ status: ClassMemberStatus.ACTIVE });
+      classesService.findOne.mockResolvedValue(mockClass as unknown as ClassDocument);
+      mockClassMemberModel.findOne.mockReturnValue({
+        exec: jest.fn().mockResolvedValue(activeMember),
+      });
+
+      const result = await service.approveMember(mockClassId, mockOrgId, mockUserId, studentUserId);
+
+      expect(result.status).toBe(ClassMemberStatus.ACTIVE);
+    });
+  });
+
+  describe('rejectMember', () => {
+    it('should reject pending member and change status to REMOVED', async () => {
+      const mockClass = createMockClassDoc({ ownerId: mockUserId });
+      const pendingMember = createMockMemberDoc({ status: ClassMemberStatus.PENDING });
+      classesService.findOne.mockResolvedValue(mockClass as unknown as ClassDocument);
+      mockClassMemberModel.findOne.mockReturnValue({
+        exec: jest.fn().mockResolvedValue(pendingMember),
+      });
+
+      const result = await service.rejectMember(mockClassId, mockOrgId, mockUserId, studentUserId);
+
+      expect(result.status).toBe(ClassMemberStatus.REMOVED);
+      expect(pendingMember.save).toHaveBeenCalled();
+    });
+
+    it('should throw ForbiddenException if actor is not class owner', async () => {
+      const mockClass = createMockClassDoc({ ownerId: mockUserId });
+      classesService.findOne.mockResolvedValue(mockClass as unknown as ClassDocument);
+
+      await expect(
+        service.rejectMember(mockClassId, mockOrgId, 'other_user', studentUserId),
+      ).rejects.toThrow(ForbiddenException);
+    });
+
+    it('should throw NotFoundException if member not found', async () => {
+      const mockClass = createMockClassDoc({ ownerId: mockUserId });
+      classesService.findOne.mockResolvedValue(mockClass as unknown as ClassDocument);
+      mockClassMemberModel.findOne.mockReturnValue({
+        exec: jest.fn().mockResolvedValue(null),
+      });
+
+      await expect(
+        service.rejectMember(mockClassId, mockOrgId, mockUserId, studentUserId),
+      ).rejects.toThrow(NotFoundException);
+    });
+
+    it('should return member directly if already REMOVED', async () => {
+      const mockClass = createMockClassDoc({ ownerId: mockUserId });
+      const removedMember = createMockMemberDoc({ status: ClassMemberStatus.REMOVED });
+      classesService.findOne.mockResolvedValue(mockClass as unknown as ClassDocument);
+      mockClassMemberModel.findOne.mockReturnValue({
+        exec: jest.fn().mockResolvedValue(removedMember),
+      });
+
+      const result = await service.rejectMember(mockClassId, mockOrgId, mockUserId, studentUserId);
+
+      expect(result.status).toBe(ClassMemberStatus.REMOVED);
     });
   });
 });

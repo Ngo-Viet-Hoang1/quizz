@@ -76,6 +76,7 @@ describe('ClassesController', () => {
     quizVersion: 1,
     classId: new Types.ObjectId(mockClassId),
     assignedBy: mockUserId,
+    startAt: null,
     dueAt: null,
     allowLateSubmit: false,
     createdAt: new Date(),
@@ -88,6 +89,7 @@ describe('ClassesController', () => {
     quizVersion: 1,
     classId: mockClassId,
     assignedBy: mockUserId,
+    startAt: null,
     dueAt: null,
     allowLateSubmit: false,
     createdAt: new Date(),
@@ -123,6 +125,12 @@ describe('ClassesController', () => {
       addMember: jest.fn().mockResolvedValue(mockClassMember),
       join: jest.fn().mockResolvedValue(mockClassMember),
       removeMember: jest
+        .fn()
+        .mockResolvedValue({ ...mockClassMember, status: ClassMemberStatus.REMOVED }),
+      approveMember: jest
+        .fn()
+        .mockResolvedValue({ ...mockClassMember, status: ClassMemberStatus.ACTIVE }),
+      rejectMember: jest
         .fn()
         .mockResolvedValue({ ...mockClassMember, status: ClassMemberStatus.REMOVED }),
       getMembers: jest.fn().mockResolvedValue({
@@ -286,6 +294,44 @@ describe('ClassesController', () => {
       );
 
       expect(membersService.removeMember).toHaveBeenCalledWith(
+        mockClassId,
+        mockOrgId,
+        mockUserId,
+        studentUserId,
+      );
+      expect(result.status).toBe(ClassMemberStatus.REMOVED);
+    });
+  });
+
+  describe('approveMember', () => {
+    it('should approve member by teacher and return ClassMember with active status', async () => {
+      const result = await controller.approveMember(
+        mockOrgId,
+        mockUserId,
+        mockClassId,
+        studentUserId,
+      );
+
+      expect(membersService.approveMember).toHaveBeenCalledWith(
+        mockClassId,
+        mockOrgId,
+        mockUserId,
+        studentUserId,
+      );
+      expect(result.status).toBe(ClassMemberStatus.ACTIVE);
+    });
+  });
+
+  describe('rejectMember', () => {
+    it('should reject member by teacher and return ClassMember with removed status', async () => {
+      const result = await controller.rejectMember(
+        mockOrgId,
+        mockUserId,
+        mockClassId,
+        studentUserId,
+      );
+
+      expect(membersService.rejectMember).toHaveBeenCalledWith(
         mockClassId,
         mockOrgId,
         mockUserId,

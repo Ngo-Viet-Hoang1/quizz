@@ -84,10 +84,13 @@ export class ClassMembersService {
       .exec();
 
     if (existing) {
-      if (existing.status === ClassMemberStatus.ACTIVE) {
+      if (
+        existing.status === ClassMemberStatus.ACTIVE ||
+        existing.status === ClassMemberStatus.PENDING
+      ) {
         return existing;
       }
-      existing.status = ClassMemberStatus.ACTIVE;
+      existing.status = ClassMemberStatus.PENDING;
       existing.joinedAt = new Date();
       return existing.save();
     }
@@ -97,7 +100,7 @@ export class ClassMembersService {
       classId: classDoc._id,
       userId,
       role: ClassMemberRole.STUDENT,
-      status: ClassMemberStatus.ACTIVE,
+      status: ClassMemberStatus.PENDING,
       joinedAt: new Date(),
     }).save();
   }
@@ -177,5 +180,55 @@ export class ClassMembersService {
     return paginate<IClass, ClassDocument>(this.classModel, filter, query, {
       allowedSortFields: CLASS_SORT_FIELDS,
     });
+  }
+
+  async approveMember(
+    classId: string,
+    orgId: string,
+    actorId: string,
+    targetUserId: string,
+  ): Promise<ClassMember> {
+    const classDoc = await this.classesService.findOne(classId, orgId);
+
+    if (classDoc.ownerId !== actorId) {
+      throw new ForbiddenException('Only class owner can approve members');
+    }
+    if (classDoc.status === ClassStatus.ARCHIVED) {
+      throw new BadRequestException('Cannot approve members in an archived class');
+    }
+
+    const member = await this.classMemberModel
+      .findOne({ classId: classDoc._id, userId: targetUserId, organizationId: orgId })
+      .exec();
+
+    if (!member) throw new NotFoundException('Member request not found in this class');
+    if (member.status === ClassMemberStatus.ACTIVE) return member;
+
+    member.status = ClassMemberStatus.ACTIVE;
+    member.joinedAt = new Date();
+    return member.save();
+  }
+
+  async rejectMember(
+    classId: string,
+    orgId: string,
+    actorId: string,
+    targetUserId: string,
+  ): Promise<ClassMember> {
+    const classDoc = await this.classesService.findOne(classId, orgId);
+
+    if (classDoc.ownerId !== actorId) {
+      throw new ForbiddenException('Only class owner can reject member requests');
+    }
+
+    const member = await this.classMemberModel
+      .findOne({ classId: classDoc._id, userId: targetUserId, organizationId: orgId })
+      .exec();
+
+    if (!member) throw new NotFoundException('Member request not found in this class');
+    if (member.status === ClassMemberStatus.REMOVED) return member;
+
+    member.status = ClassMemberStatus.REMOVED;
+    return member.save();
   }
 }

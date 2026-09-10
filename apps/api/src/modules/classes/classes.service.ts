@@ -21,7 +21,7 @@ import { Class, ClassDocument } from './schemas/class.schema';
 import { QuizAssignment, QuizAssignmentDocument } from './schemas/quiz-assignment.schema';
 
 const CLASS_SORT_FIELDS = ['createdAt', 'name', 'status'] as const;
-const ASSIGNMENT_SORT_FIELDS = ['createdAt', 'dueAt'] as const;
+const ASSIGNMENT_SORT_FIELDS = ['createdAt', 'startAt', 'dueAt'] as const;
 
 @Injectable()
 export class ClassesService {
@@ -117,12 +117,41 @@ export class ClassesService {
       throw new NotFoundException('Quiz not found');
     }
 
+    const now = new Date();
+    // Allow small 2-minute buffer for network latency when selecting current time
+    const minAllowedStart = new Date(now.getTime() - 2 * 60 * 1000);
+
+    if (dto.startAt) {
+      const startDate = new Date(dto.startAt);
+      if (startDate < minAllowedStart) {
+        throw new BadRequestException('Start date cannot be in the past');
+      }
+    }
+
+    if (dto.dueAt) {
+      const effectiveStart = dto.startAt ? new Date(dto.startAt) : now;
+      const timeLimitMs = (quiz.timeLimitSec || 0) * 1000;
+      const minDue = new Date(effectiveStart.getTime() + timeLimitMs);
+
+      if (new Date(dto.dueAt) < minDue) {
+        const timeLimitMins = Math.round((quiz.timeLimitSec || 0) / 60);
+        if (timeLimitMins > 0) {
+          throw new BadRequestException(
+            `Due date must be at least ${timeLimitMins} minute(s) after start time to allow sufficient time for completion`,
+          );
+        } else {
+          throw new BadRequestException('Due date must be after start time');
+        }
+      }
+    }
+
     const assignment = new this.assignmentModel({
       organizationId: orgId,
       classId: classDoc._id,
       quizId: quiz._id,
       quizVersion: dto.quizVersion ?? quiz.version ?? 1,
       assignedBy,
+      startAt: dto.startAt ? new Date(dto.startAt) : null,
       dueAt: dto.dueAt ? new Date(dto.dueAt) : null,
       allowLateSubmit: dto.allowLateSubmit ?? false,
       createdAt: new Date(),
