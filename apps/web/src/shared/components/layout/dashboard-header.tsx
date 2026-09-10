@@ -5,6 +5,7 @@ import { Button } from '@/shared/ui/button';
 import { Sheet, SheetContent, SheetTitle, SheetTrigger } from '@/shared/ui/sheet';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/shared/ui/tooltip';
 import { useQuiz } from '@/features/quizzes/hooks';
+import { useClass } from '@/features/classes/hooks';
 import {
   Bell,
   ChevronRight,
@@ -46,6 +47,14 @@ function QuizBreadcrumbTitle({ id }: { id: string }) {
   return <>{quiz?.title || 'Quiz Details'}</>;
 }
 
+function ClassBreadcrumbTitle({ id }: { id: string }) {
+  const { data: classItem, isLoading } = useClass(id);
+  if (isLoading && !classItem) {
+    return <span className="opacity-60">Loading...</span>;
+  }
+  return <>{classItem?.name || 'Class Details'}</>;
+}
+
 function BreadcrumbTitle({ segment, prevSegment }: { segment: string; prevSegment?: string }) {
   if (pathNameMap[segment]) {
     return <>{pathNameMap[segment]}</>;
@@ -53,6 +62,10 @@ function BreadcrumbTitle({ segment, prevSegment }: { segment: string; prevSegmen
 
   if (prevSegment === 'quizzes') {
     return <QuizBreadcrumbTitle id={segment} />;
+  }
+
+  if (prevSegment === 'classes') {
+    return <ClassBreadcrumbTitle id={segment} />;
   }
 
   return <>{segment}</>;

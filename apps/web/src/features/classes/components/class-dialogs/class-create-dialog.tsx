@@ -1,6 +1,9 @@
 'use client';
 
 import * as React from 'react';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { z } from 'zod';
 import { toast } from 'sonner';
 import { Button } from '@/shared/ui/button';
 import {
@@ -11,9 +14,19 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/shared/ui/dialog';
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/shared/ui/form';
 import { Input } from '@/shared/ui/input';
-import { Label } from '@/shared/ui/label';
 import { useCreateClass } from '../../hooks';
+
+const createClassSchema = z.object({
+  name: z
+    .string()
+    .trim()
+    .min(1, 'Class name is required')
+    .max(100, 'Class name must be at most 100 characters'),
+});
+
+type CreateClassFormValues = z.infer<typeof createClassSchema>;
 
 interface ClassCreateDialogProps {
   open: boolean;
@@ -21,33 +34,24 @@ interface ClassCreateDialogProps {
 }
 
 export function ClassCreateDialog({ open, onOpenChange }: ClassCreateDialogProps) {
-  const [name, setName] = React.useState('');
-  const [error, setError] = React.useState<string | null>(null);
-
   const createClassMutation = useCreateClass();
 
+  const form = useForm<CreateClassFormValues>({
+    resolver: zodResolver(createClassSchema),
+    defaultValues: {
+      name: '',
+    },
+  });
+
   const handleClose = () => {
-    setName('');
-    setError(null);
+    form.reset({ name: '' });
     onOpenChange(false);
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    const trimmedName = name.trim();
-
-    if (!trimmedName) {
-      setError('Class name is required');
-      return;
-    }
-    if (trimmedName.length > 100) {
-      setError('Class name must be at most 100 characters');
-      return;
-    }
-
+  const onSubmit = async (values: CreateClassFormValues) => {
     try {
-      await createClassMutation.mutateAsync({ name: trimmedName });
-      toast.success('Class created successfully');
+      await createClassMutation.mutateAsync({ name: values.name.trim() });
+      toast.success('Classroom created successfully');
       handleClose();
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : 'Failed to create class';
@@ -58,46 +62,51 @@ export function ClassCreateDialog({ open, onOpenChange }: ClassCreateDialogProps
   return (
     <Dialog open={open} onOpenChange={handleClose}>
       <DialogContent className="sm:max-w-md">
-        <form onSubmit={handleSubmit}>
-          <DialogHeader>
-            <DialogTitle>Create Classroom</DialogTitle>
-            <DialogDescription>
-              Create a new class to manage students, assign assessments, and track results.
-            </DialogDescription>
-          </DialogHeader>
+        <Form {...form}>
+          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+            <DialogHeader>
+              <DialogTitle>Create Classroom</DialogTitle>
+              <DialogDescription>
+                Create a new class to manage students, assign assessments, and track progress.
+              </DialogDescription>
+            </DialogHeader>
 
-          <div className="grid gap-4 py-4">
-            <div className="space-y-2">
-              <Label htmlFor="class-name">Class Name *</Label>
-              <Input
-                id="class-name"
-                placeholder="e.g. Physics 101 - Spring 2026"
-                value={name}
-                onChange={(e) => {
-                  setName(e.target.value);
-                  if (error) setError(null);
-                }}
-                disabled={createClassMutation.isPending}
-                autoFocus
+            <div className="py-2">
+              <FormField
+                control={form.control}
+                name="name"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Class Name *</FormLabel>
+                    <FormControl>
+                      <Input
+                        placeholder="e.g. Physics 101 - Spring 2026"
+                        disabled={createClassMutation.isPending}
+                        autoFocus
+                        {...field}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
               />
-              {error && <p className="text-xs text-destructive">{error}</p>}
             </div>
-          </div>
 
-          <DialogFooter>
-            <Button
-              type="button"
-              variant="outline"
-              onClick={handleClose}
-              disabled={createClassMutation.isPending}
-            >
-              Cancel
-            </Button>
-            <Button type="submit" disabled={createClassMutation.isPending}>
-              {createClassMutation.isPending ? 'Creating...' : 'Create Class'}
-            </Button>
-          </DialogFooter>
-        </form>
+            <DialogFooter className="gap-2 sm:gap-0">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={handleClose}
+                disabled={createClassMutation.isPending}
+              >
+                Cancel
+              </Button>
+              <Button type="submit" disabled={createClassMutation.isPending}>
+                {createClassMutation.isPending ? 'Creating...' : 'Create Class'}
+              </Button>
+            </DialogFooter>
+          </form>
+        </Form>
       </DialogContent>
     </Dialog>
   );
