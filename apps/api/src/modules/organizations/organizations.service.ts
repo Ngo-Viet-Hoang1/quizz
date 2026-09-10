@@ -21,6 +21,32 @@ export class OrganizationsService {
     return this.organizationModel.findOne({ _id: clerkOrgId, status: 'active' }).exec();
   }
 
+  async syncFromClerk(data: {
+    id: string;
+    name: string;
+    slug?: string | null;
+    logoUrl?: string | null;
+  }): Promise<OrganizationDocument> {
+    const org = (await this.organizationModel
+      .findOneAndUpdate(
+        { _id: data.id },
+        {
+          $set: {
+            name: data.name,
+            slug: data.slug ?? null,
+            logoUrl: data.logoUrl ?? null,
+            status: 'active',
+            deletedAt: null,
+          },
+        },
+        { upsert: true, returnDocument: 'after', setDefaultsOnInsert: true },
+      )
+      .exec()) as OrganizationDocument;
+
+    this.logger.debug(`Organization synced from Clerk: ${data.id}`);
+    return org;
+  }
+
   async handleWebhookEvent(
     event: Extract<ClerkWebhookEvent, { type: `organization.${string}` }>,
   ): Promise<void> {
@@ -37,23 +63,12 @@ export class OrganizationsService {
   // ─── Private handlers ──────────────────────────────────────────────────────
 
   private async onOrgCreated(data: ClerkOrganizationData): Promise<void> {
-    await this.organizationModel
-      .findOneAndUpdate(
-        { _id: data.id },
-        {
-          $set: {
-            name: data.name,
-            slug: data.slug ?? null,
-            logoUrl: data.image_url ?? null,
-            status: 'active',
-            deletedAt: null,
-          },
-        },
-        { upsert: true, returnDocument: 'after', setDefaultsOnInsert: true },
-      )
-      .exec();
-
-    this.logger.debug(`Organization synced from Clerk: ${data.id}`);
+    await this.syncFromClerk({
+      id: data.id,
+      name: data.name,
+      slug: data.slug ?? null,
+      logoUrl: data.image_url ?? null,
+    });
   }
 
   private async onOrgUpdated(data: ClerkOrganizationData): Promise<void> {
