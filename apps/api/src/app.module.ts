@@ -22,6 +22,7 @@ import { AiGenerationModule } from './modules/ai-generation/ai-generation.module
 import { SubscriptionsModule } from './modules/subscriptions/subscriptions.module';
 import { QueueModule } from './queue/queue.module';
 import { ClassesModule } from './modules/classes/classes.module';
+import { ExamAttemptsModule } from './modules/exam-attempts/exam-attempts.module';
 
 @Module({
   imports: [
@@ -51,6 +52,7 @@ import { ClassesModule } from './modules/classes/classes.module';
     SubscriptionsModule,
     QueueModule,
     ClassesModule,
+    ExamAttemptsModule,
   ],
   providers: [
     {

@@ -104,7 +104,7 @@ export function createQuizColumns(onShare?: (quiz: QuizItem) => void) {
           <div className="flex items-center gap-3 text-xs text-muted-foreground">
             <span className="inline-flex items-center gap-1 font-mono font-medium text-foreground">
               <BookOpen className="h-3.5 w-3.5 text-muted-foreground" />
-              {quiz.questionCount}
+              {quiz.questionCount || quiz.questions?.length || 0}
             </span>
             {Boolean(quiz.timeLimitSec) && (
               <span className="inline-flex items-center gap-1 font-mono">

@@ -67,6 +67,7 @@ export class AiGenerationProcessor extends BullMqWorkerBase {
         visibility: QuizVisibility.PRIVATE,
         status: QuizStatus.DRAFT,
         questions: aiResult.questions,
+        questionCount: aiResult.questions?.length ?? 0,
       });
       const savedQuiz = await quizDoc.save();
 

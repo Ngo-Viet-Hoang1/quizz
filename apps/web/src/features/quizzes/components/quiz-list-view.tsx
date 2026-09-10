@@ -1,18 +1,17 @@
 'use client';
 
 import * as React from 'react';
-import { useRouter } from 'next/navigation';
 import { Plus, Sparkles } from 'lucide-react';
 import { Button } from '@/shared/ui/button';
+import { AiGenerationDialog } from '@/features/ai-generation';
 import { QuizItem } from '../types';
 import { QuizTable } from './quiz-table/quiz-table';
 import { QuizFormDialog } from './quiz-form/quiz-form-dialog';
 import { QuizShareDialog } from './quiz-share-dialog';
 
 export function QuizListView() {
-  const router = useRouter();
-
   const [createDialogOpen, setCreateDialogOpen] = React.useState(false);
+  const [aiDialogOpen, setAiDialogOpen] = React.useState(false);
   const [shareDialogOpen, setShareDialogOpen] = React.useState(false);
   const [selectedQuizForShare, setSelectedQuizForShare] = React.useState<QuizItem | null>(null);
 
@@ -35,8 +34,12 @@ export function QuizListView() {
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
-          <Button variant="outline" onClick={() => router.push('/ai-generate')} className="gap-1.5">
-            <Sparkles className="h-4 w-4 text-primary" />
+          <Button
+            variant="outline"
+            onClick={() => setAiDialogOpen(true)}
+            className="gap-1.5 border-primary/30 hover:border-primary/60 hover:bg-primary/5"
+          >
+            <Sparkles className="h-4 w-4 text-primary animate-pulse" />
             <span>AI Generate</span>
           </Button>
           <Button onClick={() => setCreateDialogOpen(true)} className="gap-1.5">
@@ -50,6 +53,7 @@ export function QuizListView() {
       <QuizTable onShareQuiz={handleShareQuiz} />
 
       {/* Dialogs */}
+      <AiGenerationDialog open={aiDialogOpen} onOpenChange={setAiDialogOpen} />
       <QuizFormDialog open={createDialogOpen} onOpenChange={setCreateDialogOpen} />
       <QuizShareDialog
         quiz={selectedQuizForShare}
