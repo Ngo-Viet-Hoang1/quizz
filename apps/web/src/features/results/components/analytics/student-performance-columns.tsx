@@ -7,6 +7,7 @@ import { Button } from '@/shared/ui/button';
 import { DataTableColumnHeader, DataTableFeatures } from '@/shared/components/data-table';
 import { formatDuration } from '@/shared/lib/date';
 import { cn } from '@/shared/lib/utils';
+import { UserAvatarCell } from '@/shared/components/user-avatar-cell';
 import { ExamAttemptItem } from '../../types';
 
 const columnHelper = createColumnHelper<DataTableFeatures, ExamAttemptItem>();
@@ -35,14 +36,8 @@ export function createStudentPerformanceColumns(onViewScorecard: (attemptId: str
     }),
 
     columnHelper.accessor('userId', {
-      header: ({ column }) => <DataTableColumnHeader column={column} title="STUDENT REF" />,
-      cell: ({ row }) => (
-        <span className="font-mono text-xs font-medium text-foreground">
-          {row.original.userId?.startsWith('usr_')
-            ? row.original.userId
-            : `#${row.original._id.substring(row.original._id.length - 8)}`}
-        </span>
-      ),
+      header: ({ column }) => <DataTableColumnHeader column={column} title="STUDENT" />,
+      cell: ({ row }) => <UserAvatarCell userId={row.original.userId} size="sm" showEmail={true} />,
     }),
 
     columnHelper.accessor('score', {
