@@ -48,6 +48,7 @@ describe('ClassesService', () => {
     quizId: new Types.ObjectId(mockQuizId),
     quizVersion: dto.quizVersion ?? 1,
     assignedBy: dto.assignedBy ?? mockUserId,
+    startAt: dto.startAt ?? null,
     dueAt: dto.dueAt ?? null,
     allowLateSubmit: dto.allowLateSubmit ?? false,
     createdAt: new Date(),

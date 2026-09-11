@@ -184,6 +184,32 @@ export class ClassesController {
     return this.classMembersService.removeMember(id, orgId, actorId, targetUserId);
   }
 
+  @Post(':id/members/:userId/approve')
+  @HttpCode(HttpStatus.OK)
+  @Audit('class.member.approve')
+  @ApiOperation({ summary: 'Approve a pending member into class by teacher' })
+  approveMember(
+    @CurrentOrg() orgId: string,
+    @CurrentUser('_id') actorId: string,
+    @Param('id', ParseObjectIdPipe) id: string,
+    @Param('userId') targetUserId: string,
+  ): Promise<ClassMember> {
+    return this.classMembersService.approveMember(id, orgId, actorId, targetUserId);
+  }
+
+  @Post(':id/members/:userId/reject')
+  @HttpCode(HttpStatus.OK)
+  @Audit('class.member.reject')
+  @ApiOperation({ summary: 'Reject a pending member request by teacher' })
+  rejectMember(
+    @CurrentOrg() orgId: string,
+    @CurrentUser('_id') actorId: string,
+    @Param('id', ParseObjectIdPipe) id: string,
+    @Param('userId') targetUserId: string,
+  ): Promise<ClassMember> {
+    return this.classMembersService.rejectMember(id, orgId, actorId, targetUserId);
+  }
+
   @Post(':id/assignments')
   @HttpCode(HttpStatus.CREATED)
   @Audit('class.quiz.assign')

@@ -25,6 +25,14 @@ export class AssignQuizDto {
   quizVersion?: number;
 
   @ApiPropertyOptional({
+    description: 'Start date/time in ISO format',
+    example: '2026-09-10T08:00:00.000Z',
+  })
+  @IsOptional()
+  @IsDateString()
+  startAt?: string;
+
+  @ApiPropertyOptional({
     description: 'Due date in ISO format',
     example: '2026-09-10T23:59:59.000Z',
   })

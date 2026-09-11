@@ -7,6 +7,7 @@ import {
   Copy,
   ExternalLink,
   History,
+  GraduationCap,
   MoreHorizontal,
   Play,
   Share2,
@@ -35,6 +36,7 @@ import {
 import { QuizItem, QuizStatus } from '../../types';
 import { useArchiveQuiz, useCloneQuiz, useDeleteQuiz, usePublishQuiz } from '../../hooks';
 import { QuizVersionHistorySheet } from '../version-history';
+import { AssignToClassDialog } from '../assign-to-class-dialog';
 
 interface QuizRowActionsProps {
   quiz: QuizItem;
@@ -45,6 +47,7 @@ export function QuizRowActions({ quiz, onShare }: QuizRowActionsProps) {
   const [deleteOpen, setDeleteOpen] = React.useState(false);
   const [archiveOpen, setArchiveOpen] = React.useState(false);
   const [versionHistoryOpen, setVersionHistoryOpen] = React.useState(false);
+  const [assignClassOpen, setAssignClassOpen] = React.useState(false);
 
   const { mutateAsync: deleteQuiz, isPending: isDeleting } = useDeleteQuiz();
   const { mutateAsync: publishQuiz, isPending: isPublishing } = usePublishQuiz();
@@ -124,6 +127,14 @@ export function QuizRowActions({ quiz, onShare }: QuizRowActionsProps) {
           >
             <History className="h-3.5 w-3.5 text-muted-foreground" />
             <span>Version History (v{quiz.version || 1})</span>
+          </DropdownMenuItem>
+          
+          <DropdownMenuItem
+            onClick={() => setAssignClassOpen(true)}
+            className="flex items-center gap-2 text-primary font-medium"
+          >
+            <GraduationCap className="h-3.5 w-3.5" />
+            <span>Assign to Classroom</span>
           </DropdownMenuItem>
 
           <DropdownMenuSeparator />
@@ -220,6 +231,8 @@ export function QuizRowActions({ quiz, onShare }: QuizRowActionsProps) {
         open={versionHistoryOpen}
         onOpenChange={setVersionHistoryOpen}
       />
+      {/* Assign to Classroom Dialog */}
+      <AssignToClassDialog quiz={quiz} open={assignClassOpen} onOpenChange={setAssignClassOpen} />
     </>
   );
 }

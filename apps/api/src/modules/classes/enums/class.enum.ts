@@ -9,6 +9,7 @@ export enum ClassMemberRole {
 }
 
 export enum ClassMemberStatus {
+  PENDING = 'pending',
   ACTIVE = 'active',
   REMOVED = 'removed',
 }

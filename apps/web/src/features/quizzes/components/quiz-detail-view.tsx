@@ -8,6 +8,7 @@ import {
   CheckCircle,
   ChevronLeft,
   Edit3,
+  GraduationCap,
   HelpCircle,
   History,
   Pencil,
@@ -38,6 +39,7 @@ import { QuizFormDialog } from './quiz-form/quiz-form-dialog';
 import { QuizShareDialog } from './quiz-share-dialog';
 import { QuestionFormDialog } from './question-dialog/question-form-dialog';
 import { QuizVersionHistorySheet } from './version-history';
+import { AssignToClassDialog } from './assign-to-class-dialog';
 
 const statusColorMap: Record<string, { className: string; label: string }> = {
   [QuizStatus.PUBLISHED]: {
@@ -127,6 +129,7 @@ export function QuizDetailView({ quizId }: QuizDetailViewProps) {
   const [editDialogOpen, setEditDialogOpen] = React.useState(false);
   const [shareDialogOpen, setShareDialogOpen] = React.useState(false);
   const [versionHistoryOpen, setVersionHistoryOpen] = React.useState(false);
+  const [assignClassOpen, setAssignClassOpen] = React.useState(false);
 
   // Question dialog state
   const [questionDialogOpen, setQuestionDialogOpen] = React.useState(false);
@@ -237,6 +240,10 @@ export function QuizDetailView({ quizId }: QuizDetailViewProps) {
         </div>
 
         <div className="flex flex-wrap items-center gap-2 sm:self-center">
+          <Button variant="outline" onClick={() => setAssignClassOpen(true)} className="gap-1.5">
+            <GraduationCap className="h-4 w-4 text-primary" />
+            <span>Assign to Class</span>
+          </Button>
           <Button variant="outline" onClick={() => setShareDialogOpen(true)} className="gap-1.5">
             <Share2 className="h-4 w-4" />
             <span>Share Code</span>
@@ -421,6 +428,7 @@ export function QuizDetailView({ quizId }: QuizDetailViewProps) {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+      <AssignToClassDialog quiz={quiz} open={assignClassOpen} onOpenChange={setAssignClassOpen} />
     </div>
   );
 }

@@ -23,6 +23,8 @@ export const quizKeys = {
 
 export const createQuizApi = (client = apiClient) => ({
   getQuizzes: (params?: QuizQueryParams) => client.get<QuizItem[]>('/quizzes', { params }),
+  getQuizzesPaginated: (params?: QuizQueryParams) =>
+    client.getPaginated<QuizItem[]>('/quizzes', { params }),
   getQuizById: (id: string) => client.get<QuizItem>(`/quizzes/${id}`),
   getQuizVersions: (id: string, params?: QuizVersionQueryParams) =>
     client.getPaginated<QuizVersionItem[]>(`/quizzes/${id}/versions`, { params }),

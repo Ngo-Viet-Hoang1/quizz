@@ -27,6 +27,40 @@ export class OrganizationMembersService {
     return this.memberModel.findOne({ organizationId, userId, status: 'active' }).exec();
   }
 
+  async syncMember(data: {
+    organizationId: string;
+    userId: string;
+    role?: string | null;
+  }): Promise<OrganizationMemberDocument> {
+    const role = data.role || 'org:admin';
+    const permissions = resolvePermissionsForRole(role);
+
+    const member = (await this.memberModel
+      .findOneAndUpdate(
+        { organizationId: data.organizationId, userId: data.userId },
+        {
+          $set: {
+            role,
+            permissions,
+            status: 'active',
+          },
+          $setOnInsert: {
+            organizationId: data.organizationId,
+            userId: data.userId,
+          },
+        },
+        { upsert: true, returnDocument: 'after', setDefaultsOnInsert: true },
+      )
+      .exec()) as OrganizationMemberDocument;
+
+    await this.usersService.addOrganization(data.userId, data.organizationId);
+
+    this.logger.debug(
+      `Member JIT synced: ${data.userId} in ${data.organizationId} with role ${role}`,
+    );
+    return member;
+  }
+
   async findMembersByOrgId(organizationId: string): Promise<OrganizationMemberDetail[]> {
     return this.memberModel
       .aggregate<OrganizationMemberDetail>([

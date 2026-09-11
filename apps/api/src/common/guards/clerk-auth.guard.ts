@@ -5,10 +5,14 @@ import {
   ForbiddenException,
   Inject,
   Injectable,
+  Logger,
+  Optional,
   UnauthorizedException,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Request } from 'express';
+import { OrganizationMembersService } from '../../modules/organization-members/organization-members.service';
+import { OrganizationsService } from '../../modules/organizations/organizations.service';
 import { UsersService } from '../../modules/users/users.service';
 import { CLERK_CLIENT } from '../clerk/clerk-client.provider';
 import { AuthenticatedRequest, AuthContext } from '../interfaces/authenticated-request.interface';
@@ -23,12 +27,15 @@ interface ClerkJwtPayload {
 
 @Injectable()
 export class ClerkAuthGuard implements CanActivate {
+  private readonly logger = new Logger(ClerkAuthGuard.name);
   private readonly secretKey: string | undefined;
 
   constructor(
     @Inject(CLERK_CLIENT) private readonly clerkClient: ClerkClient,
     private readonly configService: ConfigService,
     private readonly usersService: UsersService,
+    @Optional() private readonly organizationsService?: OrganizationsService,
+    @Optional() private readonly orgMembersService?: OrganizationMembersService,
   ) {
     this.secretKey = this.configService.get<string>('CLERK_SECRET_KEY');
   }
@@ -86,7 +93,12 @@ export class ClerkAuthGuard implements CanActivate {
             avatarUrl: clerkUser.imageUrl ?? null,
           });
         }
-      } catch {
+      } catch (error) {
+        this.logger.warn(
+          `Failed to JIT sync user from Clerk (${payload.sub}): ${
+            error instanceof Error ? error.message : String(error)
+          }`,
+        );
         localUser = await this.usersService.findById(payload.sub);
       }
     }
@@ -103,11 +115,58 @@ export class ClerkAuthGuard implements CanActivate {
     const orgId = payload.org_id ?? rawOrg?.id ?? null;
     const orgRole = payload.org_role ?? rawOrg?.rol ?? null;
 
-    // Auto-link active organizationId to user.organizationIds if not yet added
-    if (orgId && !localUser.organizationIds?.includes(orgId)) {
-      const updatedUser = await this.usersService.addOrganization(localUser._id, orgId);
-      if (updatedUser) {
-        localUser = updatedUser;
+    // Auto-link active organizationId to user.organizationIds and JIT sync Organization if missing
+    if (orgId) {
+      if (!localUser.organizationIds?.includes(orgId)) {
+        const updatedUser = await this.usersService.addOrganization(localUser._id, orgId);
+        if (updatedUser) {
+          localUser = updatedUser;
+        }
+      }
+
+      if (this.organizationsService) {
+        const localOrg = await this.organizationsService.findById(orgId);
+        if (!localOrg) {
+          try {
+            const clerkOrg = await this.clerkClient.organizations.getOrganization({
+              organizationId: orgId,
+            });
+            if (clerkOrg) {
+              await this.organizationsService.syncFromClerk({
+                id: clerkOrg.id,
+                name: clerkOrg.name,
+                slug: clerkOrg.slug ?? null,
+                logoUrl: clerkOrg.imageUrl ?? null,
+              });
+            }
+          } catch (error) {
+            this.logger.warn(
+              `Failed to JIT sync organization from Clerk (${orgId}): ${
+                error instanceof Error ? error.message : String(error)
+              }`,
+            );
+          }
+        }
+      }
+
+      // JIT Sync OrganizationMember if member record is not yet in database
+      if (this.orgMembersService) {
+        const localMember = await this.orgMembersService.findByOrgAndUser(orgId, localUser._id);
+        if (!localMember) {
+          try {
+            await this.orgMembersService.syncMember({
+              organizationId: orgId,
+              userId: localUser._id,
+              role: orgRole,
+            });
+          } catch (error) {
+            this.logger.warn(
+              `Failed to JIT sync organization member from Clerk (${orgId}, ${localUser._id}): ${
+                error instanceof Error ? error.message : String(error)
+              }`,
+            );
+          }
+        }
       }
     }
 

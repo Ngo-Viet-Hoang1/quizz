@@ -66,9 +66,13 @@ export class AuditService {
           }
         : {};
 
+    const safeAction = query.action
+      ? query.action.trim().replace(/[-[\]{}()*+?.,\\^$|#\s]/g, '\\$&')
+      : undefined;
+
     return {
       orgId,
-      ...(query.action && { action: query.action }),
+      ...(safeAction && { action: { $regex: safeAction, $options: 'i' } }),
       ...(query.resourceType && { resourceType: query.resourceType }),
       ...(query.userId && { userId: query.userId }),
       ...(typeof query.statusCode === 'number' && { statusCode: query.statusCode }),
