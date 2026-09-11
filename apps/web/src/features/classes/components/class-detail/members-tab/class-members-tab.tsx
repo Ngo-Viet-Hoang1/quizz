@@ -1,8 +1,9 @@
 'use client';
 
 import * as React from 'react';
+import { useOrganization } from '@clerk/nextjs';
 import { createColumnHelper } from '@tanstack/react-table';
-import { Check, Plus, Shield, Trash2, UserCheck, Users, X } from 'lucide-react';
+import { Check, Plus, Trash2, X } from 'lucide-react';
 import { toast } from 'sonner';
 import {
   AlertDialog,
@@ -16,13 +17,13 @@ import {
 } from '@/shared/ui/alert-dialog';
 import { Badge } from '@/shared/ui/badge';
 import { Button } from '@/shared/ui/button';
-import { Card, CardContent } from '@/shared/ui/card';
 import {
   DataTable,
   DataTableColumnHeader,
   FilterOption,
   type DataTableFeatures,
 } from '@/shared/components/data-table';
+import { UserAvatarCell } from '@/shared/components/user-avatar-cell';
 import { useDebounce } from '@/shared/hooks';
 import { formatDate, formatDateTime } from '@/shared/lib/date';
 import { useApproveClassMember, useRejectClassMember, useRemoveClassMember } from '../../../hooks';
@@ -68,9 +69,25 @@ export function ClassMembersTab({
   const classId = classItem.id || classItem._id || '';
   const isArchived = classItem.status === ClassStatus.ARCHIVED;
 
+  const { memberships } = useOrganization({ memberships: { infinite: true } });
+
   const approveMutation = useApproveClassMember();
   const rejectMutation = useRejectClassMember();
   const removeMutation = useRemoveClassMember();
+
+  // Helper to get user searchable text from Clerk org
+  const userSearchIndex = React.useMemo(() => {
+    const map = new Map<string, string>();
+    memberships?.data?.forEach((m) => {
+      const p = m.publicUserData;
+      const text =
+        `${p?.firstName || ''} ${p?.lastName || ''} ${p?.identifier || ''} ${p?.userId || ''}`.toLowerCase();
+      if (p?.userId) {
+        map.set(p.userId, text);
+      }
+    });
+    return map;
+  }, [memberships]);
 
   const activeMembers = React.useMemo(
     () => members.filter((m) => m.status === ClassMemberStatus.ACTIVE),
@@ -85,19 +102,23 @@ export function ClassMembersTab({
   const filteredActiveMembers = React.useMemo(() => {
     return activeMembers.filter((m) => {
       const matchRole = activeRoleFilter === 'ALL' || m.role === activeRoleFilter;
-      const matchSearch =
-        !debouncedActiveSearch.trim() ||
-        m.userId.toLowerCase().includes(debouncedActiveSearch.trim().toLowerCase());
-      return matchRole && matchSearch;
+      if (!matchRole) return false;
+      if (!debouncedActiveSearch.trim()) return true;
+
+      const q = debouncedActiveSearch.trim().toLowerCase();
+      const userText = userSearchIndex.get(m.userId) || m.userId.toLowerCase();
+      return userText.includes(q);
     });
-  }, [activeMembers, activeRoleFilter, debouncedActiveSearch]);
+  }, [activeMembers, activeRoleFilter, debouncedActiveSearch, userSearchIndex]);
 
   const filteredPendingMembers = React.useMemo(() => {
     return pendingMembers.filter((m) => {
       if (!debouncedPendingSearch.trim()) return true;
-      return m.userId.toLowerCase().includes(debouncedPendingSearch.trim().toLowerCase());
+      const q = debouncedPendingSearch.trim().toLowerCase();
+      const userText = userSearchIndex.get(m.userId) || m.userId.toLowerCase();
+      return userText.includes(q);
     });
-  }, [pendingMembers, debouncedPendingSearch]);
+  }, [pendingMembers, debouncedPendingSearch, userSearchIndex]);
 
   const handleApprove = async (userId: string) => {
     try {
@@ -136,20 +157,15 @@ export function ClassMembersTab({
     () =>
       memberColumnHelper.columns([
         memberColumnHelper.accessor('userId', {
-          header: ({ column }) => <DataTableColumnHeader column={column} title="MEMBER USER ID" />,
-          cell: ({ row }) => (
-            <span className="font-mono text-xs font-semibold text-foreground">
-              {row.getValue('userId')}
-            </span>
-          ),
+          header: ({ column }) => <DataTableColumnHeader column={column} title="MEMBER" />,
+          cell: ({ row }) => <UserAvatarCell userId={row.getValue('userId')} size="sm" />,
         }),
         memberColumnHelper.accessor('role', {
           header: ({ column }) => <DataTableColumnHeader column={column} title="ROLE" />,
           cell: ({ row }) => {
             const role = row.getValue('role') as ClassMemberRole;
             return (
-              <Badge variant="secondary" className="font-mono text-xs capitalize gap-1">
-                {role === ClassMemberRole.ASSISTANT && <Shield className="h-3 w-3 text-primary" />}
+              <Badge variant="secondary" className="font-mono text-xs capitalize">
                 {role}
               </Badge>
             );
@@ -200,14 +216,8 @@ export function ClassMembersTab({
     () =>
       memberColumnHelper.columns([
         memberColumnHelper.accessor('userId', {
-          header: ({ column }) => (
-            <DataTableColumnHeader column={column} title="CANDIDATE USER ID" />
-          ),
-          cell: ({ row }) => (
-            <span className="font-mono text-xs font-semibold text-foreground">
-              {row.getValue('userId')}
-            </span>
-          ),
+          header: ({ column }) => <DataTableColumnHeader column={column} title="CANDIDATE" />,
+          cell: ({ row }) => <UserAvatarCell userId={row.getValue('userId')} size="sm" />,
         }),
         memberColumnHelper.accessor('joinedAt', {
           header: ({ column }) => <DataTableColumnHeader column={column} title="REQUESTED TIME" />,
@@ -224,7 +234,7 @@ export function ClassMembersTab({
               variant="outline"
               className="border-amber-500/30 bg-amber-500/10 text-amber-500 text-xs font-mono"
             >
-              Pending Approval
+              Pending
             </Badge>
           ),
         }),
@@ -262,91 +272,87 @@ export function ClassMembersTab({
   );
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       {/* Sub Tab Navigation & Controls */}
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div className="flex items-center gap-2">
-          <Button
-            variant={subTab === 'active' ? 'default' : 'outline'}
-            size="sm"
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex items-center gap-1.5 p-1 bg-muted/50 rounded-lg w-fit border border-border/40">
+          <button
+            type="button"
             onClick={() => setSubTab('active')}
-            className="gap-1.5"
+            className={`px-3 py-1.5 text-xs font-medium rounded-md transition-colors cursor-pointer flex items-center gap-1.5 ${
+              subTab === 'active'
+                ? 'bg-background text-foreground shadow-2xs font-semibold'
+                : 'text-muted-foreground hover:text-foreground'
+            }`}
           >
-            <Users className="h-4 w-4" />
             <span>Enrolled Members</span>
             {activeMembers.length > 0 && (
-              <Badge variant="secondary" className="ml-1 text-xs px-1.5 py-0 font-mono">
+              <Badge variant="secondary" className="text-[10px] px-1.5 py-0 font-mono">
                 {activeMembers.length}
               </Badge>
             )}
-          </Button>
+          </button>
 
-          <Button
-            variant={subTab === 'pending' ? 'default' : 'outline'}
-            size="sm"
+          <button
+            type="button"
             onClick={() => setSubTab('pending')}
-            className="gap-1.5 relative"
+            className={`px-3 py-1.5 text-xs font-medium rounded-md transition-colors cursor-pointer flex items-center gap-1.5 ${
+              subTab === 'pending'
+                ? 'bg-background text-foreground shadow-2xs font-semibold'
+                : 'text-muted-foreground hover:text-foreground'
+            }`}
           >
-            <UserCheck className="h-4 w-4 text-amber-500" />
             <span>Pending Requests</span>
             {pendingMembers.length > 0 && (
               <Badge
                 variant="destructive"
-                className="ml-1 text-xs px-1.5 py-0 font-mono bg-amber-500 hover:bg-amber-500 text-white"
+                className="text-[10px] px-1.5 py-0 font-mono bg-amber-500 hover:bg-amber-500 text-white"
               >
                 {pendingMembers.length}
               </Badge>
             )}
-          </Button>
+          </button>
         </div>
 
         {subTab === 'active' && !isArchived && (
-          <Button size="sm" onClick={onAddMember} className="gap-1.5 h-8">
+          <Button size="sm" onClick={onAddMember} className="gap-1.5 h-8 text-xs shadow-2xs">
             <Plus className="h-3.5 w-3.5" />
             <span>Add Member</span>
           </Button>
         )}
       </div>
 
-      {/* View 1: Active Members with Shared DataTable */}
+      {/* View 1: Active Members with Flat DataTable (No redundant Card wrap) */}
       {subTab === 'active' && (
-        <Card className="border-border/60">
-          <CardContent className="pt-6">
-            <DataTable
-              columns={activeColumns}
-              data={filteredActiveMembers}
-              isLoading={isLoading}
-              searchColumnId="userId"
-              searchPlaceholder="Search enrolled members by user ID..."
-              searchValue={activeSearch}
-              onSearchChange={(val) => setActiveSearch(val)}
-              filterOptions={roleFilterOptions}
-              activeFilter={activeRoleFilter}
-              onFilterChange={(val) => setActiveRoleFilter(val)}
-              emptyMessage="No enrolled members found"
-              emptyDescription="Add students directly or approve pending enrollment requests."
-            />
-          </CardContent>
-        </Card>
+        <DataTable
+          columns={activeColumns}
+          data={filteredActiveMembers}
+          isLoading={isLoading}
+          searchColumnId="userId"
+          searchPlaceholder="Search by name, email, or ID..."
+          searchValue={activeSearch}
+          onSearchChange={(val) => setActiveSearch(val)}
+          filterOptions={roleFilterOptions}
+          activeFilter={activeRoleFilter}
+          onFilterChange={(val) => setActiveRoleFilter(val)}
+          emptyMessage="No enrolled members found"
+          emptyDescription="Add members directly from your organization or approve join requests."
+        />
       )}
 
-      {/* View 2: Pending Join Requests with Shared DataTable */}
+      {/* View 2: Pending Join Requests with Flat DataTable */}
       {subTab === 'pending' && (
-        <Card className="border-border/60">
-          <CardContent className="pt-6">
-            <DataTable
-              columns={pendingColumns}
-              data={filteredPendingMembers}
-              isLoading={isLoading}
-              searchColumnId="userId"
-              searchPlaceholder="Search pending requests by user ID..."
-              searchValue={pendingSearch}
-              onSearchChange={(val) => setPendingSearch(val)}
-              emptyMessage="No pending join requests"
-              emptyDescription="All student enrollment requests have been handled."
-            />
-          </CardContent>
-        </Card>
+        <DataTable
+          columns={pendingColumns}
+          data={filteredPendingMembers}
+          isLoading={isLoading}
+          searchColumnId="userId"
+          searchPlaceholder="Search pending requests..."
+          searchValue={pendingSearch}
+          onSearchChange={(val) => setPendingSearch(val)}
+          emptyMessage="No pending join requests"
+          emptyDescription="All student enrollment requests have been handled."
+        />
       )}
 
       {/* Remove Member Confirmation Dialog */}
@@ -358,10 +364,18 @@ export function ClassMembersTab({
           <AlertDialogHeader>
             <AlertDialogTitle>Remove Member from Classroom</AlertDialogTitle>
             <AlertDialogDescription>
-              Are you sure you want to remove candidate <strong>{memberToRemove?.userId}</strong>{' '}
-              from this classroom? They will lose access to assigned quizzes.
+              Are you sure you want to remove this member from the classroom? They will lose access
+              to assigned quizzes.
             </AlertDialogDescription>
           </AlertDialogHeader>
+          <div className="py-2">
+            {memberToRemove && (
+              <UserAvatarCell
+                userId={memberToRemove.userId}
+                className="p-3 bg-muted/40 rounded-lg border border-border/50"
+              />
+            )}
+          </div>
           <AlertDialogFooter>
             <AlertDialogCancel disabled={removeMutation.isPending}>Cancel</AlertDialogCancel>
             <AlertDialogAction

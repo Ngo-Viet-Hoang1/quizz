@@ -2,18 +2,10 @@
 
 import * as React from 'react';
 import Link from 'next/link';
-import { useOrganization, useUser } from '@clerk/nextjs';
-import {
-  Archive,
-  ArrowLeft,
-  CheckCircle2,
-  GraduationCap,
-  Pencil,
-  Plus,
-  Shield,
-} from 'lucide-react';
+import { ArrowLeft, Plus } from 'lucide-react';
 import { Badge } from '@/shared/ui/badge';
 import { Button, buttonVariants } from '@/shared/ui/button';
+import { UserAvatarCell } from '@/shared/components/user-avatar-cell';
 import { cn } from '@/shared/lib/utils';
 import { ClassItem, ClassStatus } from '../../types';
 
@@ -34,42 +26,26 @@ export function ClassDetailHeader({
 }: ClassDetailHeaderProps) {
   const isArchived = classItem.status === ClassStatus.ARCHIVED;
 
-  const { user } = useUser();
-  const { memberships } = useOrganization({ memberships: { infinite: true } });
-
-  const orgMember = memberships?.data?.find((m) => m.publicUserData?.userId === classItem.ownerId);
-
-  const isCurrentUser = user?.id === classItem.ownerId;
-
-  const teacherName = orgMember?.publicUserData?.firstName
-    ? `${orgMember.publicUserData.firstName} ${orgMember.publicUserData.lastName || ''}`.trim()
-    : orgMember?.publicUserData?.identifier ||
-      (isCurrentUser
-        ? user?.fullName || user?.username || user?.primaryEmailAddress?.emailAddress
-        : classItem.ownerId || 'N/A');
-
   return (
-    <div className="space-y-4 border-b border-border pb-6 pt-1">
-      {/* Back button & Breadcrumb */}
-      <div className="flex items-center gap-2 text-sm text-muted-foreground">
+    <div className="space-y-4 border-b border-border pb-5 pt-1">
+      {/* Back button */}
+      <div>
         <Link
           href="/classes"
-          className={cn(buttonVariants({ variant: 'ghost', size: 'sm' }), 'h-8 gap-1 px-2 text-xs')}
+          className={cn(
+            buttonVariants({ variant: 'ghost', size: 'sm' }),
+            'h-7 gap-1.5 px-2 text-xs text-muted-foreground hover:text-foreground -ml-2',
+          )}
         >
           <ArrowLeft className="h-3.5 w-3.5" />
-          <span>Back to Classes</span>
+          <span>All Classes</span>
         </Link>
-        <span>/</span>
-        <span className="font-medium text-xs text-foreground/80">{classItem.name}</span>
       </div>
 
       {/* Main Title & Action Bar */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div className="space-y-2">
+        <div className="space-y-2.5">
           <div className="flex flex-wrap items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl border border-primary/20 bg-primary/10 text-primary shadow-xs">
-              <GraduationCap className="h-5 w-5" />
-            </div>
             <h1 className="text-2xl font-bold tracking-tight text-foreground sm:text-3xl">
               {classItem.name}
             </h1>
@@ -82,25 +58,13 @@ export function ClassDetailHeader({
                   : 'border-emerald-500/30 bg-emerald-500/10 text-emerald-500',
               )}
             >
-              {isArchived ? (
-                <Archive className="mr-1 h-3 w-3 inline" />
-              ) : (
-                <CheckCircle2 className="mr-1 h-3 w-3 inline" />
-              )}
               {classItem.status}
             </Badge>
           </div>
 
-          <div className="flex flex-wrap items-center gap-4 text-xs text-muted-foreground">
-            <span className="flex items-center gap-1.5">
-              <Shield className="h-3.5 w-3.5 text-primary/70" />
-              Teacher: <strong className="text-foreground font-medium">{teacherName}</strong>
-              {isCurrentUser && (
-                <Badge variant="secondary" className="text-xs px-1.5 py-0 font-mono">
-                  You
-                </Badge>
-              )}
-            </span>
+          <div className="flex items-center gap-2">
+            <span className="text-xs text-muted-foreground font-medium">Instructor:</span>
+            <UserAvatarCell userId={classItem.ownerId} size="sm" showEmail={false} />
           </div>
         </div>
 
@@ -112,21 +76,20 @@ export function ClassDetailHeader({
                 variant="outline"
                 size="sm"
                 onClick={onAssignQuiz}
-                className="gap-1.5 shadow-xs"
+                className="gap-1.5 text-xs shadow-2xs"
               >
-                <Plus className="h-4 w-4" />
+                <Plus className="h-3.5 w-3.5" />
                 <span>Assign Quiz</span>
               </Button>
-              <Button size="sm" onClick={onAddMember} className="gap-1.5 shadow-xs">
-                <Plus className="h-4 w-4" />
+              <Button size="sm" onClick={onAddMember} className="gap-1.5 text-xs shadow-2xs">
+                <Plus className="h-3.5 w-3.5" />
                 <span>Add Member</span>
               </Button>
             </>
           )}
 
-          <Button variant="outline" size="sm" onClick={onEdit} className="gap-1.5">
-            <Pencil className="h-3.5 w-3.5" />
-            <span>Edit</span>
+          <Button variant="outline" size="sm" onClick={onEdit} className="text-xs">
+            Edit
           </Button>
 
           {!isArchived && (
@@ -134,10 +97,9 @@ export function ClassDetailHeader({
               variant="outline"
               size="sm"
               onClick={onArchive}
-              className="gap-1.5 text-destructive hover:text-destructive"
+              className="text-xs text-destructive hover:text-destructive hover:bg-destructive/10"
             >
-              <Archive className="h-3.5 w-3.5" />
-              <span>Archive</span>
+              Archive
             </Button>
           )}
         </div>

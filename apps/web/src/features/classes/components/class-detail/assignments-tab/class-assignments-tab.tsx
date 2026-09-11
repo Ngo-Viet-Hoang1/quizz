@@ -3,7 +3,7 @@
 import * as React from 'react';
 import Link from 'next/link';
 import { createColumnHelper } from '@tanstack/react-table';
-import { Clock, ExternalLink, Plus, Trash2 } from 'lucide-react';
+import { Plus, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
 import {
   AlertDialog,
@@ -17,7 +17,6 @@ import {
 } from '@/shared/ui/alert-dialog';
 import { Badge } from '@/shared/ui/badge';
 import { Button } from '@/shared/ui/button';
-import { Card, CardContent } from '@/shared/ui/card';
 import {
   DataTable,
   DataTableColumnHeader,
@@ -92,7 +91,7 @@ export function ClassAssignmentsTab({
     () =>
       assignmentColumnHelper.columns([
         assignmentColumnHelper.accessor('quizId', {
-          header: ({ column }) => <DataTableColumnHeader column={column} title="QUIZ ASSESSMENT" />,
+          header: ({ column }) => <DataTableColumnHeader column={column} title="ASSESSMENT" />,
           cell: ({ row }) => {
             const assignment = row.original;
             const quizTitle = quizMap.get(assignment.quizId) || 'Quiz Assessment';
@@ -102,15 +101,14 @@ export function ClassAssignmentsTab({
               <div className="flex items-center gap-2 py-1">
                 <Link
                   href={`/quizzes/${assignment.quizId}`}
-                  className="font-semibold text-xs text-foreground hover:text-primary transition-colors flex items-center gap-1.5"
+                  className="font-medium text-xs text-foreground hover:text-primary transition-colors line-clamp-1"
                 >
-                  <span>{quizTitle}</span>
-                  <ExternalLink className="h-3 w-3 text-muted-foreground" />
+                  {quizTitle}
                 </Link>
                 {isPractice && (
                   <Badge
                     variant="outline"
-                    className="text-[10px] px-1.5 py-0 border-blue-500/30 text-blue-500 bg-blue-500/10"
+                    className="text-[10px] px-1.5 py-0 border-blue-500/30 text-blue-500 bg-blue-500/10 font-mono"
                   >
                     Practice
                   </Badge>
@@ -137,10 +135,7 @@ export function ClassAssignmentsTab({
               return <span className="text-xs text-muted-foreground font-mono">Immediate</span>;
             }
             return (
-              <div className="flex items-center gap-1.5 text-xs text-foreground font-mono">
-                <Clock className="h-3.5 w-3.5 text-blue-500" />
-                <span>{formatDateTime(start)}</span>
-              </div>
+              <span className="text-xs text-foreground font-mono">{formatDateTime(start)}</span>
             );
           },
         }),
@@ -153,10 +148,9 @@ export function ClassAssignmentsTab({
               return <span className="text-xs text-muted-foreground font-mono">No Deadline</span>;
             }
             return (
-              <div className="flex items-center gap-1.5 text-xs text-foreground font-mono">
-                <Clock className="h-3.5 w-3.5 text-amber-500" />
-                <span>{formatDateTime(due)}</span>
-              </div>
+              <span className="text-xs text-foreground font-mono font-medium">
+                {formatDateTime(due)}
+              </span>
             );
           },
         }),
@@ -211,38 +205,34 @@ export function ClassAssignmentsTab({
   );
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-base font-semibold">Assigned Assessments</h2>
+          <h2 className="text-sm font-semibold">Assigned Assessments</h2>
           <p className="text-xs text-muted-foreground">
-            Quizzes and exams currently available to students in this classroom.
+            Quizzes and exams currently available to enrolled students in this classroom.
           </p>
         </div>
 
         {!isArchived && (
-          <Button size="sm" onClick={onAssignQuiz} className="gap-1.5 shadow-xs">
-            <Plus className="h-4 w-4" />
+          <Button size="sm" onClick={onAssignQuiz} className="gap-1.5 h-8 text-xs shadow-2xs">
+            <Plus className="h-3.5 w-3.5" />
             <span>Assign Quiz</span>
           </Button>
         )}
       </div>
 
-      <Card className="border-border/60">
-        <CardContent className="pt-6">
-          <DataTable
-            columns={columns}
-            data={filteredAssignments}
-            isLoading={isLoading}
-            searchColumnId="quizId"
-            searchPlaceholder="Search assigned quizzes..."
-            searchValue={searchInput}
-            onSearchChange={(val) => setSearchInput(val)}
-            emptyMessage="No quizzes assigned yet"
-            emptyDescription="Assign assessments from your Quiz Bank to let enrolled students take exams."
-          />
-        </CardContent>
-      </Card>
+      <DataTable
+        columns={columns}
+        data={filteredAssignments}
+        isLoading={isLoading}
+        searchColumnId="quizId"
+        searchPlaceholder="Search assigned quizzes..."
+        searchValue={searchInput}
+        onSearchChange={(val) => setSearchInput(val)}
+        emptyMessage="No quizzes assigned yet"
+        emptyDescription="Assign assessments from your Quiz Bank to let enrolled students take exams."
+      />
 
       {/* Remove Assignment Confirmation Dialog */}
       <AlertDialog

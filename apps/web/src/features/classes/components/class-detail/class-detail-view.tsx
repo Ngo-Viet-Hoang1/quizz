@@ -1,7 +1,6 @@
 'use client';
 
 import * as React from 'react';
-import { BookOpen, Info, Users } from 'lucide-react';
 import { Badge } from '@/shared/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/shared/ui/tabs';
 import { useClass, useClassAssignments, useClassMembers } from '../../hooks';
@@ -66,30 +65,31 @@ export function ClassDetailView({ classId, initialData }: ClassDetailViewProps) 
 
       {/* Tabs */}
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-        <TabsList className="grid w-full grid-cols-3 sm:w-105">
-          <TabsTrigger value="members" className="gap-1.5 text-xs">
-            <Users className="h-3.5 w-3.5" />
+        <TabsList className="w-fit">
+          <TabsTrigger value="members" className="text-xs">
             <span>Members</span>
-            {pendingCount > 0 && (
+            {pendingCount > 0 ? (
               <Badge
                 variant="destructive"
-                className="ml-1 text-xs px-1.5 py-0 font-mono bg-amber-500 hover:bg-amber-500 text-white"
+                className="ml-1.5 text-[10px] px-1.5 py-0 font-mono bg-amber-500 hover:bg-amber-500 text-white"
               >
                 {pendingCount}
               </Badge>
-            )}
+            ) : members.length > 0 ? (
+              <Badge variant="secondary" className="ml-1.5 text-[10px] px-1.5 py-0 font-mono">
+                {members.length}
+              </Badge>
+            ) : null}
           </TabsTrigger>
-          <TabsTrigger value="assignments" className="gap-1.5 text-xs">
-            <BookOpen className="h-3.5 w-3.5" />
+          <TabsTrigger value="assignments" className="text-xs">
             <span>Assessments</span>
             {assignments.length > 0 && (
-              <Badge variant="secondary" className="ml-1 text-xs px-1.5 py-0 font-mono">
+              <Badge variant="secondary" className="ml-1.5 text-[10px] px-1.5 py-0 font-mono">
                 {assignments.length}
               </Badge>
             )}
           </TabsTrigger>
-          <TabsTrigger value="overview" className="gap-1.5 text-xs">
-            <Info className="h-3.5 w-3.5" />
+          <TabsTrigger value="overview" className="text-xs">
             <span>Overview</span>
           </TabsTrigger>
         </TabsList>

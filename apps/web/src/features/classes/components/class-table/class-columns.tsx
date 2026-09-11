@@ -3,49 +3,13 @@
 import * as React from 'react';
 import Link from 'next/link';
 import { createColumnHelper } from '@tanstack/react-table';
-import { GraduationCap, Shield } from 'lucide-react';
 import { Badge } from '@/shared/ui/badge';
 import { DataTableColumnHeader, type DataTableFeatures } from '@/shared/components/data-table';
+import { UserAvatarCell } from '@/shared/components/user-avatar-cell';
 import { formatDate } from '@/shared/lib/date';
 import { cn } from '@/shared/lib/utils';
 import { ClassItem, ClassStatus } from '../../types';
 import { ClassRowActions } from './class-actions';
-
-import { useOrganization, useUser } from '@clerk/nextjs';
-
-function TeacherNameCell({ ownerId }: { ownerId: string }) {
-  const { user } = useUser();
-  const { memberships } = useOrganization({
-    memberships: {
-      infinite: true,
-    },
-  });
-
-  const orgMember = memberships?.data?.find((m) => m.publicUserData?.userId === ownerId);
-
-  const isCurrentUser = user?.id === ownerId;
-
-  const displayName = orgMember?.publicUserData?.firstName
-    ? `${orgMember.publicUserData.firstName} ${orgMember.publicUserData.lastName || ''}`.trim()
-    : orgMember?.publicUserData?.identifier ||
-      (isCurrentUser
-        ? user?.fullName || user?.username || user?.primaryEmailAddress?.emailAddress
-        : null);
-
-  const finalName = displayName || (ownerId ? `${ownerId.substring(0, 12)}...` : 'N/A');
-
-  return (
-    <div className="flex items-center gap-1.5 text-xs">
-      <Shield className="h-3.5 w-3.5 text-primary/70 shrink-0" />
-      <span className="font-medium text-foreground truncate max-w-xs">{finalName}</span>
-      {isCurrentUser && (
-        <Badge variant="secondary" className="text-xs px-1.5 py-0 font-mono">
-          You
-        </Badge>
-      )}
-    </div>
-  );
-}
 
 const columnHelper = createColumnHelper<DataTableFeatures, ClassItem>();
 
@@ -73,14 +37,11 @@ export function createClassColumns(
         const isArchived = item.status === ClassStatus.ARCHIVED;
 
         return (
-          <div className="flex items-center gap-3 py-1">
-            <div className="flex h-9 w-9 items-center justify-center rounded-lg border border-border bg-muted/50 text-muted-foreground shrink-0">
-              <GraduationCap className="h-4 w-4" />
-            </div>
+          <div className="flex items-center gap-2.5 py-1">
             <Link
               href={`/classes/${id}`}
               className={cn(
-                'font-semibold text-foreground tracking-tight hover:text-primary transition-colors line-clamp-1',
+                'font-medium text-xs text-foreground hover:text-primary transition-colors line-clamp-1',
                 isArchived && 'text-muted-foreground line-through',
               )}
             >
@@ -92,8 +53,8 @@ export function createClassColumns(
     }),
 
     columnHelper.accessor('ownerId', {
-      header: ({ column }) => <DataTableColumnHeader column={column} title="OWNER / TEACHER" />,
-      cell: ({ row }) => <TeacherNameCell ownerId={row.getValue('ownerId')} />,
+      header: ({ column }) => <DataTableColumnHeader column={column} title="INSTRUCTOR" />,
+      cell: ({ row }) => <UserAvatarCell userId={row.getValue('ownerId')} size="sm" />,
     }),
 
     columnHelper.accessor('status', {
