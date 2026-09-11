@@ -70,7 +70,7 @@ export function VersionQuestionCard({ question, index }: VersionQuestionCardProp
                 className={cn(
                   'flex items-start gap-2.5 rounded-md border p-2.5 text-xs transition-colors',
                   isCorrect
-                    ? 'border-emerald-500/40 bg-emerald-500/10 text-emerald-950 dark:text-emerald-200'
+                    ? 'border-emerald-500/40 bg-emerald-500/10 text-foreground font-medium'
                     : 'border-border/60 bg-muted/30 text-muted-foreground',
                 )}
               >
@@ -93,9 +93,7 @@ export function VersionQuestionCard({ question, index }: VersionQuestionCardProp
       {/* Fill blank metadata fallback */}
       {question.type === QuestionType.FILL_BLANK && question.metadata?.correctText && (
         <div className="rounded-md border border-emerald-500/30 bg-emerald-500/10 p-2.5 text-xs">
-          <span className="font-semibold text-emerald-600 dark:text-emerald-400">
-            Correct Text Answer:{' '}
-          </span>
+          <span className="font-semibold text-emerald-500">Correct Text Answer: </span>
           <span className="font-mono text-foreground">{question.metadata.correctText}</span>
         </div>
       )}

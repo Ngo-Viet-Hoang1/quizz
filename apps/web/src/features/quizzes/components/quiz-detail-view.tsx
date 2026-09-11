@@ -9,6 +9,7 @@ import {
   ChevronLeft,
   Edit3,
   HelpCircle,
+  History,
   Pencil,
   Plus,
   Share2,
@@ -36,6 +37,7 @@ import { QuestionItem, QuizDifficulty, QuizSourceType, QuizStatus } from '../typ
 import { QuizFormDialog } from './quiz-form/quiz-form-dialog';
 import { QuizShareDialog } from './quiz-share-dialog';
 import { QuestionFormDialog } from './question-dialog/question-form-dialog';
+import { QuizVersionHistorySheet } from './version-history';
 
 const statusColorMap: Record<string, { className: string; label: string }> = {
   [QuizStatus.PUBLISHED]: {
@@ -124,6 +126,7 @@ export function QuizDetailView({ quizId }: QuizDetailViewProps) {
 
   const [editDialogOpen, setEditDialogOpen] = React.useState(false);
   const [shareDialogOpen, setShareDialogOpen] = React.useState(false);
+  const [versionHistoryOpen, setVersionHistoryOpen] = React.useState(false);
 
   // Question dialog state
   const [questionDialogOpen, setQuestionDialogOpen] = React.useState(false);
@@ -218,6 +221,15 @@ export function QuizDetailView({ quizId }: QuizDetailViewProps) {
             >
               {statusConfig.label}
             </Badge>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setVersionHistoryOpen(true)}
+              className="h-6 px-2 text-xs font-mono gap-1 text-muted-foreground hover:text-foreground"
+            >
+              <History className="h-3 w-3 text-primary" />
+              <span>v{quiz.version || 1} • History</span>
+            </Button>
           </div>
           <p className="text-sm text-muted-foreground">
             {quiz.description || 'No description provided'}
@@ -376,6 +388,12 @@ export function QuizDetailView({ quizId }: QuizDetailViewProps) {
       {/* Dialogs */}
       <QuizFormDialog open={editDialogOpen} onOpenChange={setEditDialogOpen} quizToEdit={quiz} />
       <QuizShareDialog quiz={quiz} open={shareDialogOpen} onOpenChange={setShareDialogOpen} />
+      <QuizVersionHistorySheet
+        quizId={quiz._id}
+        currentVersion={quiz.version || 1}
+        open={versionHistoryOpen}
+        onOpenChange={setVersionHistoryOpen}
+      />
       <QuestionFormDialog
         open={questionDialogOpen}
         onOpenChange={setQuestionDialogOpen}

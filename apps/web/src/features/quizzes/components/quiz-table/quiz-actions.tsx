@@ -2,7 +2,16 @@
 
 import * as React from 'react';
 import Link from 'next/link';
-import { Archive, Copy, ExternalLink, MoreHorizontal, Play, Share2, Trash2 } from 'lucide-react';
+import {
+  Archive,
+  Copy,
+  ExternalLink,
+  History,
+  MoreHorizontal,
+  Play,
+  Share2,
+  Trash2,
+} from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from '@/shared/ui/button';
 import {
@@ -25,6 +34,7 @@ import {
 } from '@/shared/ui/alert-dialog';
 import { QuizItem, QuizStatus } from '../../types';
 import { useArchiveQuiz, useCloneQuiz, useDeleteQuiz, usePublishQuiz } from '../../hooks';
+import { QuizVersionHistorySheet } from '../version-history';
 
 interface QuizRowActionsProps {
   quiz: QuizItem;
@@ -34,6 +44,7 @@ interface QuizRowActionsProps {
 export function QuizRowActions({ quiz, onShare }: QuizRowActionsProps) {
   const [deleteOpen, setDeleteOpen] = React.useState(false);
   const [archiveOpen, setArchiveOpen] = React.useState(false);
+  const [versionHistoryOpen, setVersionHistoryOpen] = React.useState(false);
 
   const { mutateAsync: deleteQuiz, isPending: isDeleting } = useDeleteQuiz();
   const { mutateAsync: publishQuiz, isPending: isPublishing } = usePublishQuiz();
@@ -106,6 +117,13 @@ export function QuizRowActions({ quiz, onShare }: QuizRowActionsProps) {
           <DropdownMenuItem onClick={() => onShare?.(quiz)} className="flex items-center gap-2">
             <Share2 className="h-3.5 w-3.5 text-muted-foreground" />
             <span>Share Quiz Code</span>
+          </DropdownMenuItem>
+          <DropdownMenuItem
+            onClick={() => setVersionHistoryOpen(true)}
+            className="flex items-center gap-2"
+          >
+            <History className="h-3.5 w-3.5 text-muted-foreground" />
+            <span>Version History (v{quiz.version || 1})</span>
           </DropdownMenuItem>
 
           <DropdownMenuSeparator />
@@ -194,6 +212,14 @@ export function QuizRowActions({ quiz, onShare }: QuizRowActionsProps) {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Version History Sheet */}
+      <QuizVersionHistorySheet
+        quizId={quiz._id}
+        currentVersion={quiz.version || 1}
+        open={versionHistoryOpen}
+        onOpenChange={setVersionHistoryOpen}
+      />
     </>
   );
 }
