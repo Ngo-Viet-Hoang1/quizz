@@ -2,7 +2,7 @@
 
 import * as React from 'react';
 import { format } from 'date-fns';
-import { AlertTriangle, CheckCircle2, Clock, Trophy, XCircle } from 'lucide-react';
+import { AlertTriangle, CheckCircle2, Clock, Trophy } from 'lucide-react';
 import { Badge } from '@/shared/ui/badge';
 import { Card } from '@/shared/ui/card';
 import { formatDuration } from '@/shared/lib/date';
@@ -43,13 +43,18 @@ export function ScorecardSummaryCard({ attempt }: ScorecardSummaryCardProps) {
   };
 
   return (
-    <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+    <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
       {/* 1. Final Score */}
-      <Card className="p-3.5 space-y-1">
+      <Card className="p-3.5 space-y-1.5 bg-card/60 border border-border/80 min-w-0">
         <div className="flex items-center justify-between">
-          <span className="text-xs text-muted-foreground font-medium uppercase">Score</span>
+          <span className="text-[11px] text-muted-foreground font-semibold uppercase tracking-wider">
+            Score
+          </span>
           <Trophy
-            className={cn('h-4 w-4', isPassed ? 'text-amber-500' : 'text-muted-foreground')}
+            className={cn(
+              'h-4 w-4 shrink-0',
+              isPassed ? 'text-amber-500' : 'text-muted-foreground',
+            )}
           />
         </div>
         <div className="flex items-baseline gap-1.5">
@@ -58,77 +63,87 @@ export function ScorecardSummaryCard({ attempt }: ScorecardSummaryCardProps) {
             / {attempt.totalPoints} pts
           </span>
         </div>
-        <Badge
-          variant="outline"
-          className={cn(
-            'text-[10px] px-1.5 py-0 font-medium',
-            isPassed
-              ? 'border-emerald-500/30 bg-emerald-500/10 text-emerald-500'
-              : 'border-rose-500/30 bg-rose-500/10 text-rose-500',
-          )}
-        >
-          {percentage}% {isPassed ? 'Passed' : 'Needs Review'}
-        </Badge>
+        <div>
+          <Badge
+            variant="outline"
+            className={cn(
+              'text-[10px] px-1.5 py-0 font-medium',
+              isPassed
+                ? 'border-emerald-500/30 bg-emerald-500/10 text-emerald-500'
+                : 'border-rose-500/30 bg-rose-500/10 text-rose-500',
+            )}
+          >
+            {percentage}% {isPassed ? 'Passed' : 'Needs Review'}
+          </Badge>
+        </div>
       </Card>
 
       {/* 2. Questions Accuracy */}
-      <Card className="p-3.5 space-y-1">
+      <Card className="p-3.5 space-y-1.5 bg-card/60 border border-border/80 min-w-0">
         <div className="flex items-center justify-between">
-          <span className="text-xs text-muted-foreground font-medium uppercase">Accuracy</span>
-          <CheckCircle2 className="h-4 w-4 text-emerald-500" />
+          <span className="text-[11px] text-muted-foreground font-semibold uppercase tracking-wider">
+            Accuracy
+          </span>
+          <CheckCircle2 className="h-4 w-4 text-emerald-500 shrink-0" />
         </div>
-        <div className="flex items-center gap-3 pt-1">
-          <div className="flex items-center gap-1 text-xs text-emerald-500 font-mono font-bold">
-            <CheckCircle2 className="h-3.5 w-3.5" />
-            <span>{attempt.correctCount} correct</span>
-          </div>
-          <div className="flex items-center gap-1 text-xs text-rose-500 font-mono font-bold">
-            <XCircle className="h-3.5 w-3.5" />
-            <span>{attempt.wrongCount} wrong</span>
-          </div>
+        <div className="flex items-baseline gap-1.5">
+          <span className="text-2xl font-bold font-mono text-foreground">
+            {attempt.correctCount} / {attempt.correctCount + attempt.wrongCount}
+          </span>
+          <span className="text-xs text-muted-foreground font-mono">correct</span>
         </div>
-        <p className="text-[11px] text-muted-foreground">
-          Total: {attempt.correctCount + attempt.wrongCount} questions answered
-        </p>
+        <div className="flex items-center gap-1.5 text-[11px]">
+          <span className="text-emerald-500 font-medium">{attempt.correctCount} right</span>
+          <span className="text-muted-foreground">•</span>
+          <span className="text-rose-500 font-medium">{attempt.wrongCount} wrong</span>
+        </div>
       </Card>
 
       {/* 3. Duration & Time */}
-      <Card className="p-3.5 space-y-1">
+      <Card className="p-3.5 space-y-1.5 bg-card/60 border border-border/80 min-w-0">
         <div className="flex items-center justify-between">
-          <span className="text-xs text-muted-foreground font-medium uppercase">Duration</span>
-          <Clock className="h-4 w-4 text-primary" />
+          <span className="text-[11px] text-muted-foreground font-semibold uppercase tracking-wider">
+            Duration
+          </span>
+          <Clock className="h-4 w-4 text-primary shrink-0" />
         </div>
-        <p className="text-base font-semibold font-mono text-foreground">
-          {attempt.durationSec ? formatDuration(attempt.durationSec) : '0s'}
-        </p>
-        <p className="text-[11px] text-muted-foreground">
+        <div className="flex items-baseline gap-1.5">
+          <span className="text-2xl font-bold font-mono text-foreground">
+            {attempt.durationSec ? formatDuration(attempt.durationSec) : '0s'}
+          </span>
+        </div>
+        <p className="text-[11px] text-muted-foreground truncate">
           {attempt.submittedAt
-            ? `Submitted: ${format(new Date(attempt.submittedAt), 'MMM dd, HH:mm')}`
-            : 'Not submitted yet'}
+            ? format(new Date(attempt.submittedAt), 'MMM dd, HH:mm')
+            : 'In progress'}
         </p>
       </Card>
 
       {/* 4. Status & Violations */}
-      <Card className="p-3.5 space-y-1">
+      <Card className="p-3.5 space-y-1.5 bg-card/60 border border-border/80 min-w-0">
         <div className="flex items-center justify-between">
-          <span className="text-xs text-muted-foreground font-medium uppercase">Status</span>
+          <span className="text-[11px] text-muted-foreground font-semibold uppercase tracking-wider">
+            Status
+          </span>
           {attempt.violations?.length > 0 && (
-            <AlertTriangle className="h-4 w-4 text-rose-500 animate-pulse" />
+            <AlertTriangle className="h-4 w-4 text-rose-500 animate-pulse shrink-0" />
           )}
         </div>
-        <div className="pt-0.5">
+        <div>
           <Badge variant="outline" className={cn('text-xs capitalize', statusConfig.className)}>
             {statusConfig.label}
           </Badge>
         </div>
         {attempt.violations?.length > 0 ? (
-          <p className="text-[11px] font-medium text-rose-500 flex items-center gap-1">
-            <AlertTriangle className="h-3 w-3" />
-            {attempt.violations.length}{' '}
-            {attempt.violations.length === 1 ? 'violation' : 'violations'}
+          <p className="text-[11px] font-medium text-rose-500 flex items-center gap-1 truncate">
+            <AlertTriangle className="h-3 w-3 shrink-0" />
+            <span>
+              {attempt.violations.length}{' '}
+              {attempt.violations.length === 1 ? 'violation' : 'violations'}
+            </span>
           </p>
         ) : (
-          <p className="text-[11px] text-muted-foreground">No integrity violations</p>
+          <p className="text-[11px] text-muted-foreground truncate">0 integrity alerts</p>
         )}
       </Card>
     </div>

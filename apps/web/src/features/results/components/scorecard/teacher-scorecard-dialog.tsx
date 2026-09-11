@@ -36,12 +36,12 @@ export function TeacherScorecardDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-h-[92vh] max-w-3xl overflow-hidden flex flex-col p-0">
+      <DialogContent className="max-h-[92vh] sm:max-w-4xl md:max-w-5xl lg:max-w-6xl w-[95vw] overflow-hidden flex flex-col p-0 rounded-2xl border border-border/80 shadow-2xl">
         {/* Header */}
-        <DialogHeader className="border-b border-border p-6 pb-4">
+        <DialogHeader className="border-b border-border p-6 pb-4 pr-12">
           <div className="flex items-center gap-2">
-            <FileCheck className="h-5 w-5 text-primary" />
-            <DialogTitle className="text-xl font-bold">
+            <FileCheck className="h-5 w-5 text-primary shrink-0" />
+            <DialogTitle className="text-xl font-bold truncate">
               {data?.quizTitle || 'Student Exam Scorecard'}
             </DialogTitle>
           </div>
