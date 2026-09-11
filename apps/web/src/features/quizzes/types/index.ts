@@ -116,3 +116,25 @@ export interface ShareQuizResult {
   shareCode: string;
   shareUrl: string;
 }
+
+export interface QuizSnapshot {
+  title: string;
+  timeLimitSec?: number;
+  questions: QuestionItem[];
+}
+
+export interface QuizVersionItem {
+  _id: string;
+  quizId: string;
+  organizationId: string;
+  version: number;
+  snapshot: QuizSnapshot;
+  createdAt: string;
+}
+
+export interface QuizVersionQueryParams {
+  page?: number;
+  limit?: number;
+  sortBy?: 'createdAt' | 'version';
+  sortOrder?: 'asc' | 'desc';
+}
