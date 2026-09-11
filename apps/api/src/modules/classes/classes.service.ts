@@ -117,6 +117,11 @@ export class ClassesService {
       throw new NotFoundException('Quiz not found');
     }
 
+    const questionCount = quiz.questionCount ?? quiz.questions?.length ?? 0;
+    if (questionCount === 0) {
+      throw new BadRequestException('Cannot assign a quiz with no questions to a class');
+    }
+
     const now = new Date();
     // Allow small 2-minute buffer for network latency when selecting current time
     const minAllowedStart = new Date(now.getTime() - 2 * 60 * 1000);

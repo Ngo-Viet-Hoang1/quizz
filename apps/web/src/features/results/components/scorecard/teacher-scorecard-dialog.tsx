@@ -12,6 +12,7 @@ import {
   DialogTitle,
 } from '@/shared/ui/dialog';
 import { Skeleton } from '@/shared/ui/skeleton';
+import { UserAvatarCell } from '@/shared/components/user-avatar-cell';
 import { useExamAttemptDetail } from '../../hooks';
 import { ScorecardSummaryCard } from './scorecard-summary-card';
 import { ScorecardViolations } from './scorecard-violations';
@@ -36,18 +37,27 @@ export function TeacherScorecardDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-h-[92vh] max-w-3xl overflow-hidden flex flex-col p-0">
+      <DialogContent className="max-h-[92vh] sm:max-w-4xl md:max-w-5xl lg:max-w-6xl w-[95vw] overflow-hidden flex flex-col p-0 rounded-2xl border border-border/80 shadow-2xl">
         {/* Header */}
-        <DialogHeader className="border-b border-border p-6 pb-4">
-          <div className="flex items-center gap-2">
-            <FileCheck className="h-5 w-5 text-primary" />
-            <DialogTitle className="text-xl font-bold">
-              {data?.quizTitle || 'Student Exam Scorecard'}
-            </DialogTitle>
+        <DialogHeader className="border-b border-border p-6 pb-4 pr-12">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+            <div>
+              <div className="flex items-center gap-2">
+                <FileCheck className="h-5 w-5 text-primary shrink-0" />
+                <DialogTitle className="text-xl font-bold truncate">
+                  {data?.quizTitle || 'Student Exam Scorecard'}
+                </DialogTitle>
+              </div>
+              <DialogDescription className="text-xs text-muted-foreground mt-1">
+                Detailed breakdown of student answers, auto-graded scores, and proctoring integrity.
+              </DialogDescription>
+            </div>
+            {attempt?.userId && (
+              <div className="flex items-center gap-2 bg-muted/40 px-3 py-1.5 rounded-lg border border-border/60 shrink-0">
+                <UserAvatarCell userId={attempt.userId} size="sm" showEmail={true} />
+              </div>
+            )}
           </div>
-          <DialogDescription className="text-xs text-muted-foreground mt-1">
-            Detailed breakdown of student answers, auto-graded scores, and proctoring integrity.
-          </DialogDescription>
         </DialogHeader>
 
         {/* Scrollable Content Body */}

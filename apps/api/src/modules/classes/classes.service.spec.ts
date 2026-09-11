@@ -62,6 +62,7 @@ describe('ClassesService', () => {
     organizationId: mockOrgId,
     title: dto.title ?? 'Kiểm tra Hóa học 15p',
     version: dto.version ?? 1,
+    questionCount: dto.questionCount ?? 5,
   });
 
   beforeEach(async () => {
@@ -297,6 +298,21 @@ describe('ClassesService', () => {
       await expect(
         service.assignQuiz(mockClassId, mockOrgId, mockUserId, { quizId: mockQuizId }),
       ).rejects.toThrow(NotFoundException);
+    });
+
+    it('should throw BadRequestException if quiz has 0 questions', async () => {
+      const mockClass = createMockClassDoc({ ownerId: mockUserId });
+      const mockEmptyQuiz = createMockQuizDoc({ questionCount: 0 });
+      mockClassModel.findOne.mockReturnValue({
+        exec: jest.fn().mockResolvedValue(mockClass),
+      });
+      mockQuizModel.findOne.mockReturnValue({
+        exec: jest.fn().mockResolvedValue(mockEmptyQuiz),
+      });
+
+      await expect(
+        service.assignQuiz(mockClassId, mockOrgId, mockUserId, { quizId: mockQuizId }),
+      ).rejects.toThrow(BadRequestException);
     });
   });
 

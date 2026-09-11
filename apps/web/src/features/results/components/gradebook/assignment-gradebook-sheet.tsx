@@ -27,7 +27,7 @@ export function AssignmentGradebookSheet({
 }: AssignmentGradebookSheetProps) {
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent side="right" className="sm:max-w-2xl w-full flex flex-col p-0">
+      <SheetContent side="right" className="sm:max-w-3xl md:max-w-4xl w-full flex flex-col p-0">
         {/* Header */}
         <SheetHeader className="border-b border-border p-6 pb-4 pr-12">
           <div className="flex flex-col gap-1.5">
