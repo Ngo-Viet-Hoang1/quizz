@@ -1,18 +1,23 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { QuizController } from './quiz.controller';
 import { QuizService } from './quiz.service';
+import { QuizVersionService } from './quiz-version.service';
 import { ClerkAuthGuard } from '../../common/guards/clerk-auth.guard';
 import { OrgContextGuard } from '../../common/guards/org-context.guard';
 import { CreateQuizDto } from './dto/create-quiz.dto';
 import { QueryQuizDto } from './dto/query-quiz.dto';
+import { QueryQuizVersionDto } from './dto/query-quiz-version.dto';
 import { QuizDifficulty, QuizSourceType, QuizStatus, QuizVisibility } from './enums';
 import { ApiResponse } from '../../common/response/api-response';
 import { IQuiz } from './interfaces/quiz.interface';
+import { QuizVersion } from './schemas/quiz-version.schema';
 import { Quiz } from './schemas/quiz.schema';
+import { Types } from 'mongoose';
 
 describe('QuizController', () => {
   let controller: QuizController;
   let quizService: jest.Mocked<QuizService>;
+  let quizVersionService: jest.Mocked<QuizVersionService>;
 
   const mockOrgId = 'org_123';
   const mockUserId = 'user_abc';
@@ -31,6 +36,19 @@ describe('QuizController', () => {
     activeRoomCount: 0,
     questionCount: 0,
     questions: [],
+  };
+
+  const mockQuizVersion: QuizVersion = {
+    _id: new Types.ObjectId(),
+    quizId: new Types.ObjectId(mockQuizId),
+    organizationId: mockOrgId,
+    version: 1,
+    snapshot: {
+      title: 'Test Quiz',
+      timeLimitSec: 600,
+      questions: [],
+    },
+    createdAt: new Date(),
   };
 
   beforeEach(async () => {
@@ -57,12 +75,25 @@ describe('QuizController', () => {
       remove: jest.fn().mockResolvedValue({ deleted: true, id: mockQuizId }),
     };
 
+    const mockVersionService = {
+      freezeSnapshot: jest.fn().mockResolvedValue(undefined),
+      getVersions: jest.fn().mockResolvedValue({
+        items: [mockQuizVersion],
+        meta: { page: 1, limit: 10, total: 1, totalPages: 1 },
+      }),
+      getVersionDetail: jest.fn().mockResolvedValue(mockQuizVersion),
+    };
+
     const module: TestingModule = await Test.createTestingModule({
       controllers: [QuizController],
       providers: [
         {
           provide: QuizService,
           useValue: mockService,
+        },
+        {
+          provide: QuizVersionService,
+          useValue: mockVersionService,
         },
       ],
     })
@@ -74,6 +105,7 @@ describe('QuizController', () => {
 
     controller = module.get<QuizController>(QuizController);
     quizService = module.get(QuizService);
+    quizVersionService = module.get(QuizVersionService);
   });
 
   it('should create a quiz via service with orgId and userId', async () => {
@@ -92,6 +124,24 @@ describe('QuizController', () => {
     expect(result).toBeInstanceOf(ApiResponse);
     expect(result.data).toEqual([mockQuiz]);
     expect(result.meta).toEqual({ page: 1, limit: 10, total: 1, totalPages: 1 });
+  });
+
+  it('should getVersions for a quiz and wrap in ApiResponse.success', async () => {
+    const query: QueryQuizVersionDto = { page: 1, limit: 10, sortBy: 'version', sortOrder: 'desc' };
+    const result = await controller.getVersions(mockOrgId, mockQuizId, query);
+
+    expect(quizService.findOne).toHaveBeenCalledWith(mockQuizId, mockOrgId);
+    expect(quizVersionService.getVersions).toHaveBeenCalledWith(mockQuizId, mockOrgId, query);
+    expect(result).toBeInstanceOf(ApiResponse);
+    expect(result.data).toEqual([mockQuizVersion]);
+  });
+
+  it('should getVersionDetail for a specific quiz version', async () => {
+    const result = await controller.getVersionDetail(mockOrgId, mockQuizId, 1);
+
+    expect(quizService.findOne).toHaveBeenCalledWith(mockQuizId, mockOrgId);
+    expect(quizVersionService.getVersionDetail).toHaveBeenCalledWith(mockQuizId, 1, mockOrgId);
+    expect(result).toEqual(mockQuizVersion);
   });
 
   it('should findOne quiz by id and orgId', async () => {

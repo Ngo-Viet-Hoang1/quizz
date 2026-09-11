@@ -8,7 +8,8 @@ import { QueryQuizDto } from './dto/query-quiz.dto';
 import { UpdateQuizDto } from './dto/update-quiz.dto';
 import { QuestionType, QuizStatus } from './enums';
 import { IQuiz } from './interfaces/quiz.interface';
-import { Quiz, QuizDocument } from './schemas/quiz.schema';
+import { QuizVersionService } from './quiz-version.service';
+import { Question, Quiz, QuizDocument } from './schemas/quiz.schema';
 
 const QUIZ_SORT_FIELDS = ['createdAt', 'title', 'updatedAt', 'status', 'questionCount'] as const;
 
@@ -19,7 +20,10 @@ const QUIZ_LIST_PROJECTION: Record<string, 0 | 1> = {
 
 @Injectable()
 export class QuizService {
-  constructor(@InjectModel(Quiz.name) private readonly quizModel: Model<QuizDocument>) {}
+  constructor(
+    @InjectModel(Quiz.name) private readonly quizModel: Model<QuizDocument>,
+    private readonly quizVersionService: QuizVersionService,
+  ) {}
 
   async create(orgId: string, userId: string, dto: CreateQuizDto): Promise<Quiz> {
     const formattedQuestions = dto.questions?.map((q, idx) => ({
@@ -71,6 +75,10 @@ export class QuizService {
   }
 
   async update(id: string, orgId: string, dto: UpdateQuizDto): Promise<Quiz> {
+    const existing = await this.findOne(id, orgId);
+    const isPublished = existing.status === QuizStatus.PUBLISHED;
+    const nextVersion = isPublished ? (existing.version || 1) + 1 : existing.version || 1;
+
     const formattedQuestions = dto.questions?.map((q, idx) => ({
       ...q,
       _id: q._id ? new Types.ObjectId(q._id) : new Types.ObjectId(),
@@ -84,6 +92,7 @@ export class QuizService {
 
     const payload = {
       ...dto,
+      version: nextVersion,
       ...(formattedQuestions && {
         questions: formattedQuestions,
         questionCount: formattedQuestions.length,
@@ -101,54 +110,20 @@ export class QuizService {
       throw new NotFoundException(`Quiz with ID ${id} not found`);
     }
 
+    if (isPublished) {
+      await this.quizVersionService.freezeSnapshot(updated, nextVersion);
+    }
+
     return updated;
   }
 
   async publish(id: string, orgId: string): Promise<Quiz> {
-    const quiz = await this.quizModel
-      .findOne({ _id: id, organizationId: orgId, deletedAt: null })
-      .lean<Quiz>()
-      .exec();
+    const quiz = await this.findOne(id, orgId);
 
-    if (!quiz) {
-      throw new NotFoundException(`Quiz with ID ${id} not found`);
-    }
+    this.validateQuestions(quiz.questions);
 
-    if (!quiz.questions || quiz.questions.length === 0) {
-      throw new BadRequestException('Cannot publish a quiz with no questions');
-    }
-
-    for (const q of quiz.questions) {
-      if (
-        q.type === QuestionType.SINGLE_CHOICE ||
-        q.type === QuestionType.MULTIPLE_CHOICE ||
-        q.type === QuestionType.TRUE_FALSE
-      ) {
-        const hasCorrectOption = q.options?.some((opt) => opt.isCorrect === true);
-        if (!hasCorrectOption) {
-          throw new BadRequestException(
-            `Question "${q.content}" must have at least one correct option`,
-          );
-        }
-      } else if (q.type === QuestionType.FILL_BLANK) {
-        const hasCorrectText = !!q.metadata?.correctText?.trim();
-        const hasCorrectOption = q.options?.some((opt) => opt.isCorrect === true);
-        if (!hasCorrectText && !hasCorrectOption) {
-          throw new BadRequestException(
-            `Question "${q.content}" must have a correct answer configured`,
-          );
-        }
-      } else if (q.type === QuestionType.ORDERING) {
-        const hasCorrectOrder =
-          (q.metadata?.correctOrder && q.metadata.correctOrder.length > 0) ||
-          (q.options && q.options.length > 1);
-        if (!hasCorrectOrder) {
-          throw new BadRequestException(
-            `Question "${q.content}" must have valid ordering configuration`,
-          );
-        }
-      }
-    }
+    const version = quiz.version || 1;
+    await this.quizVersionService.freezeSnapshot(quiz, version);
 
     const published = await this.quizModel
       .findOneAndUpdate(
@@ -269,6 +244,33 @@ export class QuizService {
     }
 
     return { deleted: true, id };
+  }
+
+  private validateQuestions(questions?: Question[]): void {
+    if (!questions || questions.length === 0) {
+      throw new BadRequestException('Cannot publish a quiz with no questions');
+    }
+
+    for (const q of questions) {
+      if (!this.isQuestionValid(q)) {
+        throw new BadRequestException(`Question "${q.content}" has invalid answer configuration`);
+      }
+    }
+  }
+
+  private isQuestionValid(q: Question): boolean {
+    switch (q.type) {
+      case QuestionType.SINGLE_CHOICE:
+      case QuestionType.MULTIPLE_CHOICE:
+      case QuestionType.TRUE_FALSE:
+        return Boolean(q.options?.some((opt) => opt.isCorrect));
+      case QuestionType.FILL_BLANK:
+        return Boolean(q.metadata?.correctText?.trim() || q.options?.some((opt) => opt.isCorrect));
+      case QuestionType.ORDERING:
+        return Boolean(q.metadata?.correctOrder?.length || (q.options && q.options.length > 1));
+      default:
+        return true;
+    }
   }
 
   private buildFilter(orgId: string, q: QueryQuizDto): QueryFilter<QuizDocument> {

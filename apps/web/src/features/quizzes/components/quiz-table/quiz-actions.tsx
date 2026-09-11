@@ -6,6 +6,7 @@ import {
   Archive,
   Copy,
   ExternalLink,
+  History,
   GraduationCap,
   MoreHorizontal,
   Play,
@@ -34,6 +35,7 @@ import {
 } from '@/shared/ui/alert-dialog';
 import { QuizItem, QuizStatus } from '../../types';
 import { useArchiveQuiz, useCloneQuiz, useDeleteQuiz, usePublishQuiz } from '../../hooks';
+import { QuizVersionHistorySheet } from '../version-history';
 import { AssignToClassDialog } from '../assign-to-class-dialog';
 
 interface QuizRowActionsProps {
@@ -44,6 +46,7 @@ interface QuizRowActionsProps {
 export function QuizRowActions({ quiz, onShare }: QuizRowActionsProps) {
   const [deleteOpen, setDeleteOpen] = React.useState(false);
   const [archiveOpen, setArchiveOpen] = React.useState(false);
+  const [versionHistoryOpen, setVersionHistoryOpen] = React.useState(false);
   const [assignClassOpen, setAssignClassOpen] = React.useState(false);
 
   const { mutateAsync: deleteQuiz, isPending: isDeleting } = useDeleteQuiz();
@@ -118,6 +121,14 @@ export function QuizRowActions({ quiz, onShare }: QuizRowActionsProps) {
             <Share2 className="h-3.5 w-3.5 text-muted-foreground" />
             <span>Share Quiz Code</span>
           </DropdownMenuItem>
+          <DropdownMenuItem
+            onClick={() => setVersionHistoryOpen(true)}
+            className="flex items-center gap-2"
+          >
+            <History className="h-3.5 w-3.5 text-muted-foreground" />
+            <span>Version History (v{quiz.version || 1})</span>
+          </DropdownMenuItem>
+          
           <DropdownMenuItem
             onClick={() => setAssignClassOpen(true)}
             className="flex items-center gap-2 text-primary font-medium"
@@ -213,6 +224,13 @@ export function QuizRowActions({ quiz, onShare }: QuizRowActionsProps) {
         </AlertDialogContent>
       </AlertDialog>
 
+      {/* Version History Sheet */}
+      <QuizVersionHistorySheet
+        quizId={quiz._id}
+        currentVersion={quiz.version || 1}
+        open={versionHistoryOpen}
+        onOpenChange={setVersionHistoryOpen}
+      />
       {/* Assign to Classroom Dialog */}
       <AssignToClassDialog quiz={quiz} open={assignClassOpen} onOpenChange={setAssignClassOpen} />
     </>

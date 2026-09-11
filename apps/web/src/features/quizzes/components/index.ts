@@ -5,5 +5,6 @@ export * from './quiz-form/quiz-form-dialog';
 export * from './quiz-share-dialog';
 export * from './quiz-list-view';
 export * from './quiz-detail-view';
+export * from './version-history';
 export * from './assign-to-class-dialog';
 export * from './difficulty-badge';
