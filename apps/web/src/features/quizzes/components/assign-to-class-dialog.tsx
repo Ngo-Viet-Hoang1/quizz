@@ -83,6 +83,12 @@ export function AssignToClassDialog({ quiz, open, onOpenChange }: AssignToClassD
       return;
     }
 
+    const questionCount = quiz.questionCount ?? quiz.questions?.length ?? 0;
+    if (questionCount === 0) {
+      setError('Cannot assign an empty quiz. Please add at least 1 question before assigning.');
+      return;
+    }
+
     if (!selectedClassId) {
       setError('Please select a classroom to assign this quiz to');
       return;
@@ -152,8 +158,12 @@ export function AssignToClassDialog({ quiz, open, onOpenChange }: AssignToClassD
 
               <h4 className="text-sm font-semibold text-foreground truncate">{quiz.title}</h4>
               <div className="flex items-center gap-4 text-xs text-muted-foreground pt-0.5">
-                <span className="flex items-center gap-1.5">
-                  <CheckCircle2 className="size-3.5 text-primary" />
+                <span
+                  className={`flex items-center gap-1.5 ${
+                    (quiz.questionCount || 0) === 0 ? 'text-rose-500 font-semibold' : 'text-primary'
+                  }`}
+                >
+                  <CheckCircle2 className="size-3.5" />
                   {quiz.questionCount || 0} Questions
                 </span>
                 <span className="flex items-center gap-1.5">
@@ -163,6 +173,13 @@ export function AssignToClassDialog({ quiz, open, onOpenChange }: AssignToClassD
                     : 'No time limit'}
                 </span>
               </div>
+
+              {(quiz.questionCount || 0) === 0 && (
+                <p className="text-[11px] text-rose-500 font-medium pt-1">
+                  ⚠️ This quiz has 0 questions. You must add questions before assigning it to a
+                  class.
+                </p>
+              )}
             </div>
           )}
 
@@ -365,7 +382,9 @@ export function AssignToClassDialog({ quiz, open, onOpenChange }: AssignToClassD
             </Button>
             <Button
               type="submit"
-              disabled={assignQuizMutation.isPending || !selectedClassId}
+              disabled={
+                assignQuizMutation.isPending || !selectedClassId || (quiz?.questionCount || 0) === 0
+              }
               className="text-xs h-9 px-4 gap-1.5 shadow-sm"
             >
               {assignQuizMutation.isPending ? 'Assigning...' : 'Assign to Class'}

@@ -169,6 +169,14 @@ export function AssignQuizDialog({ classId, open, onOpenChange }: AssignQuizDial
       return;
     }
 
+    const questionCount = selectedQuiz?.questionCount ?? selectedQuiz?.questions?.length ?? 0;
+    if (questionCount === 0) {
+      setError(
+        'Cannot assign an empty quiz. Please add at least 1 question before assigning to a classroom.',
+      );
+      return;
+    }
+
     const dateValidationError = validateAssignmentDates(startAt, dueAt, selectedQuiz?.timeLimitSec);
     if (dateValidationError) {
       setError(dateValidationError);
@@ -392,8 +400,14 @@ export function AssignQuizDialog({ classId, open, onOpenChange }: AssignQuizDial
                       </p>
                     )}
                     <div className="flex items-center gap-3 text-[11px] text-muted-foreground pt-0.5">
-                      <span className="flex items-center gap-1">
-                        <CheckCircle2 className="size-3 text-primary" />
+                      <span
+                        className={`flex items-center gap-1 ${
+                          (selectedQuiz.questionCount || 0) === 0
+                            ? 'text-rose-500 font-semibold'
+                            : 'text-primary'
+                        }`}
+                      >
+                        <CheckCircle2 className="size-3" />
                         {selectedQuiz.questionCount || 0} Questions
                       </span>
                       <span className="flex items-center gap-1">
@@ -403,6 +417,12 @@ export function AssignQuizDialog({ classId, open, onOpenChange }: AssignQuizDial
                           : 'No time limit'}
                       </span>
                     </div>
+
+                    {(selectedQuiz.questionCount || 0) === 0 && (
+                      <p className="text-[11px] text-rose-500 font-medium pt-1">
+                        ⚠️ This quiz has 0 questions. You must add questions before assigning it.
+                      </p>
+                    )}
                   </div>
 
                   <Button
@@ -550,7 +570,11 @@ export function AssignQuizDialog({ classId, open, onOpenChange }: AssignQuizDial
             </Button>
             <Button
               type="submit"
-              disabled={assignQuizMutation.isPending || !selectedQuizId}
+              disabled={
+                assignQuizMutation.isPending ||
+                !selectedQuizId ||
+                (selectedQuiz?.questionCount || 0) === 0
+              }
               className="text-xs h-9 px-4 gap-1.5 shadow-sm"
             >
               {assignQuizMutation.isPending ? 'Assigning...' : 'Assign Quiz'}
