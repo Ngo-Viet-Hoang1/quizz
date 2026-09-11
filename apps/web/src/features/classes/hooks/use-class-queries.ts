@@ -1,7 +1,7 @@
 'use client';
 
 import { useAuth } from '@clerk/nextjs';
-import { useQuery } from '@tanstack/react-query';
+import { useQueries, useQuery } from '@tanstack/react-query';
 import { classKeys, useClassApi } from '../api';
 import {
   ClassAssignmentItem,
@@ -54,5 +54,26 @@ export function useClassAssignments(classId: string, params?: ClassAssignmentQue
     queryKey: classKeys.assignments(classId, params),
     queryFn: () => api.getAssignments(classId, params),
     enabled: isLoaded && Boolean(orgId) && Boolean(classId),
+  });
+}
+
+export function useMultipleClassAssignments(
+  classIds: string[],
+  params?: ClassAssignmentQueryParams,
+) {
+  const { isLoaded, orgId } = useAuth();
+  const api = useClassApi();
+
+  return useQueries({
+    queries: classIds.map((classId) => ({
+      queryKey: classKeys.assignments(classId, params),
+      queryFn: () => api.getAssignments(classId, params),
+      enabled: isLoaded && Boolean(orgId) && Boolean(classId),
+    })),
+    combine: (results) => ({
+      data: results.flatMap((result) => (result.data as ClassAssignmentItem[]) ?? []),
+      isLoading: results.some((result) => result.isLoading),
+      isFetching: results.some((result) => result.isFetching),
+    }),
   });
 }

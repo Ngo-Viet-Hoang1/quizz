@@ -1,7 +1,7 @@
 import { ResultsView } from '@/features/results';
 
 export const metadata = {
-  title: 'Results & Gradebook | Quiz Platform',
+  title: 'Results | Quiz Platform',
   description:
     'Manage class examination results, inspect student scorecards, and audit submission integrity.',
 };
