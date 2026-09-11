@@ -1,6 +1,9 @@
 'use client';
 
 import * as React from 'react';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { z } from 'zod';
 import { toast } from 'sonner';
 import { Button } from '@/shared/ui/button';
 import {
@@ -11,11 +14,22 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/shared/ui/dialog';
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/shared/ui/form';
 import { Input } from '@/shared/ui/input';
-import { Label } from '@/shared/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/shared/ui/select';
 import { useUpdateClass } from '../../hooks';
 import { ClassItem, ClassStatus } from '../../types';
+
+const editClassSchema = z.object({
+  name: z
+    .string()
+    .trim()
+    .min(1, 'Class name is required')
+    .max(100, 'Class name must be at most 100 characters'),
+  status: z.nativeEnum(ClassStatus),
+});
+
+type EditClassFormValues = z.infer<typeof editClassSchema>;
 
 interface ClassEditDialogProps {
   classItem: ClassItem | null;
@@ -24,48 +38,40 @@ interface ClassEditDialogProps {
 }
 
 export function ClassEditDialog({ classItem, open, onOpenChange }: ClassEditDialogProps) {
-  const [name, setName] = React.useState('');
-  const [status, setStatus] = React.useState<ClassStatus>(ClassStatus.ACTIVE);
-  const [error, setError] = React.useState<string | null>(null);
-
   const updateClassMutation = useUpdateClass();
+
+  const form = useForm<EditClassFormValues>({
+    resolver: zodResolver(editClassSchema),
+    defaultValues: {
+      name: '',
+      status: ClassStatus.ACTIVE,
+    },
+  });
 
   React.useEffect(() => {
     if (classItem) {
-      setName(classItem.name || '');
-      setStatus(classItem.status || ClassStatus.ACTIVE);
-      setError(null);
+      form.reset({
+        name: classItem.name || '',
+        status: classItem.status || ClassStatus.ACTIVE,
+      });
     }
-  }, [classItem]);
+  }, [classItem, form]);
 
   const handleClose = () => {
-    setError(null);
     onOpenChange(false);
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const onSubmit = async (values: EditClassFormValues) => {
     if (!classItem) return;
-
     const classId = classItem.id || classItem._id;
     if (!classId) return;
-
-    const trimmedName = name.trim();
-    if (!trimmedName) {
-      setError('Class name is required');
-      return;
-    }
-    if (trimmedName.length > 100) {
-      setError('Class name must be at most 100 characters');
-      return;
-    }
 
     try {
       await updateClassMutation.mutateAsync({
         id: classId,
         data: {
-          name: trimmedName,
-          status,
+          name: values.name.trim(),
+          status: values.status,
         },
       });
       toast.success('Class updated successfully');
@@ -79,59 +85,70 @@ export function ClassEditDialog({ classItem, open, onOpenChange }: ClassEditDial
   return (
     <Dialog open={open} onOpenChange={handleClose}>
       <DialogContent className="sm:max-w-md">
-        <form onSubmit={handleSubmit}>
-          <DialogHeader>
-            <DialogTitle>Edit Classroom</DialogTitle>
-            <DialogDescription>Update classroom name and status details.</DialogDescription>
-          </DialogHeader>
+        <Form {...form}>
+          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+            <DialogHeader>
+              <DialogTitle>Edit Classroom</DialogTitle>
+              <DialogDescription>Update classroom name and status details.</DialogDescription>
+            </DialogHeader>
 
-          <div className="grid gap-4 py-4">
-            <div className="space-y-2">
-              <Label htmlFor="edit-class-name">Class Name *</Label>
-              <Input
-                id="edit-class-name"
-                value={name}
-                onChange={(e) => {
-                  setName(e.target.value);
-                  if (error) setError(null);
-                }}
-                disabled={updateClassMutation.isPending}
+            <div className="space-y-4 py-2">
+              <FormField
+                control={form.control}
+                name="name"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Class Name *</FormLabel>
+                    <FormControl>
+                      <Input disabled={updateClassMutation.isPending} {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
               />
-              {error && <p className="text-xs text-destructive">{error}</p>}
+
+              <FormField
+                control={form.control}
+                name="status"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Status</FormLabel>
+                    <FormControl>
+                      <Select
+                        value={field.value}
+                        onValueChange={(val) => val && field.onChange(val as ClassStatus)}
+                        disabled={updateClassMutation.isPending}
+                      >
+                        <SelectTrigger className="w-full">
+                          <SelectValue placeholder="Select status" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value={ClassStatus.ACTIVE}>Active</SelectItem>
+                          <SelectItem value={ClassStatus.ARCHIVED}>Archived</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
             </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="edit-class-status">Status</Label>
-              <Select
-                value={status}
-                onValueChange={(val) => setStatus(val as ClassStatus)}
+            <DialogFooter className="gap-2 sm:gap-0">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={handleClose}
                 disabled={updateClassMutation.isPending}
               >
-                <SelectTrigger id="edit-class-status">
-                  <SelectValue placeholder="Select status" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value={ClassStatus.ACTIVE}>Active</SelectItem>
-                  <SelectItem value={ClassStatus.ARCHIVED}>Archived</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-
-          <DialogFooter>
-            <Button
-              type="button"
-              variant="outline"
-              onClick={handleClose}
-              disabled={updateClassMutation.isPending}
-            >
-              Cancel
-            </Button>
-            <Button type="submit" disabled={updateClassMutation.isPending}>
-              {updateClassMutation.isPending ? 'Saving...' : 'Save Changes'}
-            </Button>
-          </DialogFooter>
-        </form>
+                Cancel
+              </Button>
+              <Button type="submit" disabled={updateClassMutation.isPending}>
+                {updateClassMutation.isPending ? 'Saving...' : 'Save Changes'}
+              </Button>
+            </DialogFooter>
+          </form>
+        </Form>
       </DialogContent>
     </Dialog>
   );
