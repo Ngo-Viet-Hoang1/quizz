@@ -1,12 +1,15 @@
-import { Body, Controller, Post, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Param, Post, Query, UseGuards } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { CurrentOrg } from '../../common/decorators/current-org.decorator';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { ClerkAuthGuard } from '../../common/guards/clerk-auth.guard';
 import { OrgContextGuard } from '../../common/guards/org-context.guard';
+import { ParseObjectIdPipe } from '../../common/pipes/parse-object-id.pipe';
+import { PaginateResult } from '../../common/utils/paginate.util';
 import { UserDocument } from '../users/schemas/user.schema';
 import { CreateQuizReportDto } from './dto/create-quiz-report.dto';
-import { QuizReportsService } from './quiz-reports.service';
+import { QueryQuizReportDto } from './dto/query-quiz-report.dto';
+import { QuizReportDetailResponse, QuizReportsService } from './quiz-reports.service';
 import { QuizReport } from './schemas/quiz-report.schema';
 
 @ApiTags('quiz-reports')
@@ -31,5 +34,25 @@ export class QuizReportsController {
       user.email || undefined,
       dto,
     );
+  }
+
+  @Get()
+  @ApiOperation({ summary: 'Get all quiz reports with filters and pagination' })
+  @ApiResponse({ status: 200, description: 'Paginated list of quiz reports' })
+  async findAll(
+    @CurrentOrg() orgId: string,
+    @Query() query: QueryQuizReportDto,
+  ): Promise<PaginateResult<QuizReport>> {
+    return this.quizReportsService.findAllReports(orgId, query);
+  }
+
+  @Get(':id')
+  @ApiOperation({ summary: 'Get quiz report detail with question snapshot' })
+  @ApiResponse({ status: 200, description: 'Quiz report detail response' })
+  async getReportById(
+    @CurrentOrg() orgId: string,
+    @Param('id', ParseObjectIdPipe) id: string,
+  ): Promise<QuizReportDetailResponse> {
+    return this.quizReportsService.getReportById(orgId, id);
   }
 }
