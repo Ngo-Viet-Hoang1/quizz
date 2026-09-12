@@ -18,13 +18,14 @@ export class ClaudeAiProviderService implements IAiProvider {
   constructor(private readonly configService: ConfigService) {
     const key =
       this.configService.get<string>('ANTHROPIC_API_KEY') ??
-      this.configService.get<string>('CLAUDE_API_KEY');
+      this.configService.get<string>('CLAUDE_API_KEY') ??
+      '';
     if (!key) {
       throw new Error('ANTHROPIC_API_KEY is required but not configured');
     }
     this.apiKey = key;
     this.defaultModel =
-      this.configService.get<string>('CLAUDE_MODEL') ?? 'claude-3-5-haiku-20241022';
+      this.configService.get<string>('CLAUDE_MODEL') ?? 'claude-haiku-4-5-20251001';
   }
 
   async generateQuiz(options: GenerateQuizOptions): Promise<AiGenerationResult> {

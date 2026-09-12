@@ -61,10 +61,10 @@ export class EnqueueAiGenerationJobDto {
 
   @ApiPropertyOptional({
     enum: SupportedAiModel,
-    default: SupportedAiModel.CLAUDE_3_5_HAIKU,
+    default: SupportedAiModel.CLAUDE_HAIKU_4_5,
     description: 'AI model to use for quiz generation',
   })
   @IsOptional()
   @IsEnum(SupportedAiModel)
-  model?: SupportedAiModel = SupportedAiModel.CLAUDE_3_5_HAIKU;
+  model?: SupportedAiModel = SupportedAiModel.CLAUDE_HAIKU_4_5;
 }
