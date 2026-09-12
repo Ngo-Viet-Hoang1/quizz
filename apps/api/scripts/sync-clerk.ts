@@ -3,6 +3,7 @@ import * as dotenv from 'dotenv';
 import * as mongoose from 'mongoose';
 import * as path from 'path';
 
+import { SubscriptionPlan } from '@repo/shared-types';
 import { resolvePermissionsForRole } from '../src/modules/organization-members/constants/role-permissions.map';
 import { OrganizationMember } from '../src/modules/organization-members/schemas/organization-member.schema';
 import { Organization } from '../src/modules/organizations/schemas/organization.schema';
@@ -125,7 +126,7 @@ async function runSync(): Promise<void> {
               deletedAt: null,
             },
             $setOnInsert: {
-              plan: 'free',
+              plan: SubscriptionPlan.FREE,
               aiQuotaMonthly: 100,
               aiQuotaUsed: 0,
             },
