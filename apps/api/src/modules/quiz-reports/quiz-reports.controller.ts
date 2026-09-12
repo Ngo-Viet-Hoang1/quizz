@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Param, Post, Query, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Param, Patch, Post, Query, UseGuards } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { CurrentOrg } from '../../common/decorators/current-org.decorator';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
@@ -9,6 +9,7 @@ import { PaginateResult } from '../../common/utils/paginate.util';
 import { UserDocument } from '../users/schemas/user.schema';
 import { CreateQuizReportDto } from './dto/create-quiz-report.dto';
 import { QueryQuizReportDto } from './dto/query-quiz-report.dto';
+import { ResolveQuizReportDto } from './dto/resolve-quiz-report.dto';
 import { QuizReportDetailResponse, QuizReportsService } from './quiz-reports.service';
 import { QuizReport } from './schemas/quiz-report.schema';
 
@@ -54,5 +55,17 @@ export class QuizReportsController {
     @Param('id', ParseObjectIdPipe) id: string,
   ): Promise<QuizReportDetailResponse> {
     return this.quizReportsService.getReportById(orgId, id);
+  }
+
+  @Patch(':id/resolve')
+  @ApiOperation({ summary: 'Resolve or reject a quiz report with 1-click void action' })
+  @ApiResponse({ status: 200, description: 'Quiz report resolved successfully' })
+  async resolveReport(
+    @CurrentOrg() orgId: string,
+    @CurrentUser('_id') resolverId: string,
+    @Param('id', ParseObjectIdPipe) id: string,
+    @Body() dto: ResolveQuizReportDto,
+  ): Promise<QuizReport> {
+    return this.quizReportsService.resolveReport(orgId, resolverId, id, dto);
   }
 }
