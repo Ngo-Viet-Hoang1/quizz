@@ -1,6 +1,7 @@
 'use client';
 
 import { useMyExamHistory } from '@/features/student-portal/api/student.api';
+import { calculateScorePercentage, isExamPassed } from '@/features/student-portal/utils/exam.utils';
 import { Badge } from '@/shared/ui/badge';
 import { Button } from '@/shared/ui/button';
 import { Card, CardContent } from '@/shared/ui/card';
@@ -113,11 +114,8 @@ export default function StudentHistoryPage() {
                 </thead>
                 <tbody className="divide-y">
                   {attempts.map((attempt) => {
-                    const pct =
-                      attempt.totalPoints > 0
-                        ? Math.round((attempt.score / attempt.totalPoints) * 100)
-                        : 0;
-                    const isPassed = pct >= 50;
+                    const pct = calculateScorePercentage(attempt.score, attempt.totalPoints);
+                    const isPassed = isExamPassed(attempt.score, attempt.totalPoints);
                     const totalQ = attempt.correctCount + attempt.wrongCount;
 
                     return (

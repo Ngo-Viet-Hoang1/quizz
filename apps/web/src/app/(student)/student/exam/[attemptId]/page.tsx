@@ -35,28 +35,71 @@ export default function ExamPlayerPage() {
   const [showSubmitConfirm, setShowSubmitConfirm] = useState(false);
   const [showViolationWarning, setShowViolationWarning] = useState(false);
   const [timeLeft, setTimeLeft] = useState<number | null>(null);
+
   const violationCountRef = useRef(0);
+  const lastViolationTimeRef = useRef(0);
+  const isSubmittedRef = useRef(false);
 
   const attempt = detail?.attempt;
   const questions = (detail?.questions ?? []) as SanitizedQuestion[];
 
+  // Save answer to API
+  const handleSaveAnswer = useCallback(
+    async (questionId: string, selectedOptionIds?: string[], textAnswer?: string) => {
+      try {
+        await saveAnswer.mutateAsync({
+          questionId,
+          selectedOptionIds,
+          textAnswer,
+        });
+      } catch {
+        // Error handled by API client
+      }
+    },
+    [saveAnswer],
+  );
+
+  // Submit exam with double-submit guard & text answer flush
+  const handleSubmit = useCallback(async () => {
+    if (isSubmittedRef.current) return;
+    isSubmittedRef.current = true;
+
+    try {
+      // Flush pending text answers before submitting
+      const textSavePromises = Object.entries(textAnswers).map(([qId, text]) =>
+        saveAnswer.mutateAsync({ questionId: qId, textAnswer: text }).catch(() => {}),
+      );
+      if (textSavePromises.length > 0) {
+        await Promise.all(textSavePromises);
+      }
+
+      await submitExam.mutateAsync(attemptId);
+      toast.success('Exam submitted successfully!');
+      router.push(`/student/exam/${attemptId}/result`);
+    } catch {
+      isSubmittedRef.current = false;
+    }
+  }, [attemptId, saveAnswer, submitExam, router, textAnswers]);
+
   // Timer countdown
   useEffect(() => {
-    if (!attempt?.expiresAt) return;
+    if (!attempt?.expiresAt || isSubmittedRef.current) return;
+
     const updateTimer = () => {
       const remaining = Math.max(
         0,
         Math.floor((new Date(attempt.expiresAt).getTime() - Date.now()) / 1000),
       );
       setTimeLeft(remaining);
-      if (remaining <= 0) {
+      if (remaining <= 0 && !isSubmittedRef.current) {
         handleSubmit();
       }
     };
+
     updateTimer();
     const interval = setInterval(updateTimer, 1000);
     return () => clearInterval(interval);
-  }, [attempt?.expiresAt]);
+  }, [attempt?.expiresAt, handleSubmit]);
 
   // Load existing answers from attempt
   useEffect(() => {
@@ -75,31 +118,27 @@ export default function ExamPlayerPage() {
     setTextAnswers(loadedText);
   }, [attempt]);
 
-  // Anti-cheat: detect tab switch / window blur
+  // Anti-cheat: detect tab switch (visibilitychange only, debounced)
   useEffect(() => {
     if (!attemptId || attempt?.status !== 'in_progress') return;
 
     const handleVisibilityChange = () => {
       if (document.hidden) {
-        violationCountRef.current += 1;
-        setShowViolationWarning(true);
-        recordViolation.mutate({ type: 'tab_switch' });
+        const now = Date.now();
+        if (now - lastViolationTimeRef.current > 2000) {
+          lastViolationTimeRef.current = now;
+          violationCountRef.current += 1;
+          setShowViolationWarning(true);
+          recordViolation.mutate({ type: 'tab_switch' });
+        }
       }
     };
 
-    const handleBlur = () => {
-      violationCountRef.current += 1;
-      setShowViolationWarning(true);
-      recordViolation.mutate({ type: 'window_blur' });
-    };
-
     document.addEventListener('visibilitychange', handleVisibilityChange);
-    window.addEventListener('blur', handleBlur);
     return () => {
       document.removeEventListener('visibilitychange', handleVisibilityChange);
-      window.removeEventListener('blur', handleBlur);
     };
-  }, [attemptId, attempt?.status]);
+  }, [attemptId, attempt?.status, recordViolation]);
 
   const answeredCount = useMemo(
     () =>
@@ -109,22 +148,6 @@ export default function ExamPlayerPage() {
           (textAnswers[q._id] && textAnswers[q._id].trim().length > 0),
       ).length,
     [questions, answers, textAnswers],
-  );
-
-  // Save answer to API
-  const handleSaveAnswer = useCallback(
-    async (questionId: string, selectedOptionIds?: string[], textAnswer?: string) => {
-      try {
-        await saveAnswer.mutateAsync({
-          questionId,
-          selectedOptionIds,
-          textAnswer,
-        });
-      } catch {
-        // Error handled by API client
-      }
-    },
-    [saveAnswer],
   );
 
   // Select option for choice questions
@@ -166,17 +189,6 @@ export default function ExamPlayerPage() {
     });
   };
 
-  // Submit exam
-  const handleSubmit = async () => {
-    try {
-      await submitExam.mutateAsync(attemptId);
-      toast.success('Exam submitted successfully!');
-      router.push(`/student/exam/${attemptId}/result`);
-    } catch {
-      // Error handled by API client
-    }
-  };
-
   // Format time
   const formatTime = (seconds: number) => {
     const h = Math.floor(seconds / 3600);
@@ -190,7 +202,7 @@ export default function ExamPlayerPage() {
     if (attempt && attempt.status !== 'in_progress') {
       router.replace(`/student/exam/${attemptId}/result`);
     }
-  }, [attempt?.status]);
+  }, [attempt, attemptId, router]);
 
   if (isLoading) {
     return (

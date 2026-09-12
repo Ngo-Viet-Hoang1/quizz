@@ -6,6 +6,7 @@ import {
   useMyExamHistory,
 } from '@/features/student-portal/api/student.api';
 import type { IClass, IExamAttempt } from '@/features/student-portal/types';
+import { calculateScorePercentage, isExamPassed } from '@/features/student-portal/utils/exam.utils';
 import { Badge } from '@/shared/ui/badge';
 import { Button } from '@/shared/ui/button';
 import { Card, CardContent } from '@/shared/ui/card';
@@ -60,7 +61,7 @@ export default function StudentDashboardPage() {
     recentAttempts.length > 0
       ? Math.round(
           recentAttempts.reduce(
-            (acc, curr) => acc + (curr.totalPoints > 0 ? (curr.score / curr.totalPoints) * 100 : 0),
+            (acc, curr) => acc + calculateScorePercentage(curr.score, curr.totalPoints),
             0,
           ) / recentAttempts.length,
         )
@@ -282,11 +283,8 @@ export default function StudentDashboardPage() {
         ) : (
           <div className="space-y-3">
             {recentAttempts.map((attempt: IExamAttempt) => {
-              const pct =
-                attempt.totalPoints > 0
-                  ? Math.round((attempt.score / attempt.totalPoints) * 100)
-                  : 0;
-              const isPassed = pct >= 50;
+              const pct = calculateScorePercentage(attempt.score, attempt.totalPoints);
+              const isPassed = isExamPassed(attempt.score, attempt.totalPoints);
 
               return (
                 <Card

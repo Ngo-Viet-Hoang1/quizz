@@ -1,27 +1,13 @@
 'use client';
 
 import { UserButton } from '@clerk/nextjs';
-import { BookOpenCheck, History, LayoutDashboard, Sparkles, Users2 } from 'lucide-react';
+import { Sparkles } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { studentNavItems } from './student-nav-config';
 
 export function StudentTopNav() {
   const pathname = usePathname();
-
-  const getNavIcon = (iconName: unknown) => {
-    const name = typeof iconName === 'string' ? iconName : '';
-    switch (name) {
-      case 'LayoutDashboard':
-        return <LayoutDashboard className="size-4" />;
-      case 'Users2':
-        return <Users2 className="size-4" />;
-      case 'History':
-        return <History className="size-4" />;
-      default:
-        return <BookOpenCheck className="size-4" />;
-    }
-  };
 
   return (
     <header className="sticky top-0 z-40 w-full border-b bg-background/95 backdrop-blur-md shadow-xs">
@@ -45,6 +31,7 @@ export function StudentTopNav() {
             {studentNavItems.map((item) => {
               const isActive =
                 item.href === '/student' ? pathname === '/student' : pathname.startsWith(item.href);
+              const Icon = item.icon;
 
               return (
                 <Link
@@ -61,7 +48,7 @@ export function StudentTopNav() {
                       isActive ? 'text-indigo-600 dark:text-indigo-400' : 'text-muted-foreground'
                     }
                   >
-                    {getNavIcon(item.icon)}
+                    <Icon className="size-4" />
                   </span>
                   {item.title}
                 </Link>
@@ -88,6 +75,7 @@ export function StudentTopNav() {
         {studentNavItems.map((item) => {
           const isActive =
             item.href === '/student' ? pathname === '/student' : pathname.startsWith(item.href);
+          const Icon = item.icon;
 
           return (
             <Link
@@ -99,7 +87,7 @@ export function StudentTopNav() {
                   : 'text-muted-foreground'
               }`}
             >
-              {getNavIcon(item.icon)}
+              <Icon className="size-4" />
               <span>{item.title}</span>
             </Link>
           );
