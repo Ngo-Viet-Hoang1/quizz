@@ -6,6 +6,7 @@ export interface IClass {
   name: string;
   ownerId: string;
   status: ClassStatus;
+  membershipStatus?: ClassMemberStatus;
   createdAt?: Date;
   updatedAt?: Date;
 }

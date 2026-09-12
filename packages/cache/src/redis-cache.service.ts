@@ -12,7 +12,8 @@ export class RedisCacheService implements ICacheService, OnModuleDestroy {
     if (!redisUrl) {
       throw new Error('REDIS_URL is not defined but RedisCacheService was instantiated');
     }
-    this.redis = new Redis(redisUrl);
+    this.redis = new Redis(redisUrl, { maxRetriesPerRequest: null, enableOfflineQueue: false });
+    this.redis.on('error', () => {});
   }
 
   async get<T>(key: string): Promise<T | null> {

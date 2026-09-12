@@ -154,7 +154,7 @@ export class ClassesController {
   join(
     @CurrentOrg() orgId: string,
     @CurrentUser('_id') userId: string,
-    @Param('id', ParseObjectIdPipe) id: string,
+    @Param('id') id: string,
   ): Promise<ClassMember> {
     return this.classMembersService.join(id, orgId, userId);
   }

@@ -106,13 +106,16 @@ export class ExamAttemptStartService {
       throw new BadRequestException('Assignment deadline has passed');
     }
 
-    const hasSubmitted = await this.attemptModel.exists({
-      organizationId: orgId,
-      userId,
-      assignmentId: assignment._id,
-      status: { $in: [ExamAttemptStatus.SUBMITTED, ExamAttemptStatus.FORCE_SUBMITTED] },
-    });
-    if (hasSubmitted) throw new BadRequestException('You have already submitted this assignment');
+    const allowRetest = process.env.ALLOW_RETEST === 'true';
+    if (!allowRetest) {
+      const hasSubmitted = await this.attemptModel.exists({
+        organizationId: orgId,
+        userId,
+        assignmentId: assignment._id,
+        status: { $in: [ExamAttemptStatus.SUBMITTED, ExamAttemptStatus.FORCE_SUBMITTED] },
+      });
+      if (hasSubmitted) throw new BadRequestException('You have already submitted this assignment');
+    }
 
     return { quizId: assignment.quizId, quizVersion: assignment.quizVersion, assignment };
   }

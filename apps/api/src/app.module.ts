@@ -12,6 +12,7 @@ import { OrganizationsModule } from './modules/organizations/organizations.modul
 import { WebhooksModule } from './modules/webhooks/webhooks.module';
 import { QuizModule } from './modules/quiz/quiz.module';
 import { NotificationModule } from './modules/notifications/notification.module';
+import { RoomModule } from './modules/room/room.module';
 import { RequestContextMiddleware } from './common/middleware/request-context.middleware';
 import { APP_GUARD } from '@nestjs/core';
 import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
@@ -47,6 +48,7 @@ import { ExamAttemptsModule } from './modules/exam-attempts/exam-attempts.module
     AuditModule,
     QuizModule,
     NotificationModule,
+    RoomModule,
     SyncModule,
     AiGenerationModule,
     SubscriptionsModule,

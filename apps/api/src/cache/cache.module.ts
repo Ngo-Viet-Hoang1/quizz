@@ -6,7 +6,7 @@ import { CACHE_SERVICE, InMemoryCacheService, RedisCacheService } from '@repo/ca
   providers: [
     {
       provide: CACHE_SERVICE,
-      useClass: process.env.REDIS_URL ? RedisCacheService : InMemoryCacheService,
+      useClass: process.env.USE_REDIS === 'true' ? RedisCacheService : InMemoryCacheService,
     },
   ],
   exports: [CACHE_SERVICE],

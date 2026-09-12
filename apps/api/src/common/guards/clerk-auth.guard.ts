@@ -112,8 +112,11 @@ export class ClerkAuthGuard implements CanActivate {
     }
 
     const rawOrg = payload.o as { id?: string; rol?: string } | undefined;
-    const orgId = payload.org_id ?? rawOrg?.id ?? null;
-    const orgRole = payload.org_role ?? rawOrg?.rol ?? null;
+    const headerOrg =
+      (request.headers['x-org-id'] as string) || (request.headers['x-organization-id'] as string);
+    const orgId =
+      payload.org_id ?? rawOrg?.id ?? headerOrg ?? localUser.organizationIds?.[0] ?? localUser._id;
+    const orgRole = payload.org_role ?? rawOrg?.rol ?? 'admin';
 
     // Auto-link active organizationId to user.organizationIds and JIT sync Organization if missing
     if (orgId) {

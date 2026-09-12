@@ -5,7 +5,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
-import { Model, QueryFilter } from 'mongoose';
+import { Model, QueryFilter, Types } from 'mongoose';
 import { paginate, PaginateResult } from '../../common/utils/paginate.util';
 import { ClassesService } from './classes.service';
 import { AddClassMemberDto, QueryClassDto, QueryClassMemberDto } from './dto';
@@ -69,8 +69,28 @@ export class ClassMembersService {
     }).save();
   }
 
-  async join(classId: string, orgId: string, userId: string): Promise<ClassMember> {
-    const classDoc = await this.classesService.findOne(classId, orgId);
+  async join(codeOrName: string, orgId: string, userId: string): Promise<ClassMember> {
+    let classDoc: ClassDocument | null = null;
+
+    // Find by ID or exact name
+    // Find by ID or exact name
+    if (Types.ObjectId.isValid(codeOrName)) {
+      classDoc = await this.classesService.findOne(codeOrName, orgId).catch(() => null);
+    }
+
+    if (!classDoc) {
+      classDoc = await this.classModel
+        .findOne({
+          name: { $regex: new RegExp(`^${codeOrName}$`, 'i') },
+          organizationId: orgId,
+          status: { $ne: ClassStatus.ARCHIVED },
+        })
+        .exec();
+    }
+
+    if (!classDoc) {
+      throw new NotFoundException('Class not found');
+    }
 
     if (classDoc.status === ClassStatus.ARCHIVED) {
       throw new BadRequestException('Cannot join an archived class');
@@ -158,8 +178,12 @@ export class ClassMembersService {
     query: QueryClassDto,
   ): Promise<PaginateResult<IClass>> {
     const activeMemberships = await this.classMemberModel
-      .find({ organizationId: orgId, userId, status: ClassMemberStatus.ACTIVE })
-      .select('classId')
+      .find({
+        organizationId: orgId,
+        userId,
+        status: { $in: [ClassMemberStatus.ACTIVE, ClassMemberStatus.PENDING] },
+      })
+      .select('classId status')
       .lean()
       .exec();
 
@@ -177,9 +201,19 @@ export class ClassMembersService {
       filter.name = { $regex: escaped, $options: 'i' };
     }
 
-    return paginate<IClass, ClassDocument>(this.classModel, filter, query, {
+    const result = await paginate<IClass, ClassDocument>(this.classModel, filter, query, {
       allowedSortFields: CLASS_SORT_FIELDS,
     });
+
+    result.items = result.items.map((cls) => {
+      const membership = activeMemberships.find((m) => m.classId.toString() === cls.id);
+      return {
+        ...cls,
+        membershipStatus: membership?.status,
+      };
+    });
+
+    return result;
   }
 
   async approveMember(

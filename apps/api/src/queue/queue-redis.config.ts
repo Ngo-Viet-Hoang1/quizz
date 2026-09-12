@@ -17,6 +17,12 @@ export function parseRedisConnectionOptions(redisUrl?: string): ConnectionOption
       tls: isTls ? {} : undefined,
       maxRetriesPerRequest: null,
       enableReadyCheck: false,
+      enableOfflineQueue: false,
+      connectTimeout: 2000,
+      retryStrategy: (times: number) => {
+        if (times > 3) return null;
+        return 1000;
+      },
     };
   } catch {
     return {
@@ -24,6 +30,12 @@ export function parseRedisConnectionOptions(redisUrl?: string): ConnectionOption
       port: 6379,
       maxRetriesPerRequest: null,
       enableReadyCheck: false,
+      enableOfflineQueue: false,
+      connectTimeout: 2000,
+      retryStrategy: (times: number) => {
+        if (times > 3) return null;
+        return 1000;
+      },
     };
   }
 }
