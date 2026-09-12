@@ -118,3 +118,5 @@ export const PLAN_CONFIG: Record<SubscriptionPlan, PlanDetail> = {
     durationDays: 30,
   },
 };
+
+export * from './room.types';
