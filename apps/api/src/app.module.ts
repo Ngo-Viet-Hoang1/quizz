@@ -23,6 +23,7 @@ import { SubscriptionsModule } from './modules/subscriptions/subscriptions.modul
 import { QueueModule } from './queue/queue.module';
 import { ClassesModule } from './modules/classes/classes.module';
 import { ExamAttemptsModule } from './modules/exam-attempts/exam-attempts.module';
+import { QuizReportsModule } from './modules/quiz-reports/quiz-reports.module';
 
 @Module({
   imports: [
@@ -53,6 +54,7 @@ import { ExamAttemptsModule } from './modules/exam-attempts/exam-attempts.module
     QueueModule,
     ClassesModule,
     ExamAttemptsModule,
+    QuizReportsModule,
   ],
   providers: [
     {
