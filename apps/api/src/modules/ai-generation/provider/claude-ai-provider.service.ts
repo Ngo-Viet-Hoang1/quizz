@@ -55,7 +55,7 @@ ${topic}
         },
         body: JSON.stringify({
           model: selectedModel,
-          max_tokens: 4096,
+          max_tokens: 8192,
           system: SYSTEM_PROMPT,
           messages: [{ role: 'user', content: userPrompt }],
           tools: [QUIZ_TOOL],

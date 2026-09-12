@@ -19,12 +19,15 @@ interface AiGeneratorFormProps {
   className?: string;
 }
 
-const QUESTION_COUNT_OPTIONS = [3, 5, 10, 15, 20];
+const QUESTION_COUNT_OPTIONS = [5, 10, 20, 30, 50];
 
 export function AiGeneratorForm({ onJobStarted, className }: AiGeneratorFormProps) {
   const [topic, setTopic] = React.useState('');
   const [questionCount, setQuestionCount] = React.useState<number>(
     DEFAULT_AI_GEN_PARAMS.questionCount,
+  );
+  const [countInput, setCountInput] = React.useState<string>(
+    String(DEFAULT_AI_GEN_PARAMS.questionCount),
   );
   const [questionType, setQuestionType] = React.useState<QuestionType>(
     DEFAULT_AI_GEN_PARAMS.questionType,
@@ -32,6 +35,12 @@ export function AiGeneratorForm({ onJobStarted, className }: AiGeneratorFormProp
   const [difficulty, setDifficulty] = React.useState<QuizDifficulty>(
     DEFAULT_AI_GEN_PARAMS.difficulty,
   );
+
+  const updateQuestionCount = (val: number) => {
+    const clamped = Math.min(50, Math.max(1, val));
+    setQuestionCount(clamped);
+    setCountInput(String(clamped));
+  };
 
   const { data: subscription } = useCurrentSubscription();
   const enqueueMutation = useEnqueueAiJob();
@@ -45,10 +54,12 @@ export function AiGeneratorForm({ onJobStarted, className }: AiGeneratorFormProp
     e.preventDefault();
     if (!topic.trim()) return;
 
+    const finalCount = Math.min(50, Math.max(1, questionCount));
+
     try {
       const res = await enqueueMutation.mutateAsync({
         topic: topic.trim(),
-        questionCount,
+        questionCount: finalCount,
         questionType,
         difficulty,
       });
@@ -127,7 +138,7 @@ export function AiGeneratorForm({ onJobStarted, className }: AiGeneratorFormProp
                   <span>Number of Questions</span>
                 </Label>
                 <div className="flex items-center gap-2">
-                  <span className="text-xs text-muted-foreground">(Min 1 - Max 20)</span>
+                  <span className="text-xs text-muted-foreground">(Min 1 - Max 50)</span>
                   <div className="flex items-center gap-1 bg-background border rounded-lg p-0.5 shadow-2xs">
                     <Button
                       type="button"
@@ -135,7 +146,7 @@ export function AiGeneratorForm({ onJobStarted, className }: AiGeneratorFormProp
                       size="icon"
                       className="size-6 text-xs h-6 w-6 rounded-md hover:bg-muted"
                       disabled={questionCount <= 1}
-                      onClick={() => setQuestionCount((prev) => Math.max(1, prev - 1))}
+                      onClick={() => updateQuestionCount(questionCount - 1)}
                     >
                       -
                     </Button>
@@ -143,25 +154,34 @@ export function AiGeneratorForm({ onJobStarted, className }: AiGeneratorFormProp
                       id="ai-question-count"
                       type="number"
                       min={1}
-                      max={20}
-                      value={questionCount}
+                      max={50}
+                      value={countInput}
                       onChange={(e) => {
+                        setCountInput(e.target.value);
                         const val = parseInt(e.target.value, 10);
-                        if (Number.isNaN(val)) {
-                          setQuestionCount(1);
-                        } else {
-                          setQuestionCount(Math.min(20, Math.max(1, val)));
+                        if (!Number.isNaN(val) && val >= 1 && val <= 50) {
+                          setQuestionCount(val);
                         }
                       }}
-                      className="w-12 h-6 px-1 text-center font-mono text-xs font-bold border-none shadow-none focus-visible:ring-0"
+                      onBlur={() => {
+                        const val = parseInt(countInput, 10);
+                        if (Number.isNaN(val) || val < 1) {
+                          updateQuestionCount(1);
+                        } else if (val > 50) {
+                          updateQuestionCount(50);
+                        } else {
+                          updateQuestionCount(val);
+                        }
+                      }}
+                      className="w-14 h-6 px-1 text-center font-mono text-xs font-bold border-none shadow-none focus-visible:ring-0"
                     />
                     <Button
                       type="button"
                       variant="ghost"
                       size="icon"
                       className="size-6 text-xs h-6 w-6 rounded-md hover:bg-muted"
-                      disabled={questionCount >= 20}
-                      onClick={() => setQuestionCount((prev) => Math.min(20, prev + 1))}
+                      disabled={questionCount >= 50}
+                      onClick={() => updateQuestionCount(questionCount + 1)}
                     >
                       +
                     </Button>
@@ -182,7 +202,7 @@ export function AiGeneratorForm({ onJobStarted, className }: AiGeneratorFormProp
                         ? 'shadow-xs'
                         : 'border-border/80 bg-background hover:bg-muted'
                     }`}
-                    onClick={() => setQuestionCount(count)}
+                    onClick={() => updateQuestionCount(count)}
                   >
                     {count} Qs
                   </Button>
