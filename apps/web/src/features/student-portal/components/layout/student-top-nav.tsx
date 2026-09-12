@@ -19,7 +19,9 @@ export function StudentTopNav() {
               <Sparkles className="size-5" />
             </div>
             <div>
-              <span className="text-xl font-extrabold tracking-tight text-foreground">QUIZIZZ</span>
+              <span className="text-xl font-extrabold tracking-tight text-foreground">
+                HKT QUIZZ
+              </span>
               <span className="hidden sm:block text-[10px] font-bold text-muted-foreground uppercase tracking-widest -mt-1">
                 STUDENT
               </span>
