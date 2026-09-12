@@ -1,7 +1,7 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
-import { Quiz, QuizDocument } from '../../quiz/schemas/quiz.schema';
+import { QuizVersion, QuizVersionDocument } from '../../quiz/schemas/quiz-version.schema';
 import { ExamAttemptStatus } from '../enums/exam-attempt-status.enum';
 import { IExamAttempt, IExamAttemptAnswer } from '../interfaces/exam-attempt.interface';
 import { ExamAttemptAnswer } from '../schemas/exam-attempt-answer.schema';
@@ -13,19 +13,37 @@ export class ExamAttemptSubmitService {
   constructor(
     @InjectModel(ExamAttempt.name)
     private readonly attemptModel: Model<ExamAttemptDocument>,
-    @InjectModel(Quiz.name)
-    private readonly quizModel: Model<QuizDocument>,
+    @InjectModel(QuizVersion.name)
+    private readonly quizVersionModel: Model<QuizVersionDocument>,
     private readonly autoGradingService: AutoGradingService,
   ) {}
 
   async submitAttempt(orgId: string, userId: string, attemptId: string): Promise<IExamAttempt> {
     const attempt = await this.findAttemptToSubmit(orgId, userId, attemptId);
-    const quiz = await this.findQuiz(orgId, attempt.quizId.toString());
+
+    // ✅ Load đúng snapshot tại thời điểm học sinh BẮT ĐẦU thi
+    const quizSnapshot = await this.quizVersionModel
+      .findOne({
+        quizId: attempt.quizId,
+        organizationId: attempt.organizationId,
+        version: attempt.quizVersion, // Đọc version đã lock trong attempt
+      })
+      .lean()
+      .exec();
+
+    if (!quizSnapshot) {
+      throw new NotFoundException(
+        `Không tìm thấy snapshot phiên bản ${attempt.quizVersion} của đề thi. Dữ liệu có thể bị corrupt.`,
+      );
+    }
+
+    // Chấm điểm bằng câu hỏi từ snapshot bất biến
+    const questions = quizSnapshot.snapshot.questions;
 
     const grading = this.autoGradingService.gradeAttempt(
       attempt.questionOrder,
       attempt.answers,
-      quiz.questions,
+      questions,
     );
 
     const schemaAnswers = this.mapToSchemaAnswers(grading.answers);
@@ -56,11 +74,23 @@ export class ExamAttemptSubmitService {
 
     for (const attempt of expiredAttempts) {
       try {
-        const quiz = await this.findQuiz(attempt.organizationId, attempt.quizId.toString());
+        const quizSnapshot = await this.quizVersionModel
+          .findOne({
+            quizId: attempt.quizId,
+            organizationId: attempt.organizationId,
+            version: attempt.quizVersion,
+          })
+          .lean()
+          .exec();
+
+        if (!quizSnapshot) {
+          continue;
+        }
+
         const grading = this.autoGradingService.gradeAttempt(
           attempt.questionOrder,
           attempt.answers,
-          quiz.questions,
+          quizSnapshot.snapshot.questions,
         );
 
         const schemaAnswers = this.mapToSchemaAnswers(grading.answers);
@@ -100,18 +130,6 @@ export class ExamAttemptSubmitService {
     }
 
     return attempt;
-  }
-
-  private async findQuiz(orgId: string, quizId: string): Promise<QuizDocument> {
-    const quiz = await this.quizModel
-      .findOne({ _id: new Types.ObjectId(quizId), organizationId: orgId, deletedAt: null })
-      .exec();
-
-    if (!quiz) {
-      throw new NotFoundException('Quiz not found');
-    }
-
-    return quiz;
   }
 
   private mapToSchemaAnswers(answers: IExamAttemptAnswer[]): ExamAttemptAnswer[] {
