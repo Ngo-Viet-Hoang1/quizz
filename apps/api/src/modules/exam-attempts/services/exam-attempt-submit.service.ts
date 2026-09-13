@@ -21,23 +21,21 @@ export class ExamAttemptSubmitService {
   async submitAttempt(orgId: string, userId: string, attemptId: string): Promise<IExamAttempt> {
     const attempt = await this.findAttemptToSubmit(orgId, userId, attemptId);
 
-    // ✅ Load đúng snapshot tại thời điểm học sinh BẮT ĐẦU thi
     const quizSnapshot = await this.quizVersionModel
       .findOne({
         quizId: attempt.quizId,
         organizationId: attempt.organizationId,
-        version: attempt.quizVersion, // Đọc version đã lock trong attempt
+        version: attempt.quizVersion,
       })
       .lean()
       .exec();
 
     if (!quizSnapshot) {
       throw new NotFoundException(
-        `Không tìm thấy snapshot phiên bản ${attempt.quizVersion} của đề thi. Dữ liệu có thể bị corrupt.`,
+        `Snapshot version ${attempt.quizVersion} not found for this quiz. Data may be corrupted.`,
       );
     }
 
-    // Chấm điểm bằng câu hỏi từ snapshot bất biến
     const questions = quizSnapshot.snapshot.questions;
 
     const grading = this.autoGradingService.gradeAttempt(
@@ -134,12 +132,23 @@ export class ExamAttemptSubmitService {
 
   private mapToSchemaAnswers(answers: IExamAttemptAnswer[]): ExamAttemptAnswer[] {
     return answers.map((ans) => ({
-      questionId: new Types.ObjectId(ans.questionId),
+      questionId:
+        ans.questionId instanceof Types.ObjectId
+          ? ans.questionId
+          : new Types.ObjectId(String(ans.questionId)),
       selectedOptionIds:
-        ans.selectedOptionIds?.map((id: Types.ObjectId | string) => new Types.ObjectId(id)) ?? [],
+        ans.selectedOptionIds
+          ?.filter((id: unknown) => Boolean(id) && Types.ObjectId.isValid(String(id)))
+          .map((id: Types.ObjectId | string) =>
+            id instanceof Types.ObjectId ? id : new Types.ObjectId(String(id)),
+          ) ?? [],
       textAnswer: ans.textAnswer ?? null,
       orderAnswer:
-        ans.orderAnswer?.map((id: Types.ObjectId | string) => new Types.ObjectId(id)) ?? [],
+        ans.orderAnswer
+          ?.filter((id: unknown) => Boolean(id) && Types.ObjectId.isValid(String(id)))
+          .map((id: Types.ObjectId | string) =>
+            id instanceof Types.ObjectId ? id : new Types.ObjectId(String(id)),
+          ) ?? [],
       isCorrect: ans.isCorrect ?? null,
       timeSpentSec: ans.timeSpentSec ?? 0,
       answeredAt: ans.answeredAt ?? new Date(),
@@ -166,5 +175,6 @@ export class ExamAttemptSubmitService {
     attempt.answers = answers;
     attempt.submittedAt = now;
     attempt.durationSec = durationSec;
+    attempt.markModified?.('answers');
   }
 }

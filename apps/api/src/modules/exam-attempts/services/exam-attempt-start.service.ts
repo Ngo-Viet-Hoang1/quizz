@@ -53,7 +53,6 @@ export class ExamAttemptStartService {
 
     const active = await this.findActiveAttempt(orgId, userId, quiz._id, context.assignment?._id);
     if (active && new Date() < new Date(active.expiresAt)) {
-      // Đọc đúng phiên bản snapshot tại thời điểm học sinh BẮT ĐẦU thi
       const activeSnapshot = await this.quizVersionModel
         .findOne({
           quizId: active.quizId,
@@ -151,8 +150,7 @@ export class ExamAttemptStartService {
   }
 
   /**
-   * Lấy phiên bản snapshot mới nhất của quiz từ collection quiz_versions.
-   * KHÔNG bao giờ đọc từ quizzes.questions (mutable) để tránh data integrity bug.
+   * Get latest snapshot version of the quiz from quiz_versions collection.
    */
   private async getQuizSnapshot(
     orgId: string,
@@ -166,7 +164,7 @@ export class ExamAttemptStartService {
 
     if (!latestVersion) {
       throw new NotFoundException(
-        'Đề thi chưa có phiên bản xuất bản nào. Vui lòng yêu cầu giáo viên publish đề thi.',
+        'Quiz has no published version available. Please ask the instructor to publish the quiz.',
       );
     }
 
@@ -195,7 +193,6 @@ export class ExamAttemptStartService {
     userId: string,
     context: ExamContext,
   ): Promise<StartExamAttemptResponse> {
-    // ✅ Đọc từ snapshot bất biến thay vì quiz mutable
     const snapshot = await this.getQuizSnapshot(orgId, context.quizId);
 
     const startedAt = new Date();
@@ -213,7 +210,7 @@ export class ExamAttemptStartService {
       organizationId: orgId,
       userId,
       quizId: context.quizId,
-      quizVersion: snapshot.version, // ✅ Ghi version cố định vào attempt
+      quizVersion: snapshot.version,
       assignmentId: context.assignment?._id ?? null,
       questionOrder: shuffledOrder,
       status: ExamAttemptStatus.IN_PROGRESS,
