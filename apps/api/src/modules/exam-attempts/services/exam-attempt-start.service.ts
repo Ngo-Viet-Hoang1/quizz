@@ -15,6 +15,7 @@ import {
   QuizAssignmentDocument,
 } from '../../classes/schemas/quiz-assignment.schema';
 import { QuizStatus } from '../../quiz/enums';
+import { QuizVersion, QuizVersionDocument } from '../../quiz/schemas/quiz-version.schema';
 import { Quiz, QuizDocument } from '../../quiz/schemas/quiz.schema';
 import { StartExamAttemptDto } from '../dto/start-exam-attempt.dto';
 import { ExamAttemptStatus } from '../enums/exam-attempt-status.enum';
@@ -34,6 +35,8 @@ export class ExamAttemptStartService {
     private readonly attemptModel: Model<ExamAttemptDocument>,
     @InjectModel(Quiz.name)
     private readonly quizModel: Model<QuizDocument>,
+    @InjectModel(QuizVersion.name)
+    private readonly quizVersionModel: Model<QuizVersionDocument>,
     @InjectModel(QuizAssignment.name)
     private readonly assignmentModel: Model<QuizAssignmentDocument>,
     @InjectModel(ClassMember.name)
@@ -50,14 +53,27 @@ export class ExamAttemptStartService {
 
     const active = await this.findActiveAttempt(orgId, userId, quiz._id, context.assignment?._id);
     if (active && new Date() < new Date(active.expiresAt)) {
+      // Đọc đúng phiên bản snapshot tại thời điểm học sinh BẮT ĐẦU thi
+      const activeSnapshot = await this.quizVersionModel
+        .findOne({
+          quizId: active.quizId,
+          organizationId: orgId,
+          version: active.quizVersion,
+        })
+        .lean()
+        .exec();
+
       return {
         attempt: active as unknown as IExamAttempt,
-        quizTitle: quiz.title,
-        questions: buildSanitizedQuestions(quiz.questions, active.questionOrder),
+        quizTitle: activeSnapshot?.snapshot.title ?? 'Quiz',
+        questions: buildSanitizedQuestions(
+          activeSnapshot?.snapshot.questions ?? [],
+          active.questionOrder,
+        ),
       };
     }
 
-    return this.createAttempt(orgId, userId, quiz, context);
+    return this.createAttempt(orgId, userId, context);
   }
 
   private async resolveContext(
@@ -134,6 +150,29 @@ export class ExamAttemptStartService {
     return quiz;
   }
 
+  /**
+   * Lấy phiên bản snapshot mới nhất của quiz từ collection quiz_versions.
+   * KHÔNG bao giờ đọc từ quizzes.questions (mutable) để tránh data integrity bug.
+   */
+  private async getQuizSnapshot(
+    orgId: string,
+    quizId: Types.ObjectId,
+  ): Promise<QuizVersionDocument> {
+    const latestVersion = await this.quizVersionModel
+      .findOne({ quizId, organizationId: orgId })
+      .sort({ version: -1 })
+      .lean()
+      .exec();
+
+    if (!latestVersion) {
+      throw new NotFoundException(
+        'Đề thi chưa có phiên bản xuất bản nào. Vui lòng yêu cầu giáo viên publish đề thi.',
+      );
+    }
+
+    return latestVersion as unknown as QuizVersionDocument;
+  }
+
   private async findActiveAttempt(
     orgId: string,
     userId: string,
@@ -154,20 +193,28 @@ export class ExamAttemptStartService {
   private async createAttempt(
     orgId: string,
     userId: string,
-    quiz: QuizDocument,
     context: ExamContext,
   ): Promise<StartExamAttemptResponse> {
+    // ✅ Đọc từ snapshot bất biến thay vì quiz mutable
+    const snapshot = await this.getQuizSnapshot(orgId, context.quizId);
+
     const startedAt = new Date();
-    const expiresAt = this.calcExpiresAt(startedAt, quiz.timeLimitSec, context.assignment);
-    const shuffledOrder = shuffleArray((quiz.questions || []).map((q) => q._id as Types.ObjectId));
-    const totalPoints = (quiz.questions || []).reduce((sum, q) => sum + (q.points ?? 1), 0);
+    const expiresAt = this.calcExpiresAt(
+      startedAt,
+      snapshot.snapshot.timeLimitSec,
+      context.assignment,
+    );
+    const shuffledOrder = shuffleArray(
+      snapshot.snapshot.questions.map((q) => (q as unknown as { _id: Types.ObjectId })._id),
+    );
+    const totalPoints = snapshot.snapshot.questions.reduce((sum, q) => sum + (q.points ?? 1), 0);
 
     const attempt = await new this.attemptModel({
       organizationId: orgId,
       userId,
-      quizId: quiz._id,
-      quizVersion: context.assignment ? context.quizVersion : (quiz.version ?? 1),
-      assignmentId: context.assignment ? context.assignment._id : null,
+      quizId: context.quizId,
+      quizVersion: snapshot.version, // ✅ Ghi version cố định vào attempt
+      assignmentId: context.assignment?._id ?? null,
       questionOrder: shuffledOrder,
       status: ExamAttemptStatus.IN_PROGRESS,
       score: 0,
@@ -184,8 +231,8 @@ export class ExamAttemptStartService {
 
     return {
       attempt: attempt as unknown as IExamAttempt,
-      quizTitle: quiz.title,
-      questions: buildSanitizedQuestions(quiz.questions, shuffledOrder),
+      quizTitle: snapshot.snapshot.title,
+      questions: buildSanitizedQuestions(snapshot.snapshot.questions, shuffledOrder),
     };
   }
 
