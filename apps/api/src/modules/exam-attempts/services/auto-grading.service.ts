@@ -5,11 +5,21 @@ import { Question } from '../../quiz/schemas/quiz.schema';
 import { GradingResult, IExamAttemptAnswer } from '../interfaces/exam-attempt.interface';
 
 function toIdStr(id: unknown): string {
-  if (!id) return '';
+  if (id === null || id === undefined) return '';
   if (typeof id === 'string') return id;
-  if (typeof id === 'object' && id !== null) {
-    if ('_id' in id) return toIdStr((id as { _id: unknown })._id);
-    if ('toString' in id && typeof id.toString === 'function') return id.toString();
+  if (typeof id === 'number') return String(id);
+  if (typeof id === 'object') {
+    const obj = id as Record<string, unknown>;
+    if ('toHexString' in obj && typeof obj.toHexString === 'function') {
+      return obj.toHexString() as string;
+    }
+    if ('_id' in obj && obj._id && obj._id !== id) {
+      return toIdStr(obj._id);
+    }
+    if ('toString' in obj && typeof obj.toString === 'function') {
+      const str = obj.toString();
+      if (str !== '[object Object]') return str;
+    }
   }
   return String(id);
 }

@@ -10,11 +10,21 @@ interface ExamResultQuestionCardProps {
 }
 
 function getIdStr(id: unknown): string {
-  if (!id) return '';
+  if (id === null || id === undefined) return '';
   if (typeof id === 'string') return id;
-  if (typeof id === 'object' && id !== null) {
-    if ('_id' in id) return getIdStr((id as { _id: unknown })._id);
-    if ('toString' in id && typeof id.toString === 'function') return id.toString();
+  if (typeof id === 'number') return String(id);
+  if (typeof id === 'object') {
+    const obj = id as Record<string, unknown>;
+    if ('toHexString' in obj && typeof obj.toHexString === 'function') {
+      return obj.toHexString() as string;
+    }
+    if ('_id' in obj && obj._id && obj._id !== id) {
+      return getIdStr(obj._id);
+    }
+    if ('toString' in obj && typeof obj.toString === 'function') {
+      const str = obj.toString();
+      if (str !== '[object Object]') return str;
+    }
   }
   return String(id);
 }
