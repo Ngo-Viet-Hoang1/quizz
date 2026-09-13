@@ -48,8 +48,14 @@ export function QuizReportsTable() {
 
   const columns = React.useMemo(() => createQuizReportColumns(handleOpenDetail), []);
 
-  const rawData = data as unknown as { items?: QuizReportItem[]; data?: QuizReportItem[] };
-  const reports: QuizReportItem[] = rawData?.items ?? rawData?.data ?? [];
+  const reports: QuizReportItem[] = React.useMemo(() => {
+    if (Array.isArray(data?.data)) return data.data;
+    if (Array.isArray((data as unknown as { items?: QuizReportItem[] })?.items)) {
+      return (data as unknown as { items: QuizReportItem[] }).items;
+    }
+    if (Array.isArray(data)) return data as unknown as QuizReportItem[];
+    return [];
+  }, [data]);
   const meta = data?.meta;
 
   return (
