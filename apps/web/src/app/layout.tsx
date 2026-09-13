@@ -23,7 +23,7 @@ export default function RootLayout({
   return (
     <html lang="en" className={`${inter.variable} font-sans antialiased`} suppressHydrationWarning>
       <body className="min-h-screen bg-background text-foreground">
-        <ClerkProvider>
+        <ClerkProvider afterSignOutUrl="/sign-in">
           <ThemeProvider
             attribute="class"
             defaultTheme="system"
