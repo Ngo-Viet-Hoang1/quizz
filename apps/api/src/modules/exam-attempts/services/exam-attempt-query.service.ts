@@ -85,14 +85,21 @@ export class ExamAttemptQueryService {
   ): Promise<ExamAttemptDetailResponse> {
     const attempt = await this.attemptModel
       .findOne({ _id: new Types.ObjectId(attemptId), organizationId: orgId, userId })
+      .lean()
       .exec();
 
     if (!attempt) {
       throw new NotFoundException('Exam attempt not found');
     }
 
+    const quizIdStr =
+      typeof attempt.quizId === 'object' && attempt.quizId !== null && '_id' in attempt.quizId
+        ? String((attempt.quizId as { _id: unknown })._id)
+        : String(attempt.quizId);
+
     const quiz = await this.quizModel
-      .findOne({ _id: attempt.quizId, organizationId: orgId, deletedAt: null })
+      .findOne({ _id: new Types.ObjectId(quizIdStr), organizationId: orgId, deletedAt: null })
+      .lean()
       .exec();
 
     if (!quiz) {

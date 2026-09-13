@@ -10,13 +10,23 @@ interface ExamResultQuestionCardProps {
   studentAnswer: IExamAttemptAnswer | undefined;
 }
 
+function getIdStr(id: unknown): string {
+  if (!id) return '';
+  if (typeof id === 'string') return id;
+  if (typeof id === 'object' && id !== null) {
+    if ('_id' in id) return getIdStr((id as { _id: unknown })._id);
+    if ('toString' in id && typeof id.toString === 'function') return id.toString();
+  }
+  return String(id);
+}
+
 export function ExamResultQuestionCard({
   question,
   index,
   studentAnswer,
 }: ExamResultQuestionCardProps) {
   const isCorrect = studentAnswer?.isCorrect === true;
-  const selectedIds = studentAnswer?.selectedOptionIds ?? [];
+  const selectedIds = (studentAnswer?.selectedOptionIds ?? []).map(getIdStr);
   const textAnswer = studentAnswer?.textAnswer;
 
   return (
@@ -24,9 +34,7 @@ export function ExamResultQuestionCard({
       className={`rounded-xl border p-4 ${
         isCorrect
           ? 'border-emerald-500/30 bg-emerald-500/5'
-          : studentAnswer
-            ? 'border-red-500/30 bg-red-500/5'
-            : 'border-border'
+          : 'border-red-500/30 bg-red-500/5'
       }`}
     >
       {/* Question header */}
@@ -34,10 +42,8 @@ export function ExamResultQuestionCard({
         <div className="flex items-start gap-2">
           {isCorrect ? (
             <CheckCircle2 className="size-5 text-emerald-600 dark:text-emerald-400 shrink-0 mt-0.5" />
-          ) : studentAnswer ? (
-            <XCircle className="size-5 text-red-600 dark:text-red-400 shrink-0 mt-0.5" />
           ) : (
-            <div className="size-5 rounded-full border-2 border-muted-foreground/30 shrink-0 mt-0.5" />
+            <XCircle className="size-5 text-red-600 dark:text-red-400 shrink-0 mt-0.5" />
           )}
           <div>
             <p className="text-sm font-medium text-foreground">
@@ -54,7 +60,8 @@ export function ExamResultQuestionCard({
       {question.options && question.options.length > 0 && (
         <div className="space-y-1.5 ml-7">
           {question.options.map((opt) => {
-            const wasSelected = selectedIds.map(String).includes(String(opt._id));
+            const optIdStr = getIdStr(opt._id);
+            const wasSelected = selectedIds.includes(optIdStr);
             const isCorrectOpt = 'isCorrect' in opt && opt.isCorrect === true;
 
             return (

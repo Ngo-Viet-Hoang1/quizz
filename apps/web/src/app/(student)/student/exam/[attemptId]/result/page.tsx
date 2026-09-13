@@ -21,6 +21,16 @@ function formatDurationSec(sec: number = 0): string {
   return s > 0 ? `${m}m ${s}s` : `${m}m`;
 }
 
+function getIdStr(id: unknown): string {
+  if (!id) return '';
+  if (typeof id === 'string') return id;
+  if (typeof id === 'object' && id !== null) {
+    if ('_id' in id) return getIdStr((id as { _id: unknown })._id);
+    if ('toString' in id && typeof id.toString === 'function') return id.toString();
+  }
+  return String(id);
+}
+
 export default function ExamResultPage() {
   const params = useParams();
   const attemptId = params.attemptId as string;
@@ -183,7 +193,7 @@ export default function ExamResultPage() {
             questions.map((q, idx) => {
               const question = q as FullQuestion;
               const studentAnswer = attempt.answers?.find(
-                (a) => String(a.questionId) === String(question._id),
+                (a) => getIdStr(a.questionId) === getIdStr(question._id),
               );
 
               return (

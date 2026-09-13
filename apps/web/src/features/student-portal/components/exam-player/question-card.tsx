@@ -31,10 +31,18 @@ export function QuestionCard({
   onTextAnswerBlur,
   onToggleFlag,
 }: QuestionCardProps) {
+  const qType = String(question.type ?? '').toLowerCase();
   const isMultiple =
-    String(question.type).toLowerCase() === 'multiple_choice' ||
+    qType === 'multiple_choice' ||
     (question.options ?? []).filter((o) => 'isCorrect' in o && o.isCorrect === true).length > 1;
-  const isTextType = question.type === 'fill_in_blank' || question.type === 'short_answer';
+  const isTextType =
+    qType === 'fill_blank' ||
+    qType === 'fill_in_blank' ||
+    qType === 'short_answer' ||
+    qType === 'text' ||
+    qType === 'essay' ||
+    !question.options ||
+    question.options.length === 0;
 
   return (
     <Card
