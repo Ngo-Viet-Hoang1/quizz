@@ -149,18 +149,47 @@ export class ExamAttemptStartService {
     return quiz;
   }
 
-  /**
-   * Get latest snapshot version of the quiz from quiz_versions collection.
-   */
   private async getQuizSnapshot(
     orgId: string,
     quizId: Types.ObjectId,
   ): Promise<QuizVersionDocument> {
-    const latestVersion = await this.quizVersionModel
+    let latestVersion = await this.quizVersionModel
       .findOne({ quizId, organizationId: orgId })
       .sort({ version: -1 })
       .lean()
       .exec();
+
+    if (!latestVersion) {
+      const quiz = await this.quizModel
+        .findOne({ _id: quizId, organizationId: orgId, deletedAt: null })
+        .exec();
+
+      if (quiz && quiz.questions && quiz.questions.length > 0) {
+        const version = quiz.version || 1;
+        await this.quizVersionModel.updateOne(
+          { quizId: new Types.ObjectId(quiz._id), version },
+          {
+            $setOnInsert: {
+              quizId: new Types.ObjectId(quiz._id),
+              organizationId: quiz.organizationId,
+              version,
+              snapshot: {
+                title: quiz.title,
+                timeLimitSec: quiz.timeLimitSec,
+                questions: quiz.questions ?? [],
+              },
+              createdAt: new Date(),
+            },
+          },
+          { upsert: true },
+        );
+
+        latestVersion = await this.quizVersionModel
+          .findOne({ quizId, organizationId: orgId, version })
+          .lean()
+          .exec();
+      }
+    }
 
     if (!latestVersion) {
       throw new NotFoundException(
