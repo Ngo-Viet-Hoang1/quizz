@@ -1,6 +1,10 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Inject, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
+import { ClerkClient } from '@clerk/backend';
+import { CLERK_CLIENT } from '../../common/clerk/clerk-client.provider';
+import { OrganizationMembersService } from '../organization-members/organization-members.service';
+import { UsersService } from '../users/users.service';
 import {
   ClerkOrganizationData,
   ClerkOrganizationDeletedData,
@@ -15,10 +19,68 @@ export class OrganizationsService {
   constructor(
     @InjectModel(Organization.name)
     private readonly organizationModel: Model<OrganizationDocument>,
+    @Inject(CLERK_CLIENT)
+    private readonly clerkClient: ClerkClient,
+    private readonly orgMembersService: OrganizationMembersService,
+    private readonly usersService: UsersService,
   ) {}
 
   async findById(clerkOrgId: string): Promise<OrganizationDocument | null> {
     return this.organizationModel.findOne({ _id: clerkOrgId, status: 'active' }).exec();
+  }
+
+  async findPublicOrganizations(search?: string, limit = 50): Promise<OrganizationDocument[]> {
+    const filter: Record<string, unknown> = { status: 'active', deletedAt: null };
+    if (search && search.trim()) {
+      filter.name = { $regex: search.trim(), $options: 'i' };
+    }
+    return this.organizationModel
+      .find(filter)
+      .sort({ createdAt: -1 })
+      .limit(limit)
+      .select('_id name slug logoUrl createdAt')
+      .exec();
+  }
+
+  async joinOrganizationAsStudent(
+    orgId: string,
+    userId: string,
+  ): Promise<{ success: boolean; organization: OrganizationDocument }> {
+    const org = await this.findById(orgId);
+    if (!org) {
+      throw new NotFoundException(`Organization with ID ${orgId} not found or inactive`);
+    }
+
+    // 1. Add membership in Clerk with role org:member
+    try {
+      await this.clerkClient.organizations.createOrganizationMembership({
+        organizationId: orgId,
+        userId,
+        role: 'org:member',
+      });
+      this.logger.log(`Created Clerk membership for user ${userId} in org ${orgId}`);
+    } catch (error: unknown) {
+      this.logger.warn(
+        `Clerk createOrganizationMembership info for ${userId} in ${orgId}: ${
+          error instanceof Error ? error.message : String(error)
+        }`,
+      );
+    }
+
+    // 2. Sync membership in local database with role org:member
+    await this.orgMembersService.syncMember({
+      organizationId: orgId,
+      userId,
+      role: 'org:member',
+    });
+
+    // 3. Ensure organization is in user.organizationIds
+    await this.usersService.addOrganization(userId, orgId);
+
+    return {
+      success: true,
+      organization: org,
+    };
   }
 
   async syncFromClerk(data: {
@@ -39,7 +101,7 @@ export class OrganizationsService {
             deletedAt: null,
           },
         },
-        { upsert: true, returnDocument: 'after', setDefaultsOnInsert: true },
+        { upsert: true, new: true, setDefaultsOnInsert: true },
       )
       .exec()) as OrganizationDocument;
 

@@ -36,7 +36,7 @@ export class UsersService {
             deletedAt: null,
           },
         },
-        { upsert: true, returnDocument: 'after', setDefaultsOnInsert: true },
+        { upsert: true, new: true, setDefaultsOnInsert: true },
       )
       .exec() as Promise<UserDocument>;
   }
