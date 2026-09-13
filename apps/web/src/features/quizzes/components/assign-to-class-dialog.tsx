@@ -238,11 +238,14 @@ export function AssignToClassDialog({ quiz, open, onOpenChange }: AssignToClassD
                     const id = cls.id || cls._id || '';
                     return (
                       <SelectItem key={id} value={id} className="py-2.5 cursor-pointer">
-                        <div className="flex items-center justify-between w-full pr-2">
-                          <span className="font-medium text-xs text-foreground truncate max-w-65">
+                        <div className="flex items-center justify-between w-full min-w-0 gap-3 pr-2">
+                          <span
+                            className="font-medium text-xs text-foreground truncate min-w-0 flex-1"
+                            title={cls.name}
+                          >
                             {cls.name}
                           </span>
-                          <span className="text-[11px] text-muted-foreground flex items-center gap-1">
+                          <span className="text-[11px] text-muted-foreground flex items-center gap-1 shrink-0">
                             <Users className="size-3" />
                             {cls.memberCount || 0} students
                           </span>

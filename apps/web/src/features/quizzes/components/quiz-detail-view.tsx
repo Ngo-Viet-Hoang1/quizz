@@ -13,10 +13,14 @@ import {
   History,
   Pencil,
   Plus,
+  Radio,
   Share2,
   Sparkles,
   Trash2,
 } from 'lucide-react';
+import { toast } from 'sonner';
+import { RoomCreatedResponse } from '@repo/shared-types';
+import { useApiClient } from '@/shared/lib/api-client';
 import { Button } from '@/shared/ui/button';
 import { Badge } from '@/shared/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/shared/ui/card';
@@ -123,13 +127,35 @@ interface QuizDetailViewProps {
 
 export function QuizDetailView({ quizId }: QuizDetailViewProps) {
   const router = useRouter();
+  const client = useApiClient();
   const { data: quiz, isLoading } = useQuiz(quizId);
   const { mutateAsync: updateQuiz, isPending: isUpdating } = useUpdateQuiz();
 
+  const [isHostingRoom, setIsHostingRoom] = React.useState(false);
   const [editDialogOpen, setEditDialogOpen] = React.useState(false);
   const [shareDialogOpen, setShareDialogOpen] = React.useState(false);
   const [versionHistoryOpen, setVersionHistoryOpen] = React.useState(false);
   const [assignClassOpen, setAssignClassOpen] = React.useState(false);
+
+  const handleHostLiveQuiz = async () => {
+    if (!quiz) return;
+    if (!quiz.questions || quiz.questions.length === 0) {
+      toast.error('This quiz has no questions available to host a live session');
+      return;
+    }
+    try {
+      setIsHostingRoom(true);
+      const res = await client.post<RoomCreatedResponse>('/rooms', { quizId: quiz._id });
+      if (res?.pin) {
+        toast.success(`Live room launched with PIN: ${res.pin}`);
+        router.push(`/room/host?pin=${res.pin}`);
+      }
+    } catch (error) {
+      console.error('Failed to create live room:', error);
+    } finally {
+      setIsHostingRoom(false);
+    }
+  };
 
   // Question dialog state
   const [questionDialogOpen, setQuestionDialogOpen] = React.useState(false);
@@ -240,6 +266,14 @@ export function QuizDetailView({ quizId }: QuizDetailViewProps) {
         </div>
 
         <div className="flex flex-wrap items-center gap-2 sm:self-center">
+          <Button
+            onClick={handleHostLiveQuiz}
+            disabled={isHostingRoom || !quiz.questions?.length}
+            className="gap-1.5 bg-indigo-600 hover:bg-indigo-700 text-white font-medium shadow-xs"
+          >
+            <Radio className="h-4 w-4" />
+            <span>{isHostingRoom ? 'Creating room...' : 'Host Live Quiz'}</span>
+          </Button>
           <Button variant="outline" onClick={() => setAssignClassOpen(true)} className="gap-1.5">
             <GraduationCap className="h-4 w-4 text-primary" />
             <span>Assign to Class</span>
