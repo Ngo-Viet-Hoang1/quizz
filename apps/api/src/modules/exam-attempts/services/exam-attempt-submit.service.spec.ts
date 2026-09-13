@@ -2,7 +2,7 @@ import { BadRequestException, NotFoundException } from '@nestjs/common';
 import { getModelToken } from '@nestjs/mongoose';
 import { Test, TestingModule } from '@nestjs/testing';
 import { Types } from 'mongoose';
-import { Quiz, QuizDocument } from '../../quiz/schemas/quiz.schema';
+import { QuizVersion } from '../../quiz/schemas/quiz-version.schema';
 import { ExamAttemptStatus } from '../enums/exam-attempt-status.enum';
 import { GradingResult, IExamAttemptAnswer } from '../interfaces/exam-attempt.interface';
 import { ExamAttempt, ExamAttemptDocument } from '../schemas/exam-attempt.schema';
@@ -12,7 +12,7 @@ import { ExamAttemptSubmitService } from './exam-attempt-submit.service';
 describe('ExamAttemptSubmitService', () => {
   let service: ExamAttemptSubmitService;
   let mockAttemptModel: { findOne: jest.Mock; find: jest.Mock };
-  let mockQuizModel: { findOne: jest.Mock };
+  let mockQuizVersionModel: { findOne: jest.Mock };
   let mockAutoGradingService: { gradeAttempt: jest.Mock };
 
   const mockOrgId = 'org_123';
@@ -28,6 +28,7 @@ describe('ExamAttemptSubmitService', () => {
     organizationId: string;
     userId: string;
     quizId: Types.ObjectId;
+    quizVersion: number;
     status: ExamAttemptStatus;
     startedAt: Date;
     questionOrder: Types.ObjectId[];
@@ -45,6 +46,7 @@ describe('ExamAttemptSubmitService', () => {
       organizationId: mockOrgId,
       userId: mockUserId,
       quizId: mockQuizId,
+      quizVersion: 1,
       status: ExamAttemptStatus.IN_PROGRESS,
       startedAt: new Date(Date.now() - 1000 * 60 * 5), // 5 minutes ago
       questionOrder: [mockQuestionId],
@@ -60,14 +62,24 @@ describe('ExamAttemptSubmitService', () => {
     };
   };
 
-  const createMockQuiz = (): {
+  const createMockQuizSnapshot = (): {
     _id: Types.ObjectId;
+    quizId: Types.ObjectId;
     organizationId: string;
-    questions: { _id: Types.ObjectId; points: number }[];
+    version: number;
+    snapshot: {
+      title: string;
+      questions: { _id: Types.ObjectId; points: number }[];
+    };
   } => ({
-    _id: mockQuizId,
+    _id: new Types.ObjectId(),
+    quizId: mockQuizId,
     organizationId: mockOrgId,
-    questions: [{ _id: mockQuestionId, points: 10 }],
+    version: 1,
+    snapshot: {
+      title: 'Biology Quiz',
+      questions: [{ _id: mockQuestionId, points: 10 }],
+    },
   });
 
   beforeEach(async () => {
@@ -75,7 +87,7 @@ describe('ExamAttemptSubmitService', () => {
       findOne: jest.fn(),
       find: jest.fn(),
     };
-    mockQuizModel = {
+    mockQuizVersionModel = {
       findOne: jest.fn(),
     };
     mockAutoGradingService = {
@@ -86,7 +98,7 @@ describe('ExamAttemptSubmitService', () => {
       providers: [
         ExamAttemptSubmitService,
         { provide: getModelToken(ExamAttempt.name), useValue: mockAttemptModel },
-        { provide: getModelToken(Quiz.name), useValue: mockQuizModel },
+        { provide: getModelToken(QuizVersion.name), useValue: mockQuizVersionModel },
         { provide: AutoGradingService, useValue: mockAutoGradingService },
       ],
     }).compile();
@@ -95,16 +107,18 @@ describe('ExamAttemptSubmitService', () => {
   });
 
   describe('submitAttempt', () => {
-    it('should successfully grade and submit an in-progress exam attempt', async () => {
+    it('should successfully grade and submit an in-progress exam attempt against snapshot', async () => {
       const initialAnswers: IExamAttemptAnswer[] = [];
       const attemptDoc = createMockAttempt({ answers: initialAnswers });
-      const quizDoc = createMockQuiz();
+      const snapshotDoc = createMockQuizSnapshot();
 
       mockAttemptModel.findOne.mockReturnValue({
         exec: jest.fn().mockResolvedValue(attemptDoc as unknown as ExamAttemptDocument),
       });
-      mockQuizModel.findOne.mockReturnValue({
-        exec: jest.fn().mockResolvedValue(quizDoc as unknown as QuizDocument),
+      mockQuizVersionModel.findOne.mockReturnValue({
+        lean: jest.fn().mockReturnValue({
+          exec: jest.fn().mockResolvedValue(snapshotDoc),
+        }),
       });
 
       const gradingResult: GradingResult = {
@@ -127,11 +141,15 @@ describe('ExamAttemptSubmitService', () => {
       const result = await service.submitAttempt(mockOrgId, mockUserId, mockAttemptId.toString());
 
       expect(mockAttemptModel.findOne).toHaveBeenCalled();
-      expect(mockQuizModel.findOne).toHaveBeenCalled();
+      expect(mockQuizVersionModel.findOne).toHaveBeenCalledWith({
+        quizId: attemptDoc.quizId,
+        organizationId: attemptDoc.organizationId,
+        version: attemptDoc.quizVersion,
+      });
       expect(mockAutoGradingService.gradeAttempt).toHaveBeenCalledWith(
         attemptDoc.questionOrder,
         initialAnswers,
-        quizDoc.questions,
+        snapshotDoc.snapshot.questions,
       );
       expect(attemptDoc.status).toBe(ExamAttemptStatus.SUBMITTED);
       expect(attemptDoc.score).toBe(10);
@@ -165,13 +183,15 @@ describe('ExamAttemptSubmitService', () => {
       ).rejects.toThrow(BadRequestException);
     });
 
-    it('should throw NotFoundException if quiz is not found', async () => {
+    it('should throw NotFoundException if snapshot version is not found', async () => {
       const attemptDoc = createMockAttempt();
       mockAttemptModel.findOne.mockReturnValue({
         exec: jest.fn().mockResolvedValue(attemptDoc as unknown as ExamAttemptDocument),
       });
-      mockQuizModel.findOne.mockReturnValue({
-        exec: jest.fn().mockResolvedValue(null),
+      mockQuizVersionModel.findOne.mockReturnValue({
+        lean: jest.fn().mockReturnValue({
+          exec: jest.fn().mockResolvedValue(null),
+        }),
       });
 
       await expect(
@@ -181,17 +201,19 @@ describe('ExamAttemptSubmitService', () => {
   });
 
   describe('forceSubmitExpiredAttempts', () => {
-    it('should process and force-submit all expired attempts', async () => {
+    it('should process and force-submit all expired attempts against snapshot', async () => {
       const attemptDoc = createMockAttempt();
-      const quizDoc = createMockQuiz();
+      const snapshotDoc = createMockQuizSnapshot();
 
       mockAttemptModel.find.mockReturnValue({
         limit: jest.fn().mockReturnValue({
           exec: jest.fn().mockResolvedValue([attemptDoc as unknown as ExamAttemptDocument]),
         }),
       });
-      mockQuizModel.findOne.mockReturnValue({
-        exec: jest.fn().mockResolvedValue(quizDoc as unknown as QuizDocument),
+      mockQuizVersionModel.findOne.mockReturnValue({
+        lean: jest.fn().mockReturnValue({
+          exec: jest.fn().mockResolvedValue(snapshotDoc),
+        }),
       });
 
       const gradingResult: GradingResult = {

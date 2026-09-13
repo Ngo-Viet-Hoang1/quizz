@@ -24,6 +24,7 @@ import { QueueModule } from './queue/queue.module';
 import { ClassesModule } from './modules/classes/classes.module';
 import { ExamAttemptsModule } from './modules/exam-attempts/exam-attempts.module';
 import { RoomModule } from './modules/room/room.module';
+import { QuizReportsModule } from './modules/quiz-reports/quiz-reports.module';
 
 @Module({
   imports: [
@@ -55,6 +56,7 @@ import { RoomModule } from './modules/room/room.module';
     ClassesModule,
     ExamAttemptsModule,
     RoomModule,
+    QuizReportsModule,
   ],
   providers: [
     {

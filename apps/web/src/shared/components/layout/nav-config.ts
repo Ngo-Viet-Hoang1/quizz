@@ -65,6 +65,7 @@ export const NAV_GROUPS: NavGroup[] = [
     label: 'Administration',
     icon: ShieldCheck,
     items: [
+      { title: 'Quiz Reports', href: '/quiz-reports', icon: ShieldCheck },
       { title: 'Audit Logs', href: '/audit-logs', icon: ShieldCheck },
       { title: 'Settings', href: '/settings', icon: Settings },
     ],

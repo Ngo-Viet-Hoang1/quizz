@@ -30,15 +30,15 @@ export class EnqueueAiGenerationJobDto {
 
   @ApiProperty({
     description:
-      'Number of questions to generate (1-20 per batch for optimal quality and token safety)',
+      'Number of questions to generate (1-50 per batch for optimal quality and token safety)',
     minimum: 1,
-    maximum: 20,
+    maximum: 50,
     default: 5,
   })
   @Type(() => Number)
   @IsInt()
   @Min(1)
-  @Max(20)
+  @Max(50)
   questionCount!: number;
 
   @ApiPropertyOptional({
