@@ -31,7 +31,9 @@ export function QuestionCard({
   onTextAnswerBlur,
   onToggleFlag,
 }: QuestionCardProps) {
-  const isMultiple = question.type === 'multiple_choice';
+  const isMultiple =
+    String(question.type).toLowerCase() === 'multiple_choice' ||
+    (question.options ?? []).filter((o) => 'isCorrect' in o && o.isCorrect === true).length > 1;
   const isTextType = question.type === 'fill_in_blank' || question.type === 'short_answer';
 
   return (

@@ -70,19 +70,34 @@ export class AutoGradingService {
   evaluateQuestion(question: Question, answer?: IExamAttemptAnswer): boolean {
     if (!answer) return false;
 
-    switch (question.type) {
-      case QuestionType.SINGLE_CHOICE:
-      case QuestionType.TRUE_FALSE:
-        return this.evaluateSingleChoice(question, answer.selectedOptionIds);
-      case QuestionType.MULTIPLE_CHOICE:
-        return this.evaluateMultipleChoice(question, answer.selectedOptionIds);
-      case QuestionType.FILL_BLANK:
-        return this.evaluateFillBlank(question, answer.textAnswer);
-      case QuestionType.ORDERING:
-        return this.evaluateOrdering(question, answer.orderAnswer);
-      default:
-        return false;
+    const qType = String(question.type).toLowerCase();
+
+    if (qType === 'single_choice' || qType === 'true_false') {
+      return this.evaluateSingleChoice(question, answer.selectedOptionIds);
     }
+    if (qType === 'multiple_choice') {
+      return this.evaluateMultipleChoice(question, answer.selectedOptionIds);
+    }
+    if (qType === 'fill_blank' || qType === 'short_answer') {
+      return this.evaluateFillBlank(question, answer.textAnswer);
+    }
+    if (qType === 'ordering') {
+      return this.evaluateOrdering(question, answer.orderAnswer);
+    }
+
+    // Fallback if type string is non-standard
+    const correctCount = (question.options ?? []).filter((o) => o.isCorrect).length;
+    if (correctCount > 1) {
+      return this.evaluateMultipleChoice(question, answer.selectedOptionIds);
+    }
+    if (correctCount === 1) {
+      return this.evaluateSingleChoice(question, answer.selectedOptionIds);
+    }
+    if (answer.textAnswer) {
+      return this.evaluateFillBlank(question, answer.textAnswer);
+    }
+
+    return false;
   }
 
   private evaluateSingleChoice(
@@ -92,7 +107,7 @@ export class AutoGradingService {
     if (!selectedIds || selectedIds.length !== 1) return false;
     const correctOption = question.options?.find((opt) => opt.isCorrect);
     if (!correctOption?._id) return false;
-    return selectedIds[0].toString() === correctOption._id.toString();
+    return String(selectedIds[0]) === String(correctOption._id);
   }
 
   private evaluateMultipleChoice(
@@ -102,24 +117,41 @@ export class AutoGradingService {
     if (!selectedIds || selectedIds.length === 0) return false;
 
     const correctIds = (question.options ?? [])
-      .filter((opt) => opt.isCorrect && opt._id)
-      .map((opt) => opt._id!.toString());
+      .filter((opt) => Boolean(opt.isCorrect) && opt._id)
+      .map((opt) => String(opt._id));
 
+    if (correctIds.length === 0) return false;
     if (correctIds.length !== selectedIds.length) return false;
 
-    const studentSet = new Set(selectedIds.map((id) => id.toString()));
+    const studentSet = new Set(selectedIds.map((id) => String(id)));
     return correctIds.every((id) => studentSet.has(id));
   }
 
   private evaluateFillBlank(question: Question, textAnswer?: string | null): boolean {
     if (!textAnswer) return false;
-    const normalizedInput = textAnswer.trim().toLowerCase();
+    const normalizedInput = this.normalizeText(textAnswer);
     if (!normalizedInput) return false;
 
-    const targetText = question.metadata?.correctText ?? question.options?.[0]?.content;
-    if (!targetText) return false;
+    const targets: string[] = [];
+    if (question.metadata?.correctText) {
+      targets.push(question.metadata.correctText);
+    }
+    if (question.options && question.options.length > 0) {
+      for (const opt of question.options) {
+        if (opt.content) targets.push(opt.content);
+      }
+    }
 
-    return normalizedInput === targetText.trim().toLowerCase();
+    if (targets.length === 0) return false;
+
+    return targets.some((target) => this.normalizeText(target) === normalizedInput);
+  }
+
+  private normalizeText(str: string): string {
+    return str
+      .trim()
+      .toLowerCase()
+      .replace(/\s+/g, ' ');
   }
 
   private evaluateOrdering(question: Question, orderAnswer?: (Types.ObjectId | string)[]): boolean {

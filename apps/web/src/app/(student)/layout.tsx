@@ -25,12 +25,11 @@ export default async function StudentLayout({ children }: { children: React.Reac
 
       {/* Modern Gamified Footer */}
       <footer className="border-t border-border/40 bg-background/80 py-6 mt-12">
-        <div className="max-w-7xl mx-auto px-4 text-center text-xs text-muted-foreground flex flex-col sm:flex-row items-center justify-between gap-4">
+        <div className="max-w-7xl mx-auto px-4 text-center text-xs text-muted-foreground flex flex-col sm:flex-row items-center justify-center gap-4">
           <div className="flex items-center gap-2 font-semibold">
             <span className="size-2 rounded-full bg-emerald-500 animate-pulse" />
             <span>HKT QUIZZ STUDENT PLATFORM • Interactive Learning & Exam Experience</span>
           </div>
-          <p>© 2026 VTI RAG Platform. All rights reserved.</p>
         </div>
       </footer>
     </div>
