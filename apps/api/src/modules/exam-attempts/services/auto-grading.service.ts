@@ -4,6 +4,26 @@ import { QuestionType } from '../../quiz/enums/question-type.enum';
 import { Question } from '../../quiz/schemas/quiz.schema';
 import { GradingResult, IExamAttemptAnswer } from '../interfaces/exam-attempt.interface';
 
+function toIdStr(id: unknown): string {
+  if (id === null || id === undefined) return '';
+  if (typeof id === 'string') return id;
+  if (typeof id === 'number') return String(id);
+  if (typeof id === 'object') {
+    const obj = id as Record<string, unknown>;
+    if ('toHexString' in obj && typeof obj.toHexString === 'function') {
+      return obj.toHexString() as string;
+    }
+    if ('_id' in obj && obj._id && obj._id !== id) {
+      return toIdStr(obj._id);
+    }
+    if ('toString' in obj && typeof obj.toString === 'function') {
+      const str = obj.toString();
+      if (str !== '[object Object]') return str;
+    }
+  }
+  return String(id);
+}
+
 @Injectable()
 export class AutoGradingService {
   gradeAttempt(
@@ -14,13 +34,13 @@ export class AutoGradingService {
     const questionMap = new Map<string, Question>();
     for (const q of questions) {
       if (q._id) {
-        questionMap.set(q._id.toString(), q);
+        questionMap.set(toIdStr(q._id), q);
       }
     }
 
     const answerMap = new Map<string, IExamAttemptAnswer>();
     for (const ans of answers) {
-      answerMap.set(ans.questionId.toString(), ans);
+      answerMap.set(toIdStr(ans.questionId), ans);
     }
 
     let totalPoints = 0;
@@ -30,7 +50,7 @@ export class AutoGradingService {
     const updatedAnswers: IExamAttemptAnswer[] = [];
 
     for (const qId of questionOrder) {
-      const questionIdStr = qId.toString();
+      const questionIdStr = toIdStr(qId);
       const question = questionMap.get(questionIdStr);
       const points = question?.points ?? 1;
       totalPoints += points;
@@ -70,19 +90,50 @@ export class AutoGradingService {
   evaluateQuestion(question: Question, answer?: IExamAttemptAnswer): boolean {
     if (!answer) return false;
 
-    switch (question.type) {
-      case QuestionType.SINGLE_CHOICE:
-      case QuestionType.TRUE_FALSE:
-        return this.evaluateSingleChoice(question, answer.selectedOptionIds);
-      case QuestionType.MULTIPLE_CHOICE:
-        return this.evaluateMultipleChoice(question, answer.selectedOptionIds);
-      case QuestionType.FILL_BLANK:
-        return this.evaluateFillBlank(question, answer.textAnswer);
-      case QuestionType.ORDERING:
-        return this.evaluateOrdering(question, answer.orderAnswer);
-      default:
-        return false;
+    const qType = String(question.type ?? '').toLowerCase();
+    const correctOptions = (question.options ?? []).filter((o) => Boolean(o.isCorrect));
+    const correctCount = correctOptions.length;
+
+    // 1. Text / Fill in blank questions
+    if (
+      qType === 'fill_blank' ||
+      qType === 'fill_in_blank' ||
+      qType === 'short_answer' ||
+      qType === 'text' ||
+      qType === 'essay' ||
+      !question.options ||
+      question.options.length === 0
+    ) {
+      return this.evaluateFillBlank(question, answer.textAnswer);
     }
+
+    // 2. Ordering questions
+    if (qType === 'ordering') {
+      return this.evaluateOrdering(question, answer.orderAnswer);
+    }
+
+    // 3. Option-based questions (single choice, multiple choice, true/false)
+    const selectedIds = (answer.selectedOptionIds ?? []).map(toIdStr).filter(Boolean);
+    if (selectedIds.length === 0) return false;
+
+    const correctIdSet = new Set(
+      correctOptions.map((opt) => toIdStr(opt._id)).filter(Boolean),
+    );
+
+    if (correctIdSet.size === 0) return false;
+
+    // Check if student selected any wrong option
+    const hasWrongChoice = selectedIds.some((id) => !correctIdSet.has(id));
+    if (hasWrongChoice) return false;
+
+    // Single choice / true-false with exactly 1 correct option
+    if ((qType === 'single_choice' || qType === 'true_false') && correctCount === 1) {
+      return selectedIds.length === 1 && correctIdSet.has(selectedIds[0]);
+    }
+
+    // For questions with multiple correct options (or multiple choice):
+    // Student selected at least 1 correct option and ZERO wrong options!
+    return selectedIds.length > 0;
   }
 
   private evaluateSingleChoice(
@@ -92,7 +143,7 @@ export class AutoGradingService {
     if (!selectedIds || selectedIds.length !== 1) return false;
     const correctOption = question.options?.find((opt) => opt.isCorrect);
     if (!correctOption?._id) return false;
-    return selectedIds[0].toString() === correctOption._id.toString();
+    return String(selectedIds[0]) === String(correctOption._id);
   }
 
   private evaluateMultipleChoice(
@@ -102,24 +153,41 @@ export class AutoGradingService {
     if (!selectedIds || selectedIds.length === 0) return false;
 
     const correctIds = (question.options ?? [])
-      .filter((opt) => opt.isCorrect && opt._id)
-      .map((opt) => opt._id!.toString());
+      .filter((opt) => Boolean(opt.isCorrect) && opt._id)
+      .map((opt) => String(opt._id));
 
+    if (correctIds.length === 0) return false;
     if (correctIds.length !== selectedIds.length) return false;
 
-    const studentSet = new Set(selectedIds.map((id) => id.toString()));
+    const studentSet = new Set(selectedIds.map((id) => String(id)));
     return correctIds.every((id) => studentSet.has(id));
   }
 
   private evaluateFillBlank(question: Question, textAnswer?: string | null): boolean {
     if (!textAnswer) return false;
-    const normalizedInput = textAnswer.trim().toLowerCase();
+    const normalizedInput = this.normalizeText(textAnswer);
     if (!normalizedInput) return false;
 
-    const targetText = question.metadata?.correctText ?? question.options?.[0]?.content;
-    if (!targetText) return false;
+    const targets: string[] = [];
+    if (question.metadata?.correctText) {
+      targets.push(question.metadata.correctText);
+    }
+    if (question.options && question.options.length > 0) {
+      for (const opt of question.options) {
+        if (opt.content) targets.push(opt.content);
+      }
+    }
 
-    return normalizedInput === targetText.trim().toLowerCase();
+    if (targets.length === 0) return false;
+
+    return targets.some((target) => this.normalizeText(target) === normalizedInput);
+  }
+
+  private normalizeText(str: string): string {
+    return str
+      .trim()
+      .toLowerCase()
+      .replace(/\s+/g, ' ');
   }
 
   private evaluateOrdering(question: Question, orderAnswer?: (Types.ObjectId | string)[]): boolean {

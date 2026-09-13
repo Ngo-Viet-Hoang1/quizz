@@ -16,6 +16,9 @@ import { Tooltip, TooltipContent, TooltipTrigger } from '@/shared/ui/tooltip';
 import { cn } from '@/shared/lib/utils';
 import { Building2, Check, ChevronsUpDown, Plus, Settings } from 'lucide-react';
 
+import { isAdminRole, getRoleLabel } from '@/shared/lib/role-utils';
+import { toast } from 'sonner';
+
 export function NavOrg() {
   const router = useRouter();
   const { openOrganizationProfile, openCreateOrganization } = useClerk();
@@ -38,11 +41,16 @@ export function NavOrg() {
     );
   }
 
-  const handleSelectOrg = async (orgId: string) => {
+  const handleSelectOrg = async (orgId: string, role: string) => {
     if (orgId === organization?.id) return;
     if (setActive) {
       await setActive({ organization: orgId });
-      router.push('/dashboard');
+      if (isAdminRole(role)) {
+        router.push('/dashboard');
+      } else {
+        toast.info('Đã chuyển sang cổng Student cho tổ chức này.');
+        router.push('/student');
+      }
     }
   };
 
@@ -80,7 +88,9 @@ export function NavOrg() {
                       <div className="truncate text-xs font-semibold text-sidebar-foreground">
                         {organization?.name || 'Select Organization'}
                       </div>
-                      <div className="truncate text-[10px] text-muted-foreground">Workspace</div>
+                      <div className="truncate text-[10px] text-muted-foreground font-medium">
+                        Admin / Teacher
+                      </div>
                     </div>
 
                     {/* Chevron: auto hidden when collapsed */}
@@ -100,10 +110,10 @@ export function NavOrg() {
           align="start"
           side="bottom"
           sideOffset={6}
-          className="w-60 rounded-xl border p-1 shadow-lg"
+          className="w-64 rounded-xl border p-1 shadow-lg"
         >
           <DropdownMenuLabel className="px-2 py-1.5 text-[10px] font-medium text-muted-foreground uppercase tracking-wider">
-            Organizations
+            Organizations & Roles
           </DropdownMenuLabel>
 
           <DropdownMenuSeparator />
@@ -111,17 +121,18 @@ export function NavOrg() {
           {orgList.map((mem) => {
             const isSelected = mem.organization.id === organization?.id;
             const itemInitial = mem.organization.name?.[0]?.toUpperCase() || 'O';
+            const roleLabel = getRoleLabel(mem.role);
 
             return (
               <DropdownMenuItem
                 key={mem.organization.id}
-                onClick={() => handleSelectOrg(mem.organization.id)}
+                onClick={() => handleSelectOrg(mem.organization.id, mem.role)}
                 className={cn(
-                  'flex items-center gap-2.5 rounded-lg px-2 py-1.5 text-xs font-medium cursor-pointer transition-colors',
+                  'flex items-center gap-2.5 rounded-lg px-2 py-2 text-xs font-medium cursor-pointer transition-colors',
                   isSelected && 'bg-accent font-semibold text-accent-foreground',
                 )}
               >
-                <Avatar className="size-5 shrink-0 rounded-md border">
+                <Avatar className="size-6 shrink-0 rounded-md border">
                   {mem.organization.imageUrl && (
                     <AvatarImage src={mem.organization.imageUrl} alt={mem.organization.name} />
                   )}
@@ -130,7 +141,10 @@ export function NavOrg() {
                   </AvatarFallback>
                 </Avatar>
 
-                <span className="flex-1 truncate">{mem.organization.name}</span>
+                <div className="flex-1 min-w-0 flex flex-col">
+                  <span className="truncate">{mem.organization.name}</span>
+                  <span className="text-[10px] text-muted-foreground font-normal">{roleLabel}</span>
+                </div>
 
                 {isSelected && <Check className="size-3.5 text-primary shrink-0" />}
               </DropdownMenuItem>

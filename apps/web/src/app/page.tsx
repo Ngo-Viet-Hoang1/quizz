@@ -24,6 +24,9 @@ import {
   DataTableColumnHeader,
   type DataTableFeatures,
 } from '@/shared/components/data-table';
+import { useAuth, useOrganization } from '@clerk/nextjs';
+import { useRouter } from 'next/navigation';
+import { isAdminRole } from '@/shared/lib/role-utils';
 import { useApiForm } from '@/shared/hooks/use-api-form';
 import { formatDate } from '@/shared/lib/date';
 
@@ -282,6 +285,10 @@ const createItemSchema = z.object({
 type CreateItemForm = z.infer<typeof createItemSchema>;
 
 export default function Home() {
+  const { isLoaded, isSignedIn } = useAuth();
+  const { organization, membership, isLoaded: isOrgLoaded } = useOrganization();
+  const router = useRouter();
+
   // Server Database State
   const [db, setDb] = React.useState<WorkbenchItem[]>(initialDatabase);
 
@@ -301,6 +308,19 @@ export default function Home() {
     total: initialDatabase.length,
     totalPages: Math.ceil(initialDatabase.length / 5),
   });
+
+  React.useEffect(() => {
+    if (!isLoaded || !isOrgLoaded) return;
+    if (isSignedIn) {
+      if (!organization) {
+        router.replace('/onboarding');
+      } else if (isAdminRole(membership?.role)) {
+        router.replace('/dashboard');
+      } else {
+        router.replace('/student');
+      }
+    }
+  }, [isLoaded, isOrgLoaded, isSignedIn, organization, membership, router]);
 
   // Simulated Server API call with 300ms network delay
   React.useEffect(() => {
@@ -365,6 +385,19 @@ export default function Home() {
       score: 100,
     },
   });
+
+  if (isSignedIn) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <div className="flex flex-col items-center gap-3 text-center p-4">
+          <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
+          <p className="text-sm font-semibold text-muted-foreground animate-pulse">
+            Đang chuyển hướng đến không gian làm việc của bạn...
+          </p>
+        </div>
+      </div>
+    );
+  }
 
   const onSubmit = form.handleSubmit((values: CreateItemForm) => {
     try {
