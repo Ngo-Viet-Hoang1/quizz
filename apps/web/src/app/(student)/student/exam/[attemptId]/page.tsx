@@ -59,18 +59,23 @@ export default function ExamPlayerPage() {
     [saveAnswer],
   );
 
-  // Submit exam with double-submit guard & text answer flush
+  // Submit exam with double-submit guard & answer flush
   const handleSubmit = useCallback(async () => {
     if (isSubmittedRef.current) return;
     isSubmittedRef.current = true;
 
     try {
-      // Flush pending text answers before submitting
+      // Flush option answers
+      const optionSavePromises = Object.entries(answers).map(([qId, optionIds]) =>
+        saveAnswer.mutateAsync({ questionId: qId, selectedOptionIds: optionIds }).catch(() => {}),
+      );
+      // Flush pending text answers
       const textSavePromises = Object.entries(textAnswers).map(([qId, text]) =>
         saveAnswer.mutateAsync({ questionId: qId, textAnswer: text }).catch(() => {}),
       );
-      if (textSavePromises.length > 0) {
-        await Promise.all(textSavePromises);
+      const allSavePromises = [...optionSavePromises, ...textSavePromises];
+      if (allSavePromises.length > 0) {
+        await Promise.all(allSavePromises);
       }
 
       await submitExam.mutateAsync(attemptId);
@@ -79,7 +84,7 @@ export default function ExamPlayerPage() {
     } catch {
       isSubmittedRef.current = false;
     }
-  }, [attemptId, saveAnswer, submitExam, router, textAnswers]);
+  }, [attemptId, saveAnswer, submitExam, router, answers, textAnswers]);
 
   // Timer countdown
   useEffect(() => {

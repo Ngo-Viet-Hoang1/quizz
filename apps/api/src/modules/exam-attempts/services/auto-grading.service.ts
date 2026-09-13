@@ -70,34 +70,50 @@ export class AutoGradingService {
   evaluateQuestion(question: Question, answer?: IExamAttemptAnswer): boolean {
     if (!answer) return false;
 
-    const qType = String(question.type).toLowerCase();
+    const qType = String(question.type ?? '').toLowerCase();
+    const correctOptions = (question.options ?? []).filter((o) => Boolean(o.isCorrect));
+    const correctCount = correctOptions.length;
 
-    if (qType === 'single_choice' || qType === 'true_false') {
-      return this.evaluateSingleChoice(question, answer.selectedOptionIds);
-    }
-    if (qType === 'multiple_choice') {
-      return this.evaluateMultipleChoice(question, answer.selectedOptionIds);
-    }
-    if (qType === 'fill_blank' || qType === 'short_answer') {
+    // 1. Text / Fill in blank questions
+    if (
+      qType === 'fill_blank' ||
+      qType === 'fill_in_blank' ||
+      qType === 'short_answer' ||
+      qType === 'text' ||
+      qType === 'essay' ||
+      !question.options ||
+      question.options.length === 0
+    ) {
       return this.evaluateFillBlank(question, answer.textAnswer);
     }
+
+    // 2. Ordering questions
     if (qType === 'ordering') {
       return this.evaluateOrdering(question, answer.orderAnswer);
     }
 
-    // Fallback if type string is non-standard
-    const correctCount = (question.options ?? []).filter((o) => o.isCorrect).length;
-    if (correctCount > 1) {
-      return this.evaluateMultipleChoice(question, answer.selectedOptionIds);
-    }
-    if (correctCount === 1) {
-      return this.evaluateSingleChoice(question, answer.selectedOptionIds);
-    }
-    if (answer.textAnswer) {
-      return this.evaluateFillBlank(question, answer.textAnswer);
+    // 3. Option-based questions (single choice, multiple choice, true/false)
+    const selectedIds = (answer.selectedOptionIds ?? []).map((id) => String(id));
+    if (selectedIds.length === 0) return false;
+
+    const correctIdSet = new Set(
+      correctOptions.map((opt) => String(opt._id)).filter(Boolean),
+    );
+
+    if (correctIdSet.size === 0) return false;
+
+    // Check if student selected any wrong option
+    const hasWrongChoice = selectedIds.some((id) => !correctIdSet.has(id));
+    if (hasWrongChoice) return false;
+
+    // Single choice / true-false with exactly 1 correct option
+    if ((qType === 'single_choice' || qType === 'true_false') && correctCount === 1) {
+      return selectedIds.length === 1 && correctIdSet.has(selectedIds[0]);
     }
 
-    return false;
+    // For questions with multiple correct options (or multiple choice):
+    // Student selected at least 1 correct option and ZERO wrong options!
+    return selectedIds.length > 0;
   }
 
   private evaluateSingleChoice(

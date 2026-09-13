@@ -85,7 +85,7 @@ export function ExamResultQuestionCard({
                 <span className="flex-1">{opt.content}</span>
                 {isCorrectOpt && (
                   <Badge className="bg-emerald-600 text-white text-[10px] ml-auto shrink-0 font-bold">
-                    Đáp án đúng
+                    Đáp án đúng {wasSelected ? '(Lựa chọn của bạn)' : ''}
                   </Badge>
                 )}
                 {wasSelected && !isCorrectOpt && (
