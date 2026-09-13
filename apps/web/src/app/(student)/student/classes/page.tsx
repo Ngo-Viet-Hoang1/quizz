@@ -34,21 +34,37 @@ export default function StudentClassesPage() {
   const [confirmExamOpen, setConfirmExamOpen] = useState(false);
   const [selectedAssignment, setSelectedAssignment] = useState<IQuizAssignment | null>(null);
 
-  const { data: classesResponse, isLoading: isClassesLoading } = useEnrolledClasses();
+  // Pagination & Search state for student enrolled classes
+  const [classPage, setClassPage] = useState(1);
+  const [classSearch, setClassSearch] = useState('');
+  const classLimit = 5;
+
+  // Pagination state for quiz assignments
+  const [assignmentPage, setAssignmentPage] = useState(1);
+  const assignmentLimit = 5;
+
+  const { data: classesResponse, isLoading: isClassesLoading } = useEnrolledClasses({
+    page: classPage,
+    limit: classLimit,
+    search: classSearch || undefined,
+  });
   const joinClassMutation = useJoinClass();
   const leaveClassMutation = useLeaveClass();
   const startExamMutation = useStartExamAttempt();
   const router = useRouter();
 
   const classes: IClass[] = classesResponse?.data ?? [];
+  const classesMeta = classesResponse?.meta;
   const selectedClassId = activeClassId ?? classes[0]?._id;
   const selectedClass = classes.find((c) => c._id === selectedClassId);
 
   // Selected class assignments
   const { data: assignmentsResponse, isLoading: isAssignmentsLoading } = useClassAssignments(
     selectedClassId ?? '',
+    { page: assignmentPage, limit: assignmentLimit },
   );
   const assignments: IQuizAssignment[] = assignmentsResponse?.data ?? [];
+  const assignmentsMeta = assignmentsResponse?.meta;
 
   const handleJoinClassSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -140,7 +156,7 @@ export default function StudentClassesPage() {
             <Skeleton key={i} className="h-64 rounded-3xl" />
           ))}
         </div>
-      ) : classes.length === 0 ? (
+      ) : classes.length === 0 && !classSearch ? (
         <Card className="rounded-3xl border-2 border-dashed p-12 text-center bg-muted/20">
           <Users2 className="size-16 mx-auto text-muted-foreground/30 mb-4" />
           <h3 className="text-lg font-bold text-foreground">You haven't joined any classes yet</h3>
@@ -159,8 +175,20 @@ export default function StudentClassesPage() {
           <ClassSidebarList
             classes={classes}
             selectedClassId={selectedClassId}
-            onSelectClass={(id) => setActiveClassId(id)}
+            onSelectClass={(id) => {
+              setActiveClassId(id);
+              setAssignmentPage(1);
+            }}
             onLeaveClass={handleLeaveClass}
+            page={classPage}
+            totalPages={classesMeta?.totalPages ?? 1}
+            total={classesMeta?.total ?? classes.length}
+            onPageChange={(newPage) => setClassPage(newPage)}
+            search={classSearch}
+            onSearchChange={(val) => {
+              setClassSearch(val);
+              setClassPage(1);
+            }}
           />
           <ClassAssignmentPanel
             selectedClass={selectedClass}
@@ -170,6 +198,9 @@ export default function StudentClassesPage() {
               setSelectedAssignment(assignment);
               setConfirmExamOpen(true);
             }}
+            page={assignmentPage}
+            totalPages={assignmentsMeta?.totalPages ?? 1}
+            onPageChange={(newPage) => setAssignmentPage(newPage)}
           />
         </div>
       )}

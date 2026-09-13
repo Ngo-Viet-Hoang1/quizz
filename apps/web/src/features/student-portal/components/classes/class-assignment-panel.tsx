@@ -5,13 +5,16 @@ import { Badge } from '@/shared/ui/badge';
 import { Button } from '@/shared/ui/button';
 import { Card } from '@/shared/ui/card';
 import { Skeleton } from '@/shared/ui/skeleton';
-import { BookOpenCheck, Clock, Play } from 'lucide-react';
+import { BookOpenCheck, ChevronLeft, ChevronRight, Clock, Play } from 'lucide-react';
 
 interface ClassAssignmentPanelProps {
   selectedClass: IClass | undefined;
   assignments: IQuizAssignment[];
   isLoading: boolean;
   onSelectAssignment: (assignment: IQuizAssignment) => void;
+  page?: number;
+  totalPages?: number;
+  onPageChange?: (newPage: number) => void;
 }
 
 export function ClassAssignmentPanel({
@@ -19,6 +22,9 @@ export function ClassAssignmentPanel({
   assignments,
   isLoading,
   onSelectAssignment,
+  page = 1,
+  totalPages = 1,
+  onPageChange,
 }: ClassAssignmentPanelProps) {
   const isPendingApproval = selectedClass?.membershipStatus === 'pending';
 
@@ -90,6 +96,35 @@ export function ClassAssignmentPanel({
               </div>
             </Card>
           ))}
+
+          {/* Assignments Pagination */}
+          {totalPages > 1 && onPageChange && (
+            <div className="flex items-center justify-between border-t border-border/40 pt-4 px-1">
+              <span className="text-xs text-muted-foreground">
+                Page {page} of {totalPages}
+              </span>
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  disabled={page <= 1}
+                  onClick={() => onPageChange(page - 1)}
+                  className="rounded-xl font-bold"
+                >
+                  <ChevronLeft className="size-4 mr-1" /> Previous
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  disabled={page >= totalPages}
+                  onClick={() => onPageChange(page + 1)}
+                  className="rounded-xl font-bold"
+                >
+                  Next <ChevronRight className="size-4 ml-1" />
+                </Button>
+              </div>
+            </div>
+          )}
         </div>
       )}
     </div>
