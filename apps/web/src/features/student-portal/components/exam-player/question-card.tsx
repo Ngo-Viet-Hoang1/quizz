@@ -53,7 +53,6 @@ export function QuestionCard({
               Question {qIdx + 1}
             </Badge>
             <span className="text-xs text-muted-foreground font-medium capitalize">
-              {question.type.replace(/_/g, ' ')} • {question.difficulty ?? 'medium'} •{' '}
               {question.points ?? 1} {(question.points ?? 1) > 1 ? 'pts' : 'pt'}
             </span>
           </div>

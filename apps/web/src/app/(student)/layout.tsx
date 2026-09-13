@@ -1,6 +1,7 @@
 import { StudentTopNav } from '@/features/student-portal/components/layout/student-top-nav';
 import { auth } from '@clerk/nextjs/server';
 import type { Metadata } from 'next';
+import { redirect } from 'next/navigation';
 
 export const metadata: Metadata = {
   title: 'HKT Quizz',
@@ -8,7 +9,11 @@ export const metadata: Metadata = {
 };
 
 export default async function StudentLayout({ children }: { children: React.ReactNode }) {
-  await auth.protect();
+  const { orgId } = await auth.protect();
+
+  if (!orgId) {
+    redirect('/onboarding');
+  }
 
   return (
     <div className="min-h-screen bg-slate-50 dark:bg-slate-950 font-sans antialiased flex flex-col selection:bg-purple-500 selection:text-white">

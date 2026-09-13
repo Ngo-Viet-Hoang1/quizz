@@ -118,6 +118,12 @@ export default function StudentHistoryPage() {
                     const isPassed = isExamPassed(attempt.score, attempt.totalPoints);
                     const totalQ = attempt.correctCount + attempt.wrongCount;
 
+                    const quizTitle =
+                      typeof attempt.quizId === 'object' && attempt.quizId?.title
+                        ? attempt.quizId.title
+                        : attempt.quizTitle ||
+                          `Quiz #${(typeof attempt.quizId === 'string' ? attempt.quizId : (attempt.quizId?._id ?? '')).slice(-6)}`;
+
                     return (
                       <tr key={attempt._id} className="hover:bg-muted/30 transition-colors">
                         {/* Exam */}
@@ -137,9 +143,7 @@ export default function StudentHistoryPage() {
                               />
                             </div>
                             <div>
-                              <p className="font-medium text-foreground text-sm">
-                                Quiz #{attempt.quizId.slice(-6)}
-                              </p>
+                              <p className="font-medium text-foreground text-sm">{quizTitle}</p>
                               <p className="text-[10px] text-muted-foreground font-mono">
                                 ID: {attempt._id.slice(-8)}
                               </p>

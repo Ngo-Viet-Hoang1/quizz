@@ -13,6 +13,14 @@ import { ArrowLeft, Clock, Target, Trophy } from 'lucide-react';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
 
+function formatDurationSec(sec: number = 0): string {
+  if (sec <= 0) return '< 1s';
+  if (sec < 60) return `${sec}s`;
+  const m = Math.floor(sec / 60);
+  const s = sec % 60;
+  return s > 0 ? `${m}m ${s}s` : `${m}m`;
+}
+
 export default function ExamResultPage() {
   const params = useParams();
   const attemptId = params.attemptId as string;
@@ -42,11 +50,13 @@ export default function ExamResultPage() {
   }
 
   const { attempt, quizTitle, questions } = detail;
-  const totalQuestions = attempt.correctCount + attempt.wrongCount;
+  const totalQuestions =
+    questions && questions.length > 0
+      ? questions.length
+      : attempt.correctCount + attempt.wrongCount;
   const scorePct = calculateScorePercentage(attempt.score, attempt.totalPoints);
   const passed = isExamPassed(attempt.score, attempt.totalPoints);
-  const timeTaken = attempt.durationSec ?? 0;
-  const timeMins = Math.floor(timeTaken / 60);
+  const formattedTime = formatDurationSec(attempt.durationSec);
 
   return (
     <div className="max-w-4xl mx-auto space-y-6">
@@ -133,7 +143,7 @@ export default function ExamResultPage() {
             </p>
             <p className="text-2xl font-bold text-foreground flex items-center justify-center gap-1">
               <Clock className="size-4 text-muted-foreground" />
-              {timeMins}m
+              {formattedTime}
             </p>
           </CardContent>
         </Card>
@@ -161,23 +171,31 @@ export default function ExamResultPage() {
         <CardHeader>
           <CardTitle className="text-base font-semibold flex items-center gap-2">
             <Target className="size-4 text-primary" />
-            Review History
+            Review History (Đáp án & Giải thích)
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
-          {questions.map((q, idx) => {
-            const question = q as FullQuestion;
-            const studentAnswer = attempt.answers.find((a) => a.questionId === question._id);
+          {!questions || questions.length === 0 ? (
+            <p className="text-sm text-muted-foreground text-center py-6">
+              Không tìm thấy câu hỏi nào cho bài làm này.
+            </p>
+          ) : (
+            questions.map((q, idx) => {
+              const question = q as FullQuestion;
+              const studentAnswer = attempt.answers?.find(
+                (a) => String(a.questionId) === String(question._id),
+              );
 
-            return (
-              <ExamResultQuestionCard
-                key={question._id}
-                question={question}
-                index={idx}
-                studentAnswer={studentAnswer}
-              />
-            );
-          })}
+              return (
+                <ExamResultQuestionCard
+                  key={question._id ?? idx}
+                  question={question}
+                  index={idx}
+                  studentAnswer={studentAnswer}
+                />
+              );
+            })
+          )}
         </CardContent>
       </Card>
     </div>

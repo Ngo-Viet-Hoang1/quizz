@@ -1,5 +1,5 @@
 import type { LucideIcon } from 'lucide-react';
-import { History, LayoutDashboard, Users2 } from 'lucide-react';
+import { BookOpenCheck, History, LayoutDashboard, Users2 } from 'lucide-react';
 
 export interface StudentNavItem {
   title: string;
@@ -11,6 +11,7 @@ export interface StudentNavItem {
 
 export const STUDENT_NAV_ITEMS: StudentNavItem[] = [
   { title: 'Home', href: '/student', icon: LayoutDashboard },
+  { title: 'Practice', href: '/student/practice', icon: BookOpenCheck },
   { title: 'My Classes', href: '/student/classes', icon: Users2 },
   { title: 'Exam History', href: '/student/history', icon: History },
 ];

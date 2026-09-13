@@ -1,10 +1,19 @@
 import { clerkMiddleware, createRouteMatcher } from '@clerk/nextjs/server';
 
-// Protect only student portal routes
-const isStudentRoute = createRouteMatcher(['/student(.*)']);
+// Protect student and admin portal routes
+const isProtectedRoute = createRouteMatcher([
+  '/student(.*)',
+  '/dashboard(.*)',
+  '/quizzes(.*)',
+  '/classes(.*)',
+  '/ai-generate(.*)',
+  '/analytics(.*)',
+  '/audit-logs(.*)',
+  '/results(.*)',
+]);
 
 export default clerkMiddleware(async (auth, req) => {
-  if (isStudentRoute(req)) {
+  if (isProtectedRoute(req)) {
     await auth.protect();
   }
 });

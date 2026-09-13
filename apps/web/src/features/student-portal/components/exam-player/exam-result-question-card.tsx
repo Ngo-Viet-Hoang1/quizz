@@ -43,8 +43,8 @@ export function ExamResultQuestionCard({
             <p className="text-sm font-medium text-foreground">
               {index + 1}. {question.content}
             </p>
-            <p className="text-[11px] text-muted-foreground mt-0.5 capitalize">
-              {question.type.replace(/_/g, ' ')} • {question.points ?? 1} pt
+            <p className="text-[11px] text-muted-foreground mt-0.5 font-medium">
+              {question.points ?? 1} pt
             </p>
           </div>
         </div>
@@ -54,31 +54,39 @@ export function ExamResultQuestionCard({
       {question.options && question.options.length > 0 && (
         <div className="space-y-1.5 ml-7">
           {question.options.map((opt) => {
-            const wasSelected = selectedIds.includes(opt._id);
+            const wasSelected = selectedIds.map(String).includes(String(opt._id));
             const isCorrectOpt = 'isCorrect' in opt && opt.isCorrect === true;
 
             return (
               <div
                 key={opt._id}
-                className={`flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm ${
+                className={`flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm font-medium ${
                   isCorrectOpt
-                    ? 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 border border-emerald-500/30'
+                    ? 'bg-emerald-500/15 text-emerald-800 dark:text-emerald-300 border border-emerald-500/30'
                     : wasSelected && !isCorrectOpt
                       ? 'bg-red-500/10 text-red-700 dark:text-red-400 border border-red-500/30'
-                      : 'text-muted-foreground'
+                      : 'text-muted-foreground bg-muted/20 border border-transparent'
                 }`}
               >
                 {isCorrectOpt ? (
-                  <Check className="size-3.5 shrink-0" />
+                  <Check className="size-4 shrink-0 text-emerald-600 font-bold" />
                 ) : wasSelected ? (
-                  <X className="size-3.5 shrink-0" />
+                  <X className="size-4 shrink-0 text-red-600 font-bold" />
                 ) : (
-                  <span className="size-3.5 shrink-0" />
+                  <span className="size-4 shrink-0" />
                 )}
-                <span>{opt.content}</span>
-                {wasSelected && (
-                  <Badge variant="outline" className="text-[9px] ml-auto shrink-0">
-                    Your answer
+                <span className="flex-1">{opt.content}</span>
+                {isCorrectOpt && (
+                  <Badge className="bg-emerald-600 text-white text-[10px] ml-auto shrink-0 font-bold">
+                    Đáp án đúng
+                  </Badge>
+                )}
+                {wasSelected && !isCorrectOpt && (
+                  <Badge
+                    variant="outline"
+                    className="text-[10px] border-red-500/40 text-red-600 bg-red-500/10 ml-auto shrink-0 font-bold"
+                  >
+                    Lựa chọn của bạn
                   </Badge>
                 )}
               </div>
@@ -90,16 +98,28 @@ export function ExamResultQuestionCard({
       {/* Text answer display */}
       {textAnswer && (
         <div className="ml-7 mt-2 px-3 py-2 rounded-lg bg-muted/50 border text-sm">
-          <span className="text-xs text-muted-foreground font-medium">Your answer: </span>
-          <span className="text-foreground">{textAnswer}</span>
+          <span className="text-xs text-muted-foreground font-medium">Câu trả lời của bạn: </span>
+          <span className="text-foreground font-semibold">{textAnswer}</span>
+        </div>
+      )}
+
+      {/* Correct answer text for short answer / text questions if present */}
+      {question.correctAnswer && (
+        <div className="ml-7 mt-2 px-3 py-2 rounded-lg bg-emerald-500/10 border border-emerald-500/30 text-sm">
+          <span className="text-xs text-emerald-700 dark:text-emerald-400 font-bold">
+            Đáp án chuẩn:{' '}
+          </span>
+          <span className="text-foreground font-semibold">{question.correctAnswer}</span>
         </div>
       )}
 
       {/* Explanation */}
       {question.explanation && (
-        <div className="ml-7 mt-3 px-3 py-2 rounded-lg bg-sky-500/5 border border-sky-500/20 text-sm">
-          <p className="text-xs font-semibold text-sky-700 dark:text-sky-400 mb-0.5">Explanation</p>
-          <p className="text-xs text-muted-foreground">{question.explanation}</p>
+        <div className="ml-7 mt-3 px-3.5 py-2.5 rounded-xl bg-sky-500/10 border border-sky-500/25 text-sm space-y-1">
+          <p className="text-xs font-extrabold text-sky-700 dark:text-sky-400 flex items-center gap-1.5">
+            💡 Giải thích chi tiết:
+          </p>
+          <p className="text-xs text-foreground/80 leading-relaxed">{question.explanation}</p>
         </div>
       )}
     </div>

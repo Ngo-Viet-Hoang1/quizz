@@ -7,6 +7,7 @@ import type {
   IClass,
   IClassMember,
   IExamAttempt,
+  IPublishedQuiz,
   IQuizAssignment,
   RecordViolationDto,
   StartExamAttemptDto,
@@ -25,6 +26,8 @@ export const studentKeys = {
   classMembers: (classId: string) => ['student', 'class-members', classId] as const,
   myHistory: (params?: Record<string, unknown>) => ['student', 'my-history', params] as const,
   attemptDetail: (id: string) => ['student', 'attempt', id] as const,
+  publishedQuizzes: (params?: Record<string, unknown>) =>
+    ['student', 'published-quizzes', params] as const,
 };
 
 // ─── Enrolled Classes ───
@@ -157,5 +160,31 @@ export function useAttemptDetail(attemptId: string) {
     queryKey: studentKeys.attemptDetail(attemptId),
     queryFn: () => api.get<ExamAttemptDetailResponse>(`/exam-attempts/${attemptId}`),
     enabled: !!attemptId,
+  });
+}
+
+// ─── Published Quizzes (Practice / Review) ───
+export function usePublishedQuizzes(params?: {
+  page?: number;
+  limit?: number;
+  search?: string;
+  category?: string;
+}) {
+  const api = useApiClient();
+  return useQuery({
+    queryKey: studentKeys.publishedQuizzes(params),
+    queryFn: () =>
+      api.getPaginated<IPublishedQuiz[]>('/quizzes', {
+        params: { ...params, status: 'published' },
+      }),
+  });
+}
+
+// ─── Start Practice Quiz (Unlimited Attempts) ───
+export function useStartPracticeQuiz() {
+  const api = useApiClient();
+  return useMutation({
+    mutationFn: (quizId: string) =>
+      api.post<StartExamAttemptResponse>('/exam-attempts/start', { quizId }),
   });
 }

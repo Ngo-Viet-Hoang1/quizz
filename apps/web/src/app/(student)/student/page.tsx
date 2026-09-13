@@ -281,59 +281,67 @@ export default function StudentDashboardPage() {
             <p className="text-sm font-semibold">No exam attempts completed yet</p>
           </Card>
         ) : (
-          <div className="space-y-3">
-            {recentAttempts.map((attempt: IExamAttempt) => {
-              const pct = calculateScorePercentage(attempt.score, attempt.totalPoints);
-              const isPassed = isExamPassed(attempt.score, attempt.totalPoints);
+          <Card className="rounded-2xl border p-0 overflow-hidden bg-card/60 backdrop-blur-sm shadow-xs">
+            <div className="divide-y divide-border/60">
+              {recentAttempts.map((attempt: IExamAttempt) => {
+                const pct = calculateScorePercentage(attempt.score, attempt.totalPoints);
+                const isPassed = isExamPassed(attempt.score, attempt.totalPoints);
 
-              return (
-                <Card
-                  key={attempt._id}
-                  className="rounded-2xl border bg-card/60 backdrop-blur-sm p-4 hover:shadow-md transition-shadow flex items-center justify-between gap-4"
-                >
-                  <div className="flex items-center gap-4">
-                    <div
-                      className={`flex size-12 items-center justify-center rounded-2xl shrink-0 font-bold ${
-                        isPassed
-                          ? 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400'
-                          : 'bg-red-500/15 text-red-600 dark:text-red-400'
-                      }`}
-                    >
-                      {pct}%
-                    </div>
-                    <div>
-                      <h4 className="font-extrabold text-sm text-foreground">
-                        Quiz #{attempt.quizId.slice(-6)}
-                      </h4>
-                      <div className="flex items-center gap-3 text-xs text-muted-foreground mt-0.5 font-medium">
-                        <span className="flex items-center gap-1">
-                          <CheckCircle2 className="size-3 text-emerald-500" />{' '}
-                          {attempt.correctCount} correct
-                        </span>
-                        <span className="flex items-center gap-1">
-                          <Clock className="size-3" />{' '}
-                          {attempt.submittedAt
-                            ? new Date(attempt.submittedAt).toLocaleDateString()
-                            : 'Just now'}
-                        </span>
+                const quizTitle =
+                  typeof attempt.quizId === 'object' && attempt.quizId?.title
+                    ? attempt.quizId.title
+                    : attempt.quizTitle ||
+                      `Quiz #${(typeof attempt.quizId === 'string' ? attempt.quizId : (attempt.quizId?._id ?? '')).slice(-6)}`;
+
+                return (
+                  <div
+                    key={attempt._id}
+                    className="p-3.5 sm:px-5 hover:bg-muted/40 transition-colors flex items-center justify-between gap-3"
+                  >
+                    <div className="flex items-center gap-3.5 min-w-0">
+                      <div
+                        className={`flex size-10 items-center justify-center rounded-xl shrink-0 font-extrabold text-xs ${
+                          isPassed
+                            ? 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400'
+                            : 'bg-red-500/15 text-red-600 dark:text-red-400'
+                        }`}
+                      >
+                        {pct}%
+                      </div>
+                      <div className="min-w-0">
+                        <h4 className="font-bold text-sm text-foreground truncate max-w-xs sm:max-w-md">
+                          {quizTitle}
+                        </h4>
+                        <div className="flex items-center gap-2.5 text-xs text-muted-foreground font-medium mt-0.5">
+                          <span className="flex items-center gap-1">
+                            <CheckCircle2 className="size-3 text-emerald-500 shrink-0" />{' '}
+                            {attempt.correctCount} correct
+                          </span>
+                          <span>•</span>
+                          <span className="flex items-center gap-1">
+                            <Clock className="size-3 shrink-0" />{' '}
+                            {attempt.submittedAt
+                              ? new Date(attempt.submittedAt).toLocaleDateString()
+                              : 'Just now'}
+                          </span>
+                        </div>
                       </div>
                     </div>
-                  </div>
 
-                  <Link href={`/student/exam/${attempt._id}/result`}>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="rounded-xl font-bold text-xs gap-1.5"
-                    >
-                      <Sparkles className="size-3.5 text-indigo-600" />
-                      View Details
-                    </Button>
-                  </Link>
-                </Card>
-              );
-            })}
-          </div>
+                    <Link href={`/student/exam/${attempt._id}/result`} className="shrink-0">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="rounded-xl font-bold text-xs h-8 px-3 gap-1.5"
+                      >
+                        View Details
+                      </Button>
+                    </Link>
+                  </div>
+                );
+              })}
+            </div>
+          </Card>
         )}
       </div>
     </div>

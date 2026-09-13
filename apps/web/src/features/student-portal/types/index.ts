@@ -57,7 +57,8 @@ export interface IExamAttempt {
   _id: string;
   organizationId: string;
   userId: string;
-  quizId: string;
+  quizId: string | { _id: string; title: string; category?: string };
+  quizTitle?: string;
   quizVersion: number;
   assignmentId?: string | null;
   questionOrder: string[];
@@ -142,4 +143,23 @@ export interface SubmitAnswerDto {
 
 export interface RecordViolationDto {
   type: string;
+}
+
+// ─── Published Quiz Types (Practice / Review) ───
+export interface IPublishedQuiz {
+  _id: string;
+  organizationId: string;
+  ownerId: string;
+  title: string;
+  description?: string;
+  category?: string;
+  difficulty: string;
+  status: string;
+  visibility: string;
+  questionCount: number;
+  timeLimitSec?: number;
+  coverImageUrl?: string;
+  version: number;
+  createdAt?: string;
+  updatedAt?: string;
 }
