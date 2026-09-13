@@ -1,7 +1,6 @@
 'use client';
 
 import type { FullQuestion, IExamAttemptAnswer } from '@/features/student-portal/types';
-import { Badge } from '@/shared/ui/badge';
 import { Check, CheckCircle2, X, XCircle } from 'lucide-react';
 
 interface ExamResultQuestionCardProps {
@@ -83,19 +82,6 @@ export function ExamResultQuestionCard({
                   <span className="size-4 shrink-0" />
                 )}
                 <span className="flex-1">{opt.content}</span>
-                {isCorrectOpt && (
-                  <Badge className="bg-emerald-600 text-white text-[10px] ml-auto shrink-0 font-bold">
-                    Đáp án đúng {wasSelected ? '(Lựa chọn của bạn)' : ''}
-                  </Badge>
-                )}
-                {wasSelected && !isCorrectOpt && (
-                  <Badge
-                    variant="outline"
-                    className="text-[10px] border-red-500/40 text-red-600 bg-red-500/10 ml-auto shrink-0 font-bold"
-                  >
-                    Lựa chọn của bạn
-                  </Badge>
-                )}
               </div>
             );
           })}

@@ -4,6 +4,16 @@ import { QuestionType } from '../../quiz/enums/question-type.enum';
 import { Question } from '../../quiz/schemas/quiz.schema';
 import { GradingResult, IExamAttemptAnswer } from '../interfaces/exam-attempt.interface';
 
+function toIdStr(id: unknown): string {
+  if (!id) return '';
+  if (typeof id === 'string') return id;
+  if (typeof id === 'object' && id !== null) {
+    if ('_id' in id) return toIdStr((id as { _id: unknown })._id);
+    if ('toString' in id && typeof id.toString === 'function') return id.toString();
+  }
+  return String(id);
+}
+
 @Injectable()
 export class AutoGradingService {
   gradeAttempt(
@@ -14,13 +24,13 @@ export class AutoGradingService {
     const questionMap = new Map<string, Question>();
     for (const q of questions) {
       if (q._id) {
-        questionMap.set(q._id.toString(), q);
+        questionMap.set(toIdStr(q._id), q);
       }
     }
 
     const answerMap = new Map<string, IExamAttemptAnswer>();
     for (const ans of answers) {
-      answerMap.set(ans.questionId.toString(), ans);
+      answerMap.set(toIdStr(ans.questionId), ans);
     }
 
     let totalPoints = 0;
@@ -30,7 +40,7 @@ export class AutoGradingService {
     const updatedAnswers: IExamAttemptAnswer[] = [];
 
     for (const qId of questionOrder) {
-      const questionIdStr = qId.toString();
+      const questionIdStr = toIdStr(qId);
       const question = questionMap.get(questionIdStr);
       const points = question?.points ?? 1;
       totalPoints += points;
@@ -93,11 +103,11 @@ export class AutoGradingService {
     }
 
     // 3. Option-based questions (single choice, multiple choice, true/false)
-    const selectedIds = (answer.selectedOptionIds ?? []).map((id) => String(id));
+    const selectedIds = (answer.selectedOptionIds ?? []).map(toIdStr).filter(Boolean);
     if (selectedIds.length === 0) return false;
 
     const correctIdSet = new Set(
-      correctOptions.map((opt) => String(opt._id)).filter(Boolean),
+      correctOptions.map((opt) => toIdStr(opt._id)).filter(Boolean),
     );
 
     if (correctIdSet.size === 0) return false;
