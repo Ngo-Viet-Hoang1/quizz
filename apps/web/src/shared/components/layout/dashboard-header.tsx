@@ -206,20 +206,20 @@ export function DashboardHeader() {
         <Tooltip>
           <TooltipTrigger
             render={
-              <Link href="/docs">
+              <a href="/api/docs" target="_blank" rel="noreferrer">
                 <Button
                   variant="ghost"
                   size="icon"
                   className="h-8.5 w-8.5 text-muted-foreground hover:text-foreground"
                 >
                   <HelpCircle className="size-4" />
-                  <span className="sr-only">Help & Docs</span>
+                  <span className="sr-only">API Documentation</span>
                 </Button>
-              </Link>
+              </a>
             }
           />
           <TooltipContent side="bottom">
-            <span>Documentation & Support</span>
+            <span>API Documentation & Swagger</span>
           </TooltipContent>
         </Tooltip>
 
