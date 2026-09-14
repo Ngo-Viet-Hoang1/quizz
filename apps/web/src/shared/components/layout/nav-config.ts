@@ -2,11 +2,9 @@ import {
   BarChart3,
   BookOpenCheck,
   FileSpreadsheet,
-  GraduationCap,
   Layers,
   LayoutDashboard,
   Radio,
-  Settings,
   ShieldCheck,
   Sparkles,
   Users2,
@@ -51,11 +49,10 @@ export const NAV_GROUPS: NavGroup[] = [
   },
   {
     id: 'classes',
-    label: 'Classes & Candidates',
+    label: 'Classes & Results',
     icon: Users2,
     items: [
       { title: 'Classes & Groups', href: '/classes', icon: Users2 },
-      { title: 'Candidates', href: '/candidates', icon: GraduationCap },
       { title: 'Results & History', href: '/results', icon: FileSpreadsheet },
       { title: 'Analytics', href: '/analytics', icon: BarChart3 },
     ],
@@ -67,7 +64,6 @@ export const NAV_GROUPS: NavGroup[] = [
     items: [
       { title: 'Quiz Reports', href: '/quiz-reports', icon: ShieldCheck },
       { title: 'Audit Logs', href: '/audit-logs', icon: ShieldCheck },
-      { title: 'Settings', href: '/settings', icon: Settings },
     ],
   },
 ];
