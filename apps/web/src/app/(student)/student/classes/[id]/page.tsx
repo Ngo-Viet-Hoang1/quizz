@@ -8,7 +8,6 @@ import {
   useMyExamHistory,
   useOrgMembers,
   useStartExamAttempt,
-  useStartPracticeQuiz,
 } from '@/features/student-portal/api/student.api';
 import { SimplePagination } from '@/features/student-portal/components/common/simple-pagination';
 import type { IClassMember, IQuizAssignment } from '@/features/student-portal/types';
@@ -31,7 +30,6 @@ import {
   LogOut,
   Mail,
   Play,
-  RotateCcw,
   ShieldCheck,
   User,
   Users2,
@@ -83,7 +81,6 @@ export default function ClassDetailPage() {
   const memberUserMap = new Map((orgMembers ?? []).map((m) => [m.userId, m]));
 
   const startExamMutation = useStartExamAttempt();
-  const startPracticeMutation = useStartPracticeQuiz();
   const leaveClassMutation = useLeaveClass();
 
   const assignments: IQuizAssignment[] = assignmentsResponse?.data ?? [];
@@ -112,16 +109,6 @@ export default function ClassDetailPage() {
         onError: (err) => toast.error(err.message || 'Unable to start exam.'),
       },
     );
-  };
-
-  const handleStartPractice = (quizId: string) => {
-    startPracticeMutation.mutate(quizId, {
-      onSuccess: (data) => {
-        toast.success('Starting practice attempt!');
-        router.push(`/student/exam/${data.attempt._id}`);
-      },
-      onError: (err) => toast.error(err.message || 'Unable to start practice exam.'),
-    });
   };
 
   const handleLeaveClass = () => {
@@ -437,31 +424,18 @@ export default function ClassDetailPage() {
 
                     <div className="pt-3 border-t border-border/50">
                       {isSubmitted ? (
-                        <div className="flex items-center gap-2">
-                          <Link
-                            href={`/student/exam/${userAttempt._id}/result`}
-                            className="flex-1 block"
-                          >
-                            <Button
-                              variant="outline"
-                              className="w-full h-9 rounded-xl font-semibold text-xs border-emerald-500/40 text-emerald-700 dark:text-emerald-300 hover:bg-emerald-50 dark:hover:bg-emerald-950/30 gap-1.5 transition-all"
-                            >
-                              <CheckCircle2 className="size-3.5 text-emerald-600" />
-                              View Result ({userAttempt.score}/{userAttempt.totalPoints} pts)
-                            </Button>
-                          </Link>
+                        <Link
+                          href={`/student/exam/${userAttempt._id}/result`}
+                          className="w-full block"
+                        >
                           <Button
                             variant="outline"
-                            size="sm"
-                            onClick={() => handleStartPractice(assignment.quizId)}
-                            disabled={startPracticeMutation.isPending}
-                            className="h-9 px-3 rounded-xl font-semibold text-xs text-sky-600 hover:text-sky-700 hover:bg-sky-50 dark:hover:bg-sky-950/30 border-sky-200 dark:border-sky-800 gap-1 shrink-0"
-                            title="Practice this quiz again"
+                            className="w-full h-9 rounded-xl font-semibold text-xs border-emerald-500/40 text-emerald-700 dark:text-emerald-300 hover:bg-emerald-50 dark:hover:bg-emerald-950/30 gap-1.5 transition-all"
                           >
-                            <RotateCcw className="size-3.5" />
-                            Practice
+                            <CheckCircle2 className="size-3.5 text-emerald-600" />
+                            View Result ({userAttempt.score}/{userAttempt.totalPoints} pts)
                           </Button>
-                        </div>
+                        </Link>
                       ) : isInProgress ? (
                         <Link href={`/student/exam/${userAttempt._id}`} className="w-full block">
                           <Button className="w-full h-9 rounded-xl font-semibold text-xs bg-amber-600 hover:bg-amber-700 text-white shadow-xs transition-all gap-1.5">

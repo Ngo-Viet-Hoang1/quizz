@@ -137,15 +137,17 @@ export default function ExamResultPage() {
           </Link>
         </div>
 
-        <Button
-          size="sm"
-          onClick={handleRetake}
-          disabled={startPractice.isPending}
-          className="rounded-xl font-semibold text-xs gap-1.5 bg-sky-600 hover:bg-sky-700 text-white shadow-xs"
-        >
-          <RotateCcw className="size-3.5" />
-          {startPractice.isPending ? 'Starting...' : 'Retake Practice'}
-        </Button>
+        {!detail?.attempt?.assignmentId && (
+          <Button
+            size="sm"
+            onClick={handleRetake}
+            disabled={startPractice.isPending}
+            className="rounded-xl font-semibold text-xs gap-1.5 bg-sky-600 hover:bg-sky-700 text-white shadow-xs"
+          >
+            <RotateCcw className="size-3.5" />
+            {startPractice.isPending ? 'Starting...' : 'Retake Practice'}
+          </Button>
+        )}
       </div>
 
       <div>
