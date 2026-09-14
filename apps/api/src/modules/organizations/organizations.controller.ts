@@ -11,8 +11,6 @@ import { OrganizationDocument } from './schemas/organization.schema';
 
 @ApiTags('organizations')
 @Controller('organizations')
-@UseGuards(ClerkAuthGuard)
-@ApiBearerAuth('clerk-auth')
 export class OrganizationsController {
   constructor(
     private readonly organizationsService: OrganizationsService,
@@ -27,6 +25,8 @@ export class OrganizationsController {
   }
 
   @Post(':id/join')
+  @UseGuards(ClerkAuthGuard)
+  @ApiBearerAuth('clerk-auth')
   @ApiOperation({ summary: 'Join an organization as a student (member role)' })
   async joinOrganization(
     @Param('id') orgId: string,
@@ -36,7 +36,8 @@ export class OrganizationsController {
   }
 
   @Get('me')
-  @UseGuards(OrgContextGuard)
+  @UseGuards(ClerkAuthGuard, OrgContextGuard)
+  @ApiBearerAuth('clerk-auth')
   async getMyOrg(@CurrentOrg() orgId: string): Promise<OrganizationDocument> {
     const org = await this.organizationsService.findById(orgId);
     if (!org) {
@@ -46,7 +47,8 @@ export class OrganizationsController {
   }
 
   @Get('me/members')
-  @UseGuards(OrgContextGuard)
+  @UseGuards(ClerkAuthGuard, OrgContextGuard)
+  @ApiBearerAuth('clerk-auth')
   @ApiOkResponse({ type: [OrganizationMemberResponseDto] })
   async getMyOrgMembers(@CurrentOrg() orgId: string): Promise<OrganizationMemberResponseDto[]> {
     return this.orgMembersService.findMembersByOrgId(orgId);
