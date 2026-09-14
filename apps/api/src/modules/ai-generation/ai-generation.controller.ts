@@ -26,11 +26,11 @@ import { AiGenerationJob } from './schemas';
 @Controller('ai-generation-jobs')
 @UseGuards(ClerkAuthGuard, OrgContextGuard)
 @ApiBearerAuth('clerk-auth')
-@Throttle({ default: { limit: 10, ttl: 60000 } })
 export class AiGenerationController {
   constructor(private readonly aiGenerationService: AiGenerationService) {}
 
   @Post()
+  @Throttle({ default: { limit: 10, ttl: 60000 } })
   @HttpCode(HttpStatus.ACCEPTED)
   @ApiOperation({ summary: 'Enqueue a new AI quiz generation job' })
   enqueue(
@@ -51,6 +51,7 @@ export class AiGenerationController {
   }
 
   @Get(':id')
+  @Throttle({ default: { limit: 120, ttl: 60000 } })
   @ApiOperation({ summary: 'Get AI generation job status by ID' })
   getJobStatus(
     @CurrentOrg() orgId: string,
