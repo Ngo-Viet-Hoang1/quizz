@@ -11,7 +11,8 @@ import { Env } from '../config/env.schema';
       inject: [ConfigService, Logger],
       useFactory: (configService: ConfigService<Env>, logger: Logger) => ({
         uri: configService.get('MONGODB_URI'),
-        maxPoolSize: 10,
+        maxPoolSize: 50,
+        minPoolSize: 10,
         retryWrites: true,
         serverSelectionTimeoutMS: 5000,
         connectionFactory: (connection: Connection) => {

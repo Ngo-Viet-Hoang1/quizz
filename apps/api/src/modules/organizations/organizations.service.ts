@@ -30,6 +30,40 @@ export class OrganizationsService {
   }
 
   async findPublicOrganizations(search?: string, limit = 50): Promise<OrganizationDocument[]> {
+    try {
+      const clerkOrgs = await this.clerkClient.organizations.getOrganizationList({
+        limit,
+        query: search?.trim() || undefined,
+      });
+
+      if (clerkOrgs?.data) {
+        for (const org of clerkOrgs.data) {
+          await this.organizationModel.findOneAndUpdate(
+            { _id: org.id },
+            {
+              $set: {
+                name: org.name,
+                slug: org.slug,
+                logoUrl: org.imageUrl ?? null,
+                status: 'active',
+                deletedAt: null,
+              },
+              $setOnInsert: {
+                plan: 'free',
+                aiQuotaMonthly: 100,
+                aiQuotaUsed: 0,
+              },
+            },
+            { upsert: true, returnDocument: 'after', setDefaultsOnInsert: true },
+          );
+        }
+      }
+    } catch (err) {
+      this.logger.warn(
+        `Failed to live-sync orgs from Clerk: ${err instanceof Error ? err.message : String(err)}`,
+      );
+    }
+
     const filter: Record<string, unknown> = { status: 'active', deletedAt: null };
     if (search && search.trim()) {
       filter.name = { $regex: search.trim(), $options: 'i' };

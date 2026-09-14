@@ -1,4 +1,4 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, OnModuleDestroy } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, QueryFilter } from 'mongoose';
 import { paginate, PaginateResult } from '../../common/utils/paginate.util';
@@ -22,28 +22,59 @@ export interface CreateAuditLogDto {
 }
 
 const ALLOWED_SORT_FIELDS = ['timestamp', 'durationMs', 'statusCode', 'action'] as const;
+const MAX_BUFFER_SIZE = 50;
+const FLUSH_INTERVAL_MS = 2000;
 
 @Injectable()
-export class AuditService {
+export class AuditService implements OnModuleDestroy {
   private readonly logger = new Logger(AuditService.name);
+  private logBuffer: Array<CreateAuditLogDto & { resourceType: string | null; timestamp: Date }> =
+    [];
+  private flushTimer: NodeJS.Timeout | null = null;
 
   constructor(
     @InjectModel(AuditLog.name)
     private readonly auditLogModel: Model<AuditLogDocument>,
-  ) {}
+  ) {
+    this.flushTimer = setInterval(() => {
+      this.flushBuffer().catch((err) => {
+        this.logger.warn('Failed periodic audit log flush', err);
+      });
+    }, FLUSH_INTERVAL_MS);
+  }
+
+  async onModuleDestroy(): Promise<void> {
+    if (this.flushTimer) {
+      clearInterval(this.flushTimer);
+      this.flushTimer = null;
+    }
+    await this.flushBuffer();
+  }
 
   async log(payload: CreateAuditLogDto): Promise<void> {
-    try {
-      const resourceType = payload.resourceType ?? payload.action.split('.')[0] ?? null;
+    const resourceType = payload.resourceType ?? payload.action.split('.')[0] ?? null;
+    this.logBuffer.push({
+      ...payload,
+      resourceType,
+      timestamp: new Date(),
+    });
 
-      await this.auditLogModel.create({
-        ...payload,
-        resourceType,
-        timestamp: new Date(),
+    if (this.logBuffer.length >= MAX_BUFFER_SIZE) {
+      this.flushBuffer().catch((err) => {
+        this.logger.warn('Failed buffer limit audit log flush', err);
       });
+    }
+  }
+
+  private async flushBuffer(): Promise<void> {
+    if (this.logBuffer.length === 0) return;
+    const itemsToInsert = this.logBuffer;
+    this.logBuffer = [];
+
+    try {
+      await this.auditLogModel.insertMany(itemsToInsert, { ordered: false });
     } catch (error) {
-      // Audit log error must never fail the user's business request
-      this.logger.warn(`Failed to write audit log for action: ${payload.action}`, error);
+      this.logger.warn(`Failed to batch insert ${itemsToInsert.length} audit logs`, error);
     }
   }
 

@@ -60,7 +60,6 @@ export class ExamAttemptsController {
 
   @Put(':id/answer')
   @HttpCode(HttpStatus.OK)
-  @Audit('exam_attempt.answer')
   @ApiOperation({ summary: 'Save or update student answer for a question during exam attempt' })
   async saveAnswer(
     @CurrentOrg() orgId: string,
