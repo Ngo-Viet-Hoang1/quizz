@@ -1,7 +1,18 @@
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  Inject,
+  Injectable,
+  NotFoundException,
+  Optional,
+} from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
+import { CACHE_SERVICE, ICacheService } from '@repo/cache';
 import { Model, Types } from 'mongoose';
-import { QuizVersion, QuizVersionDocument } from '../../quiz/schemas/quiz-version.schema';
+import {
+  QuizSnapshot,
+  QuizVersion,
+  QuizVersionDocument,
+} from '../../quiz/schemas/quiz-version.schema';
 import { ExamAttemptStatus } from '../enums/exam-attempt-status.enum';
 import { IExamAttempt, IExamAttemptAnswer } from '../interfaces/exam-attempt.interface';
 import { ExamAttemptAnswer } from '../schemas/exam-attempt-answer.schema';
@@ -16,27 +27,69 @@ export class ExamAttemptSubmitService {
     @InjectModel(QuizVersion.name)
     private readonly quizVersionModel: Model<QuizVersionDocument>,
     private readonly autoGradingService: AutoGradingService,
+    @Optional()
+    @Inject(CACHE_SERVICE)
+    private readonly cacheService?: ICacheService,
   ) {}
 
-  async submitAttempt(orgId: string, userId: string, attemptId: string): Promise<IExamAttempt> {
-    const attempt = await this.findAttemptToSubmit(orgId, userId, attemptId);
+  private async getCachedQuizSnapshot(
+    quizId: Types.ObjectId | string,
+    organizationId: string,
+    version: number,
+  ): Promise<QuizSnapshot | null> {
+    const cacheKey = `quiz_version:${String(quizId)}:${version}`;
+    if (this.cacheService) {
+      try {
+        const cached = await this.cacheService.get<QuizSnapshot>(cacheKey);
+        if (cached?.questions) {
+          return cached;
+        }
+      } catch {
+        // Fallback to database on cache error
+      }
+    }
 
+    const quizObjectId =
+      quizId instanceof Types.ObjectId ? quizId : new Types.ObjectId(String(quizId));
     const quizSnapshot = await this.quizVersionModel
       .findOne({
-        quizId: attempt.quizId,
-        organizationId: attempt.organizationId,
-        version: attempt.quizVersion,
+        quizId: quizObjectId,
+        organizationId,
+        version,
       })
       .lean()
       .exec();
 
-    if (!quizSnapshot) {
+    if (quizSnapshot?.snapshot) {
+      if (this.cacheService) {
+        try {
+          await this.cacheService.set(cacheKey, quizSnapshot.snapshot, 3600); // Cache 1 hour
+        } catch {
+          // Ignore cache write error
+        }
+      }
+      return quizSnapshot.snapshot;
+    }
+
+    return null;
+  }
+
+  async submitAttempt(orgId: string, userId: string, attemptId: string): Promise<IExamAttempt> {
+    const attempt = await this.findAttemptToSubmit(orgId, userId, attemptId);
+
+    const snapshot = await this.getCachedQuizSnapshot(
+      attempt.quizId,
+      attempt.organizationId,
+      attempt.quizVersion,
+    );
+
+    if (!snapshot) {
       throw new NotFoundException(
         `Snapshot version ${attempt.quizVersion} not found for this quiz. Data may be corrupted.`,
       );
     }
 
-    const questions = quizSnapshot.snapshot.questions;
+    const questions = snapshot.questions;
 
     const grading = this.autoGradingService.gradeAttempt(
       attempt.questionOrder,
@@ -72,23 +125,20 @@ export class ExamAttemptSubmitService {
 
     for (const attempt of expiredAttempts) {
       try {
-        const quizSnapshot = await this.quizVersionModel
-          .findOne({
-            quizId: attempt.quizId,
-            organizationId: attempt.organizationId,
-            version: attempt.quizVersion,
-          })
-          .lean()
-          .exec();
+        const snapshot = await this.getCachedQuizSnapshot(
+          attempt.quizId,
+          attempt.organizationId,
+          attempt.quizVersion,
+        );
 
-        if (!quizSnapshot) {
+        if (!snapshot) {
           continue;
         }
 
         const grading = this.autoGradingService.gradeAttempt(
           attempt.questionOrder,
           attempt.answers,
-          quizSnapshot.snapshot.questions,
+          snapshot.questions,
         );
 
         const schemaAnswers = this.mapToSchemaAnswers(grading.answers);
