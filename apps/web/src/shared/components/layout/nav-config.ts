@@ -2,6 +2,7 @@ import {
   BarChart3,
   BookOpenCheck,
   FileSpreadsheet,
+  GraduationCap,
   Layers,
   LayoutDashboard,
   Radio,
@@ -62,6 +63,13 @@ export const NAV_GROUPS: NavGroup[] = [
     label: 'Administration',
     icon: ShieldCheck,
     items: [
+      {
+        title: 'Student Portal',
+        href: '/student',
+        icon: GraduationCap,
+        badge: 'View',
+        badgeVariant: 'outline',
+      },
       { title: 'Quiz Reports', href: '/quiz-reports', icon: ShieldCheck },
       { title: 'Audit Logs', href: '/audit-logs', icon: ShieldCheck },
     ],
