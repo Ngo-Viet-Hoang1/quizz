@@ -81,16 +81,9 @@ export function AnalyticsFilters({
                       value={id}
                       className="py-2 px-2.5 rounded-md cursor-pointer my-0.5"
                     >
-                      <div className="flex items-center justify-between w-full gap-3">
-                        <span className="font-medium text-xs truncate max-w-44 text-foreground">
-                          {c.name}
-                        </span>
-                        {c.memberCount !== undefined && (
-                          <span className="text-[10px] text-muted-foreground font-mono bg-muted/80 px-1.5 py-0.5 rounded shrink-0">
-                            {c.memberCount} students
-                          </span>
-                        )}
-                      </div>
+                      <span className="font-medium text-xs truncate max-w-56 text-foreground">
+                        {c.name}
+                      </span>
                     </SelectItem>
                   );
                 })
