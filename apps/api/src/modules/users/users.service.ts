@@ -24,6 +24,13 @@ export class UsersService {
     fullName: string;
     avatarUrl?: string | null;
   }): Promise<UserDocument> {
+    if (data.email) {
+      await this.userModel.deleteMany({
+        email: data.email,
+        _id: { $ne: data.userId },
+      });
+    }
+
     return this.userModel
       .findOneAndUpdate(
         { _id: data.userId },
@@ -36,7 +43,7 @@ export class UsersService {
             deletedAt: null,
           },
         },
-        { upsert: true, new: true, setDefaultsOnInsert: true },
+        { upsert: true, returnDocument: 'after', setDefaultsOnInsert: true },
       )
       .exec() as Promise<UserDocument>;
   }
@@ -80,6 +87,13 @@ export class UsersService {
     const email = this.extractPrimaryEmail(data);
     const fullName = this.extractFullName(data);
 
+    if (email) {
+      await this.userModel.deleteMany({
+        email,
+        _id: { $ne: data.id },
+      });
+    }
+
     await this.userModel
       .findOneAndUpdate(
         { _id: data.id },
@@ -92,7 +106,7 @@ export class UsersService {
             deletedAt: null,
           },
         },
-        { upsert: true, new: true, setDefaultsOnInsert: true },
+        { upsert: true, returnDocument: 'after', setDefaultsOnInsert: true },
       )
       .exec();
 
@@ -102,6 +116,13 @@ export class UsersService {
   private async onUserUpdated(data: ClerkUserData): Promise<void> {
     const email = this.extractPrimaryEmail(data);
     const fullName = this.extractFullName(data);
+
+    if (email) {
+      await this.userModel.deleteMany({
+        email,
+        _id: { $ne: data.id },
+      });
+    }
 
     await this.userModel
       .findOneAndUpdate(
@@ -150,6 +171,7 @@ export class UsersService {
   }
 
   private extractFullName(data: ClerkUserData): string {
-    return [data.first_name, data.last_name].filter(Boolean).join(' ') || data.username || 'User';
+    const parts = [data.first_name, data.last_name].filter(Boolean);
+    return parts.length > 0 ? parts.join(' ') : data.username || 'User';
   }
 }
