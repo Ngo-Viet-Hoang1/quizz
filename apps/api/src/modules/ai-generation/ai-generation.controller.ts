@@ -10,6 +10,7 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
+import { Throttle } from '@nestjs/throttler';
 import { CurrentOrg } from '../../common/decorators/current-org.decorator';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { PaginationQueryDto } from '../../common/dto/pagination-query.dto';
@@ -25,6 +26,7 @@ import { AiGenerationJob } from './schemas';
 @Controller('ai-generation-jobs')
 @UseGuards(ClerkAuthGuard, OrgContextGuard)
 @ApiBearerAuth('clerk-auth')
+@Throttle({ default: { limit: 10, ttl: 60000 } })
 export class AiGenerationController {
   constructor(private readonly aiGenerationService: AiGenerationService) {}
 

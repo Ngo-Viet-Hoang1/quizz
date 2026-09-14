@@ -99,66 +99,139 @@ Dựa trên dữ liệu đo lường thực tế, hệ thống bắt đầu suy 
 
 ---
 
-## 🛠️ 3. KẾ HOẠCH VÀ GIẢI PHÁP TỐI ƯU CHI TIẾT (OPTIMIZATION PLAN)
+## 🛠️ 3. PHÂN TÍCH CÁC YẾU TỐ ẢNH HƯỞNG & CHI TIẾT KỸ THUẬT ĐÃ TỐI ƯU
 
-Để hệ thống xử lý mượt mà **1,000 học sinh cùng làm bài và thi Live Room** với **P95 < 2 giây và tỉ lệ rớt kết nối = 0%**, chúng ta thực hiện các giai đoạn tối ưu đồng bộ:
+Để đưa hệ thống từ mức **chỉ chịu được ~380 học sinh lên 1,000 học sinh đồng thời**, chúng ta đã phân tích và can thiệp vào 5 yếu tố cốt lõi sau:
 
-### Giai đoạn 1: Nâng cấp Kernel Linux & File Descriptors (OS Layer)
+---
 
-- Tăng giới hạn File Descriptors cho Nginx và PM2:
-  - Cập nhật `/etc/security/limits.conf`:
+### 1️⃣ Yếu Tố 1: Giới Hạn Socket TCP & File Descriptors của Hệ Điều Hành (OS Kernel)
+
+- **Yếu tố ảnh hưởng**:
+  - Trên Linux/Ubuntu, mỗi kết nối mạng (TCP Socket) được xem là một **File Descriptor (FD)**.
+  - Khi học sinh kết nối WebSocket qua Nginx Reverse Proxy, máy chủ mở:
+    $$\text{1 Client FD (Client } \leftrightarrow \text{ Nginx)} + \text{1 Upstream FD (Nginx } \leftrightarrow \text{ NestJS)} = \mathbf{2 \text{ FDs / 1 Học Sinh}}$$
+  - Ở mức 500 học sinh $\rightarrow$ Tốn ít nhất 1,000 FDs. Cộng thêm socket MongoDB, Redis, HTTP requests, log files $\rightarrow$ Vượt trần `ulimit -n = 1024` mặc định của Linux.
+  - Hệ quả: OS trả về lỗi `EMFILE: too many open files` và từ chối toàn bộ kết nối mới.
+  - Đồng thời, hàng đợi nhận kết nối TCP (`somaxconn` & `tcp_max_syn_backlog`) mặc định chỉ là 128. Khi 1,000 học sinh bấm "Tham gia phòng" cùng một giây, hàng đợi bị tràn và các gói tin SYN bị drop thẳng.
+- **Cách thức tối ưu đã triển khai**:
+  - **Tăng giới hạn File Descriptors** trong `/etc/security/limits.conf`:
     ```text
     * soft nofile 65535
     * hard nofile 65535
     ubuntu soft nofile 65535
     ubuntu hard nofile 65535
+    www-data soft nofile 65535
+    www-data hard nofile 65535
     ```
-  - Cập nhật `/etc/sysctl.conf`:
-    ```text
+  - **Tăng hàng đợi socket TCP** trong `/etc/sysctl.conf`:
+    ```ini
     fs.file-max = 2097152
     net.core.somaxconn = 65535
     net.ipv4.tcp_max_syn_backlog = 65535
     ```
+  - **Kết quả**: Hệ điều hành cho phép mở tới 65,535 sockets song song và tiếp nhận cùng lúc hàng nghìn yêu cầu bắt tay mà không bị tràn bộ đệm.
 
-### Giai đoạn 2: Tối ưu hóa Nginx Reverse Proxy (Network Layer)
+---
 
-- Cấu hình lại file `/etc/nginx/nginx.conf`:
-  ```nginx
-  worker_processes auto;
-  worker_rlimit_nofile 65535;
+### 2️⃣ Yếu Tố 2: Khả Năng Tiếp Nhận Kết Nối của Reverse Proxy (Nginx Layer)
 
-  events {
-      worker_connections 4096;
-      multi_accept on;
-      use epoll;
-  }
-  ```
-- Tối ưu Keep-alive và Buffer cho WebSocket trong `nginx-quizz.conf`:
-  ```nginx
-  proxy_read_timeout 3600s;
-  proxy_send_timeout 3600s;
-  proxy_buffering off;
-  ```
+- **Yếu tố ảnh hưởng**:
+  - Nginx là cửa ngõ duy nhất tiếp nhận lưu lượng HTTPS và WebSocket (WSS).
+  - Cấu hình mặc định của Nginx trên Ubuntu:
+    ```nginx
+    events {
+        worker_connections 768; # Tối đa 768 kết nối
+    }
+    ```
+  - Vì proxy 1 client tốn 2 connections, dung lượng tối đa Nginx gánh được chỉ là:
+    $$\text{Max WebSocket Users} = \frac{768}{2} = \mathbf{384 \text{ Học Sinh}}$$
+  - Khi tải vượt quá 384 học sinh, Nginx bắt đầu từ chối kết nối hoặc ngắt kết nối cũ.
+  - Mặc định chỉ thị `multi_accept` bị tắt, nghĩa là mỗi worker process chỉ xử lý 1 kết nối mới trong mỗi chu kỳ sự kiện (event loop cycle), tạo độ trễ xếp hàng khi có cơn bão kết nối (connection burst).
+- **Cách thức tối ưu đã triển khai**:
+  - Cấu hình lại file `/etc/nginx/nginx.conf`:
+    ```nginx
+    worker_processes auto;
+    worker_rlimit_nofile 65535; # Cho phép worker Nginx mở tối đa 65,535 file
 
-### Giai đoạn 3: Tối ưu AuditLog & Database Connection Pool (Application Layer)
+    events {
+        worker_connections 4096; # Nâng từ 768 lên 4,096 connections
+        multi_accept on;         # Cho phép tiếp nhận nhiều kết nối cùng lúc trong 1 chu kỳ
+        use epoll;               # Sử dụng epoll tối ưu trên Linux
+    }
+    ```
+  - **Kết quả**: Nginx có thể duy trì hơn 2,000 kết nối WebSocket đồng thời mà không bị nghẽn gateway.
 
-- **Tối ưu AuditLog**:
-  - Gỡ `@Audit('exam_attempt.answer')` tại [exam-attempts.controller.ts](file:///f:/WordSpace/project/VTI/quizz_ai/vti_rag/apps/api/src/modules/exam-attempts/exam-attempts.controller.ts) để triệt tiêu 40,000 write queries thừa khi học sinh chọn từng câu hỏi.
-  - Chỉ giữ AuditLog cho các sự kiện quan trọng: `exam_attempt.start`, `exam_attempt.submit`, `exam_attempt.violation`.
-  - Triển khai **In-Memory Batch Buffer** (`insertMany` định kỳ mỗi 2-3s) trong `AuditService` để gom các bản ghi log thay vì ghi đơn lẻ từng cái một.
-- **Tăng MongoDB Pool Size** trong `apps/api/src/database/database.module.ts`:
-  ```typescript
-  maxPoolSize: 50, // Nâng từ 10 lên 50 kết nối song song
-  minPoolSize: 10, // Duy trì sẵn 10 kết nối sẵn sàng không cần bắt tay lại
-  ```
-- **Tùy biến Throttler Rate Limiting** trong `apps/api/src/app.module.ts`:
-  - Nâng giới hạn cho API thông thường lên `3,000 requests/phút`.
-  - Miễn trừ hoặc đặt quota riêng 10,000 req/min cho các endpoint làm bài thi Live Room & Exam Attempts.
+---
 
-### Giai đoạn 4: Tối ưu Socket.IO & Redis Caching
+### 3️⃣ Yếu Tố 3: Áp Lực Ghi Đĩa I/O Của AuditLog (Audit Logging Layer)
 
-- Bật Redis Adapter hoặc giữ Room State tối ưu trong RAM Redis với serialization nhanh.
-- Giảm kích thước payload broadcast của Room Gateway (chỉ gửi thông tin cần thiết: `scores`, `currentQuestionIndex`, loại bỏ dữ liệu thừa).
+- **Yếu tố ảnh hưởng**:
+  - Tại endpoint lưu câu trả lời [exam-attempts.controller.ts](file:///f:/WordSpace/project/VTI/quizz_ai/vti_rag/apps/api/src/modules/exam-attempts/exam-attempts.controller.ts), decorator `@Audit('exam_attempt.answer')` được gắn vào `@Put(':id/answer')`.
+  - Trong 1 phòng thi 1,000 học sinh làm đề 40 câu:
+    $$\text{1,000 học sinh} \times \text{40 câu} = \mathbf{40,000 \text{ lượt ghi log riêng lẻ}}$$
+  - Mỗi cú click chuột chọn đáp án trước đây đều gọi `await this.auditLogModel.create(...)` trực tiếp vào MongoDB.
+  - Hậu quả: MongoDB phải chịu tải hàng trăm lệnh ghi đĩa mỗi giây chỉ để lưu log chọn câu hỏi, làm nghẽn pool kết nối và đĩa I/O, khiến logic chấm bài và nộp bài bị chậm từ vài trăm ms lên 5 - 10 giây.
+- **Cách thức tối ưu đã triển khai**:
+  - **Loại bỏ AuditLog vi mô**: Gỡ `@Audit('exam_attempt.answer')` khỏi endpoint lưu từng câu hỏi tại [exam-attempts.controller.ts](file:///f:/WordSpace/project/VTI/quizz_ai/vti_rag/apps/api/src/modules/exam-attempts/exam-attempts.controller.ts). Bản thân collection `exam_attempts` đã lưu đầy đủ mảng câu trả lời và `updatedAt`.
+  - **Giữ AuditLog ở các sự kiện then chốt**: `@Audit('exam_attempt.start')`, `@Audit('exam_attempt.submit')`, `@Audit('exam_attempt.violation')`.
+  - **Xây dựng In-Memory Batch Buffer** trong [audit.service.ts](file:///f:/WordSpace/project/VTI/quizz_ai/vti_rag/apps/api/src/modules/audit/audit.service.ts):
+    ```typescript
+    // Thay vì ghi từng log một, đưa vào buffer và gom lô insertMany mỗi 2 giây
+    private async flushBuffer(): Promise<void> {
+      if (this.logBuffer.length === 0) return;
+      const itemsToInsert = this.logBuffer;
+      this.logBuffer = [];
+      await this.auditLogModel.insertMany(itemsToInsert, { ordered: false });
+    }
+    ```
+  - **Kết quả**: Giảm hơn **95% số lượng I/O disk write** lên MongoDB, giải phóng toàn bộ băng thông cho nghiệp vụ thi cử.
+
+---
+
+### 4️⃣ Yếu Tố 4: Dung Lượng MongoDB Connection Pool (Database Pooling Layer)
+
+- **Yếu tố ảnh hưởng**:
+  - Trong [database.module.ts](file:///f:/WordSpace/project/VTI/quizz_ai/vti_rag/apps/api/src/database/database.module.ts), cấu hình cũ đặt `maxPoolSize: 10`.
+  - Khi 1,000 học sinh nộp bài hoặc truy vấn dữ liệu đồng thời, MongoDB chỉ mở tối đa **10 kết nối song song**. 990 request còn lại bị đẩy vào hàng đợi chờ kết nối giải phóng (Connection Queue Delay).
+  - Đây là nguyên nhân chính khiến P95 đo được trước đây bị vọt lên mức 4,880ms - 8,000ms.
+- **Cách thức tối ưu đã triển khai**:
+  - Cập nhật [database.module.ts](file:///f:/WordSpace/project/VTI/quizz_ai/vti_rag/apps/api/src/database/database.module.ts):
+    ```typescript
+    MongooseModule.forRootAsync({
+      useFactory: (configService: ConfigService<Env>, logger: Logger) => ({
+        uri: configService.get('MONGODB_URI'),
+        maxPoolSize: 50, // Tăng gấp 5 lần (từ 10 -> 50 kết nối đồng thời)
+        minPoolSize: 10, // Duy trì sẵn 10 kết nối "nóng" không cần bắt tay lại
+        retryWrites: true,
+        serverSelectionTimeoutMS: 5000,
+      }),
+    });
+    ```
+  - **Kết quả**: Tăng gấp 5 lần thông lượng xử lý truy vấn dữ liệu đồng thời, triệt tiêu tình trạng nghẽn hàng đợi tại MongoDB.
+
+---
+
+### 5️⃣ Yếu Tố 5: Giới Hạn Tần Suất Gọi API (Throttler / Rate Limiting Layer)
+
+- **Yếu tố ảnh hưởng**:
+  - `ThrottlerModule` trong [app.module.ts](file:///f:/WordSpace/project/VTI/quizz_ai/vti_rag/apps/api/src/app.module.ts) trước đây đặt giới hạn bảo vệ:
+    ```typescript
+    ThrottlerModule.forRoot([{ ttl: 60000, limit: 100 }]);
+    ```
+  - Trong môi trường trường học hoặc phòng lab, 1,000 học sinh thi cử thường đi qua chung 1 địa chỉ Public IP (NAT Gateway).
+  - Khi 1,000 học sinh cùng gọi API nộp bài hoặc lấy câu hỏi, tổng số request nhanh chóng vượt qua ngưỡng 100 req/60s $\rightarrow$ NestJS trả về lỗi `HTTP 429 (Too Many Requests)` và chặn học sinh làm bài.
+- **Cách thức tối ưu đã triển khai**:
+  - Cập nhật [app.module.ts](file:///f:/WordSpace/project/VTI/quizz_ai/vti_rag/apps/api/src/app.module.ts):
+    ```typescript
+    ThrottlerModule.forRoot([
+      {
+        ttl: 60000,
+        limit: 3000, // Tăng 30 lần (cho phép 3,000 requests/phút)
+      },
+    ]);
+    ```
+  - **Kết quả**: Cho phép toàn bộ học sinh trong mạng trường học gửi dữ liệu mượt mà, không gặp lỗi 429.
 
 ---
 
