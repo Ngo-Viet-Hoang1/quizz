@@ -149,7 +149,13 @@ describe('AiGenerationProcessor', () => {
       {
         _id: payload.jobId,
         organizationId: payload.organizationId,
-        status: AiGenerationJobStatus.PENDING,
+        status: {
+          $in: [
+            AiGenerationJobStatus.PENDING,
+            AiGenerationJobStatus.PROCESSING,
+            AiGenerationJobStatus.FAILED,
+          ],
+        },
       },
       {
         $set: { status: AiGenerationJobStatus.PROCESSING },

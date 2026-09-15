@@ -1,4 +1,4 @@
-import { ForbiddenException, NotFoundException } from '@nestjs/common';
+import { ConflictException, ForbiddenException, NotFoundException } from '@nestjs/common';
 import { getModelToken } from '@nestjs/mongoose';
 import { Test, TestingModule } from '@nestjs/testing';
 import { Types } from 'mongoose';
@@ -70,7 +70,7 @@ describe('AiGenerationService - enqueueJob', () => {
 
     const mockConstructor = jest.fn().mockImplementation(() => mockJobInstance);
     jobModel = Object.assign(mockConstructor, {
-      findOne: jest.fn(),
+      findOne: jest.fn().mockResolvedValue(null),
       find: jest.fn(),
       countDocuments: jest.fn(),
       deleteOne: jest.fn().mockResolvedValue({ deletedCount: 1 }),
@@ -105,6 +105,49 @@ describe('AiGenerationService - enqueueJob', () => {
     }).compile();
 
     service = module.get<AiGenerationService>(AiGenerationService);
+  });
+
+  it('should throw ConflictException when an active job is already in progress', async () => {
+    const activeJob = {
+      _id: new Types.ObjectId(),
+      organizationId: orgId,
+      userId,
+      idempotencyKey: 'different-key',
+      status: AiGenerationJobStatus.PROCESSING,
+    };
+    jobModel.findOne.mockResolvedValueOnce(activeJob);
+
+    await expect(service.enqueueJob(orgId, userId, dto)).rejects.toThrow(
+      new ConflictException(
+        'An AI quiz generation is already in progress. Please wait for it to finish before starting a new one.',
+      ),
+    );
+
+    expect(quotaService.deductQuota).not.toHaveBeenCalled();
+    expect(jobPublisher.publish).not.toHaveBeenCalled();
+  });
+
+  it('should return existing active job if idempotencyKey matches', async () => {
+    const activeJobId = new Types.ObjectId();
+    const activeJob = {
+      _id: activeJobId,
+      organizationId: orgId,
+      userId,
+      idempotencyKey: dto.idempotencyKey,
+      status: AiGenerationJobStatus.PENDING,
+      quizId: null,
+    };
+    jobModel.findOne.mockResolvedValueOnce(activeJob);
+
+    const result = await service.enqueueJob(orgId, userId, dto);
+
+    expect(result).toEqual({
+      jobId: activeJobId.toString(),
+      status: AiGenerationJobStatus.PENDING,
+      quizId: null,
+    });
+    expect(quotaService.deductQuota).not.toHaveBeenCalled();
+    expect(jobPublisher.publish).not.toHaveBeenCalled();
   });
 
   it('should successfully create doc, deduct quota atomic, push to BullMQ and return pending status', async () => {
@@ -218,7 +261,7 @@ describe('AiGenerationService - enqueueJob', () => {
       status: AiGenerationJobStatus.PENDING,
       quizId: null,
     };
-    jobModel.findOne.mockResolvedValue(existingJob);
+    jobModel.findOne.mockResolvedValueOnce(null).mockResolvedValueOnce(existingJob);
 
     const result = await service.enqueueJob(orgId, userId, dto);
 

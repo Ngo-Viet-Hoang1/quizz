@@ -36,15 +36,25 @@ export class AiGenerationProcessor extends BullMqWorkerBase {
       job.data;
     this.logger.log(`Processing AI generation job: ${jobId}`);
 
-    // 1. Atomic transition: PENDING -> PROCESSING (early return if already processed/retried)
+    // 1. Atomic transition: (PENDING or retry from FAILED/PROCESSING) -> PROCESSING (skip if already COMPLETED)
     const jobDoc = await this.jobModel.findOneAndUpdate(
-      { _id: jobId, organizationId, status: AiGenerationJobStatus.PENDING },
+      {
+        _id: jobId,
+        organizationId,
+        status: {
+          $in: [
+            AiGenerationJobStatus.PENDING,
+            AiGenerationJobStatus.PROCESSING,
+            AiGenerationJobStatus.FAILED,
+          ],
+        },
+      },
       { $set: { status: AiGenerationJobStatus.PROCESSING } },
       { new: true },
     );
 
     if (!jobDoc) {
-      this.logger.warn(`Skipping job ${jobId}: no longer PENDING (already handled or retried).`);
+      this.logger.warn(`Skipping job ${jobId}: no longer active (already COMPLETED or deleted).`);
       return;
     }
 

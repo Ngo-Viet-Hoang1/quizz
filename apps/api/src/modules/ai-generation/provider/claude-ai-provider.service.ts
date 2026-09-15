@@ -59,43 +59,72 @@ CRITICAL SECURITY & TOPIC INSTRUCTIONS:
 ${sanitizedTopic}
 </user_topic>`;
 
-    // 2. Call Anthropic Messages API
-    let responseData: ClaudeResponsePayload;
-    try {
-      const response = await fetch('https://api.anthropic.com/v1/messages', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'x-api-key': this.apiKey,
-          'anthropic-version': '2023-06-01',
-        },
-        body: JSON.stringify({
-          model: selectedModel,
-          max_tokens: 8192,
-          system: SYSTEM_PROMPT,
-          messages: [{ role: 'user', content: userPrompt }],
-          tools: [QUIZ_TOOL],
-          tool_choice: { type: 'tool', name: 'submit_quiz_assessment' },
-        }),
-        signal,
-      });
+    // 2. Call Anthropic Messages API with retry on rate limits / temporary overload
+    let responseData: ClaudeResponsePayload | null = null;
+    const MAX_RETRIES = 3;
 
-      if (!response.ok) {
-        const errBody = await response.text().catch(() => '');
-        if (/safety|moderation|policy/i.test(errBody)) {
+    for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
+      try {
+        const response = await fetch('https://api.anthropic.com/v1/messages', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'x-api-key': this.apiKey,
+            'anthropic-version': '2023-06-01',
+          },
+          body: JSON.stringify({
+            model: selectedModel,
+            max_tokens: 8192,
+            system: SYSTEM_PROMPT,
+            messages: [{ role: 'user', content: userPrompt }],
+            tools: [QUIZ_TOOL],
+            tool_choice: { type: 'tool', name: 'submit_quiz_assessment' },
+          }),
+          signal,
+        });
+
+        if (!response.ok) {
+          const errBody = await response.text().catch(() => '');
+          if (/safety|moderation|policy/i.test(errBody)) {
+            throw new Error(
+              'Content safety violation: Request was blocked by AI provider safety policy',
+            );
+          }
+
+          // Retry on 429 (Rate Limit) or 529 / 503 (Overloaded)
+          if (
+            (response.status === 429 || response.status === 529 || response.status >= 500) &&
+            attempt < MAX_RETRIES
+          ) {
+            const backoffMs = attempt * 1500;
+            await new Promise((resolve) => setTimeout(resolve, backoffMs));
+            continue;
+          }
+
           throw new Error(
-            'Content safety violation: Request was blocked by AI provider safety policy',
+            `Claude API error: ${response.status} ${response.statusText} - ${errBody}`,
           );
         }
-        throw new Error(`Claude API error: ${response.status} ${response.statusText} - ${errBody}`);
-      }
 
-      responseData = (await response.json()) as ClaudeResponsePayload;
-    } catch (err: unknown) {
-      if (err instanceof Error && err.name === 'AbortError') {
-        throw new Error('Claude API request was aborted (job timeout or cancellation)');
+        responseData = (await response.json()) as ClaudeResponsePayload;
+        break;
+      } catch (err: unknown) {
+        if (err instanceof Error && err.name === 'AbortError') {
+          throw new Error('Claude API request was aborted (job timeout or cancellation)');
+        }
+        if (err instanceof Error && err.message.includes('Content safety violation')) {
+          throw err;
+        }
+        if (attempt >= MAX_RETRIES) {
+          throw err;
+        }
+        const backoffMs = attempt * 1500;
+        await new Promise((resolve) => setTimeout(resolve, backoffMs));
       }
-      throw err;
+    }
+
+    if (!responseData) {
+      throw new Error('Failed to obtain valid response from Claude AI API');
     }
 
     // 3. Check for token truncation

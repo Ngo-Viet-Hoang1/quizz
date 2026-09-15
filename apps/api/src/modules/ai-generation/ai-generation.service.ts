@@ -1,6 +1,7 @@
 import { BullMqJobPublisher } from '@/queue/bullmq-job-publisher';
 import { JOB_NAMES } from '@/queue/queue.constants';
 import {
+  ConflictException,
   ForbiddenException,
   Injectable,
   InternalServerErrorException,
@@ -30,6 +31,28 @@ export class AiGenerationService {
     dto: EnqueueAiGenerationJobDto,
   ): Promise<EnqueueJobResponseDto> {
     const { idempotencyKey, topic, questionCount, questionType, difficulty, model } = dto;
+
+    // 0. Check if there is an ongoing job in progress for this user
+    const activeJob = await this.jobModel.findOne({
+      organizationId: orgId,
+      userId,
+      status: { $in: [AiGenerationJobStatus.PENDING, AiGenerationJobStatus.PROCESSING] },
+    });
+
+    if (activeJob) {
+      if (activeJob.idempotencyKey === idempotencyKey) {
+        return {
+          jobId: activeJob._id ? activeJob._id.toString() : '',
+          status: activeJob.status,
+          quizId: activeJob.quizId ? activeJob.quizId.toString() : null,
+        };
+      }
+
+      throw new ConflictException(
+        'An AI quiz generation is already in progress. Please wait for it to finish before starting a new one.',
+      );
+    }
+
     const prompt = `Generate ${questionCount} ${questionType} quiz questions on topic: "${topic}". Difficulty: ${difficulty}.`;
 
     // 1. Insert new PENDING job document (or return existing job if duplicate idempotencyKey)

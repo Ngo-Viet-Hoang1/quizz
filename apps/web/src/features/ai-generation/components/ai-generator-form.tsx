@@ -1,7 +1,7 @@
 'use client';
 
 import * as React from 'react';
-import { Sparkles, AlertCircle, Zap, Sliders, HelpCircle } from 'lucide-react';
+import { Sparkles, AlertCircle, Zap, Sliders, HelpCircle, Loader2 } from 'lucide-react';
 import { useCurrentSubscription } from '@/features/subscriptions';
 import { QuestionType, QuizDifficulty } from '@/features/quizzes/types';
 import { Button } from '@/shared/ui/button';
@@ -12,7 +12,8 @@ import { Label } from '@/shared/ui/label';
 import { Badge } from '@/shared/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/shared/ui/select';
 import { DEFAULT_AI_GEN_PARAMS } from '../constants';
-import { useEnqueueAiJob } from '../hooks';
+import { useEnqueueAiJob, useAiJobsHistory } from '../hooks';
+import { AiGenerationJobStatus } from '../types';
 
 interface AiGeneratorFormProps {
   onJobStarted: (jobId: string, topic: string) => void;
@@ -45,6 +46,22 @@ export function AiGeneratorForm({ onJobStarted, className }: AiGeneratorFormProp
   const { data: subscription } = useCurrentSubscription();
   const enqueueMutation = useEnqueueAiJob();
 
+  // Query latest jobs to detect any in-progress generation
+  const { data: recentJobsData } = useAiJobsHistory({
+    limit: 5,
+    sortBy: 'createdAt',
+    sortOrder: 'desc',
+  });
+
+  const activeRunningJob = React.useMemo(() => {
+    const jobs = recentJobsData?.data ?? [];
+    return jobs.find(
+      (job) =>
+        job.status === AiGenerationJobStatus.PENDING ||
+        job.status === AiGenerationJobStatus.PROCESSING,
+    );
+  }, [recentJobsData]);
+
   const isQuotaExhausted =
     subscription !== undefined &&
     subscription.aiQuotaMonthly > 0 &&
@@ -52,7 +69,7 @@ export function AiGeneratorForm({ onJobStarted, className }: AiGeneratorFormProp
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!topic.trim()) return;
+    if (!topic.trim() || activeRunningJob) return;
 
     const finalCount = Math.min(50, Math.max(1, questionCount));
 
@@ -307,6 +324,32 @@ export function AiGeneratorForm({ onJobStarted, className }: AiGeneratorFormProp
             </div>
           </div>
 
+          {/* Active Job In Progress Notice */}
+          {activeRunningJob && (
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 p-3.5 rounded-xl bg-primary/10 border border-primary/20 text-foreground">
+              <div className="flex items-center gap-2.5 text-xs sm:text-sm">
+                <Loader2 className="size-4 animate-spin text-primary shrink-0" />
+                <div className="space-y-0.5">
+                  <p className="font-semibold text-primary">
+                    An AI quiz is currently being generated
+                  </p>
+                  <p className="text-xs text-muted-foreground line-clamp-1 max-w-md">
+                    {activeRunningJob.prompt}
+                  </p>
+                </div>
+              </div>
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                className="h-8 text-xs shrink-0 border-primary/30 text-primary hover:bg-primary/10"
+                onClick={() => onJobStarted(activeRunningJob._id, activeRunningJob.prompt)}
+              >
+                View Progress
+              </Button>
+            </div>
+          )}
+
           {/* Quota Exhausted Warning */}
           {isQuotaExhausted && (
             <div className="flex items-center gap-2 p-3 rounded-lg bg-destructive/10 border border-destructive/20 text-destructive text-xs">
@@ -322,13 +365,23 @@ export function AiGeneratorForm({ onJobStarted, className }: AiGeneratorFormProp
           <div className="flex items-center justify-end gap-3 pt-3 border-t">
             <Button
               type="submit"
-              disabled={!topic.trim() || enqueueMutation.isPending || isQuotaExhausted}
+              disabled={
+                !topic.trim() ||
+                enqueueMutation.isPending ||
+                isQuotaExhausted ||
+                Boolean(activeRunningJob)
+              }
               className="gap-2 min-w-40 font-semibold shadow-xs"
             >
               {enqueueMutation.isPending ? (
                 <>
                   <span className="size-4 rounded-full border-2 border-primary-foreground border-t-transparent animate-spin" />
                   <span>Generating...</span>
+                </>
+              ) : activeRunningJob ? (
+                <>
+                  <Loader2 className="size-4 animate-spin" />
+                  <span>Job in progress...</span>
                 </>
               ) : (
                 <>
