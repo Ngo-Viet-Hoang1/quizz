@@ -3,6 +3,7 @@ name: CD - Deploy to AWS EC2
 on:
   push:
     branches: [dev1, main]
+  workflow_dispatch:
 
 concurrency:
   group: deploy-ec2-${{ github.ref }}
@@ -20,28 +21,12 @@ jobs:
           ssh-private-key: ${{ secrets.EC2_SSH_KEY }}
 
       - name: Execute Remote Deploy on EC2
+        env:
+          RAW_HOST: ${{ secrets.EC2_HOST }}
+          RAW_USER: ${{ secrets.EC2_USER }}
+          BRANCH_NAME: ${{ github.ref_name }}
         run: |
-          ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null ${{ secrets.EC2_USER || 'ubuntu' }}@${{ secrets.EC2_HOST }} '
-            set -e
-            export PATH=$PATH:/home/ubuntu/.local/share/pnpm:/usr/local/bin:/usr/bin:/bin
-            export NVM_DIR="$HOME/.nvm"
-            [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
-
-            echo "🚀 [1/5] Moving to project directory..."
-            cd /home/ubuntu/quizz-app
-
-            echo "📥 [2/5] Fetching latest changes for branch: ${{ github.ref_name }}..."
-            git fetch origin ${{ github.ref_name }}
-            git reset --hard origin/${{ github.ref_name }}
-
-            echo "📦 [3/5] Installing dependencies with cached store..."
-            pnpm install --frozen-lockfile --prefer-offline
-
-            echo "⚡ [4/5] Building applications with Turborepo..."
-            pnpm turbo run build
-
-            echo "🔄 [5/5] Performing Zero-Downtime PM2 reload..."
-            pm2 reload ecosystem.config.js --update-env || pm2 restart ecosystem.config.js --update-env
-
-            echo "✅ Deployment completed successfully!"
-          '
+          TARGET_HOST=$(echo "$RAW_HOST" | tr -d '[:space:]')
+          TARGET_USER=$(echo "$RAW_USER" | tr -d '[:space:]')
+          TARGET_USER="${TARGET_USER:-ubuntu}"
+          ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null "${TARGET_USER}@${TARGET_HOST}" "bash /home/ubuntu/quizz-app/scripts/deploy.sh ${BRANCH_NAME}"
