@@ -1,7 +1,7 @@
 'use client';
 
 import * as React from 'react';
-import { useOrganization } from '@clerk/nextjs';
+import { useAuth, useOrganization } from '@clerk/nextjs';
 import { createColumnHelper } from '@tanstack/react-table';
 import { Check, Plus, Trash2, X } from 'lucide-react';
 import { toast } from 'sonner';
@@ -56,6 +56,7 @@ export function ClassMembersTab({
   isLoading = false,
   onAddMember,
 }: ClassMembersTabProps) {
+  const { userId } = useAuth();
   const [subTab, setSubTab] = React.useState<'active' | 'pending'>('active');
   const [activeSearch, setActiveSearch] = React.useState('');
   const debouncedActiveSearch = useDebounce(activeSearch, 300);
@@ -68,6 +69,7 @@ export function ClassMembersTab({
 
   const classId = classItem.id || classItem._id || '';
   const isArchived = classItem.status === ClassStatus.ARCHIVED;
+  const isOwner = Boolean(userId && classItem.ownerId === userId);
 
   const { memberships } = useOrganization({ memberships: { infinite: true } });
 
@@ -190,16 +192,17 @@ export function ClassMembersTab({
             </Badge>
           ),
         }),
+
         memberColumnHelper.display({
           id: 'actions',
           cell: ({ row }) =>
-            !isArchived ? (
+            isOwner && !isArchived ? (
               <div className="flex justify-end">
                 <Button
                   variant="ghost"
                   size="sm"
                   onClick={() => setMemberToRemove(row.original)}
-                  className="h-7 px-2 text-destructive hover:text-destructive hover:bg-destructive/10"
+                  className="h-7 px-2 text-destructive hover:text-destructive hover:bg-destructive/10 cursor-pointer"
                 >
                   <Trash2 className="h-3.5 w-3.5" />
                   <span className="sr-only">Remove member</span>
@@ -208,7 +211,7 @@ export function ClassMembersTab({
             ) : null,
         }),
       ]),
-    [isArchived],
+    [isArchived, isOwner],
   );
 
   // Pending members columns definition using DataTable column helper
@@ -238,9 +241,11 @@ export function ClassMembersTab({
             </Badge>
           ),
         }),
+
         memberColumnHelper.display({
           id: 'actions',
           cell: ({ row }) => {
+            if (!isOwner || isArchived) return null;
             const member = row.original;
             return (
               <div className="flex items-center justify-end gap-2">
@@ -249,7 +254,7 @@ export function ClassMembersTab({
                   variant="outline"
                   onClick={() => handleReject(member.userId)}
                   disabled={rejectMutation.isPending || approveMutation.isPending}
-                  className="h-7 gap-1 px-2.5 text-xs text-destructive hover:bg-destructive/10 border-destructive/30"
+                  className="h-7 gap-1 px-2.5 text-xs text-destructive hover:bg-destructive/10 border-destructive/30 cursor-pointer"
                 >
                   <X className="h-3.5 w-3.5" />
                   <span>Reject</span>
@@ -258,7 +263,7 @@ export function ClassMembersTab({
                   size="sm"
                   onClick={() => handleApprove(member.userId)}
                   disabled={approveMutation.isPending || rejectMutation.isPending}
-                  className="h-7 gap-1 px-2.5 text-xs bg-emerald-600 hover:bg-emerald-700 text-white"
+                  className="h-7 gap-1 px-2.5 text-xs bg-emerald-600 hover:bg-emerald-700 text-white cursor-pointer"
                 >
                   <Check className="h-3.5 w-3.5" />
                   <span>Approve</span>
@@ -268,7 +273,7 @@ export function ClassMembersTab({
           },
         }),
       ]),
-    [approveMutation.isPending, rejectMutation.isPending],
+    [approveMutation.isPending, isArchived, isOwner, rejectMutation.isPending],
   );
 
   return (
@@ -314,7 +319,7 @@ export function ClassMembersTab({
           </button>
         </div>
 
-        {subTab === 'active' && !isArchived && (
+        {subTab === 'active' && isOwner && !isArchived && (
           <Button size="sm" onClick={onAddMember} className="gap-1.5 h-8 text-xs shadow-2xs">
             <Plus className="h-3.5 w-3.5" />
             <span>Add Member</span>

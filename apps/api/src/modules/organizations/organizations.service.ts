@@ -37,6 +37,8 @@ export class OrganizationsService {
       });
 
       if (clerkOrgs?.data) {
+        const activeClerkIds = clerkOrgs.data.map((o) => o.id);
+
         for (const org of clerkOrgs.data) {
           await this.organizationModel.findOneAndUpdate(
             { _id: org.id },
@@ -55,6 +57,13 @@ export class OrganizationsService {
               },
             },
             { upsert: true, returnDocument: 'after', setDefaultsOnInsert: true },
+          );
+        }
+
+        if (!search || !search.trim()) {
+          await this.organizationModel.updateMany(
+            { _id: { $nin: activeClerkIds }, status: 'active' },
+            { $set: { status: 'deleted', deletedAt: new Date() } },
           );
         }
       }

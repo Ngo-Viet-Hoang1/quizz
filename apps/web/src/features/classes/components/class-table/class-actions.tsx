@@ -2,6 +2,7 @@
 
 import * as React from 'react';
 import Link from 'next/link';
+import { useAuth } from '@clerk/nextjs';
 import { Archive, Eye, MoreHorizontal, Pencil } from 'lucide-react';
 import { Button } from '@/shared/ui/button';
 import {
@@ -20,8 +21,10 @@ interface ClassRowActionsProps {
 }
 
 export function ClassRowActions({ classItem, onEdit, onArchive }: ClassRowActionsProps) {
+  const { userId } = useAuth();
   const classId = classItem.id || classItem._id;
   const isArchived = classItem.status === ClassStatus.ARCHIVED;
+  const isOwner = Boolean(userId && classItem.ownerId === userId);
 
   return (
     <DropdownMenu>
@@ -38,12 +41,12 @@ export function ClassRowActions({ classItem, onEdit, onArchive }: ClassRowAction
           render={
             <Link href={`/classes/${classId}`} className="flex items-center gap-2 cursor-pointer">
               <Eye className="h-4 w-4 text-muted-foreground" />
-              <span>View Details</span>
+              <span>{isOwner ? 'Manage' : 'View Details'}</span>
             </Link>
           }
         />
 
-        {onEdit && (
+        {isOwner && onEdit && (
           <DropdownMenuItem
             onClick={() => onEdit(classItem)}
             className="flex items-center gap-2 cursor-pointer"
@@ -53,7 +56,7 @@ export function ClassRowActions({ classItem, onEdit, onArchive }: ClassRowAction
           </DropdownMenuItem>
         )}
 
-        {!isArchived && onArchive && (
+        {isOwner && !isArchived && onArchive && (
           <>
             <DropdownMenuSeparator />
             <DropdownMenuItem
