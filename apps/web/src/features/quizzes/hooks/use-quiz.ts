@@ -22,6 +22,17 @@ export function useQuizzes(params?: QuizQueryParams) {
   });
 }
 
+export function useQuizzesPaginated(params?: QuizQueryParams) {
+  const { isLoaded, orgId } = useAuth();
+  const api = useQuizApi();
+
+  return useQuery({
+    queryKey: quizKeys.list(params),
+    queryFn: () => api.getQuizzesPaginated(params),
+    enabled: isLoaded && Boolean(orgId),
+  });
+}
+
 export function useInfiniteQuizzes(params?: Omit<QuizQueryParams, 'page'>) {
   const { isLoaded, orgId } = useAuth();
   const api = useQuizApi();

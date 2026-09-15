@@ -5,6 +5,7 @@ import {
   ColumnDef,
   ColumnFiltersState,
   ColumnVisibilityState,
+  PaginationState,
   RowData,
   RowSelectionState,
   SortingState,
@@ -34,6 +35,8 @@ interface DataTableProps<TData extends RowData> {
   onFilterChange?: (value: string) => void;
   statusFilterColumnId?: string;
   serverPagination?: PaginationMeta;
+  page?: number;
+  pageSize?: number;
   onPageChange?: (page: number) => void;
   onPageSizeChange?: (pageSize: number) => void;
   pageSizeOptions?: number[];
@@ -58,6 +61,8 @@ export function DataTable<TData extends RowData>({
   onFilterChange: controlledOnFilterChange,
   statusFilterColumnId,
   serverPagination,
+  page: controlledPage,
+  pageSize: controlledPageSize,
   onPageChange,
   onPageSizeChange,
   pageSizeOptions,
@@ -70,6 +75,10 @@ export function DataTable<TData extends RowData>({
   const [columnVisibility, setColumnVisibility] = React.useState<ColumnVisibilityState>({});
   const [rowSelection, setRowSelection] = React.useState<RowSelectionState>({});
   const [internalFilter, setInternalFilter] = React.useState('ALL');
+  const [internalPagination, setInternalPagination] = React.useState<PaginationState>({
+    pageIndex: 0,
+    pageSize: 10,
+  });
 
   const currentFilter = controlledActiveFilter ?? internalFilter;
   const handleFilterChange = (val: string) => {
@@ -87,6 +96,18 @@ export function DataTable<TData extends RowData>({
     onSortChange?.(nextSorting);
   };
 
+  const paginationState = React.useMemo<PaginationState>(() => {
+    if (serverPagination || controlledPage !== undefined || controlledPageSize !== undefined) {
+      const activePage = controlledPage ?? serverPagination?.page ?? 1;
+      const activePageSize = controlledPageSize ?? serverPagination?.limit ?? 10;
+      return {
+        pageIndex: Math.max(0, activePage - 1),
+        pageSize: activePageSize,
+      };
+    }
+    return internalPagination;
+  }, [serverPagination, controlledPage, controlledPageSize, internalPagination]);
+
   const table = useTable({
     features,
     data,
@@ -99,11 +120,13 @@ export function DataTable<TData extends RowData>({
     onColumnFiltersChange: setColumnFilters,
     onColumnVisibilityChange: setColumnVisibility,
     onRowSelectionChange: setRowSelection,
+    onPaginationChange: setInternalPagination,
     state: {
       sorting: internalSorting,
       columnFilters,
       columnVisibility,
       rowSelection,
+      pagination: paginationState,
     },
   });
 

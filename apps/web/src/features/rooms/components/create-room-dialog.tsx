@@ -67,9 +67,13 @@ export function CreateRoomDialog({ open, onOpenChange }: CreateRoomDialogProps) 
         onOpenChange(false);
         router.push(`/room/host?pin=${res.pin}`);
       }
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Failed to create live room:', error);
-      toast.error('Failed to create live room');
+      const msg =
+        error instanceof Error
+          ? error.message
+          : (error as { message?: string })?.message || 'Failed to create live room';
+      toast.error(msg);
     } finally {
       setIsSubmitting(false);
     }

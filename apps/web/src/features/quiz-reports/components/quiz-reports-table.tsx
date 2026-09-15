@@ -78,6 +78,8 @@ export function QuizReportsTable() {
           setPage(1);
         }}
         serverPagination={meta}
+        page={page}
+        pageSize={pageSize}
         onPageChange={setPage}
         onPageSizeChange={(newSize) => {
           setPageSize(newSize);

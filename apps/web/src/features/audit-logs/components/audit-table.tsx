@@ -80,6 +80,8 @@ export function AuditTable() {
           setPage(1);
         }}
         serverPagination={meta}
+        page={page}
+        pageSize={pageSize}
         onPageChange={(nextPage) => setPage(nextPage)}
         onPageSizeChange={(nextSize) => {
           setPageSize(nextSize);

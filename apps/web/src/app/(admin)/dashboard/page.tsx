@@ -442,6 +442,8 @@ export default function Home() {
             isLoading={isLoading}
             skeletonRowCount={limit}
             serverPagination={paginationMeta}
+            page={page}
+            pageSize={limit}
             onPageChange={(newPage) => setPage(newPage)}
             onPageSizeChange={(newLimit) => {
               setLimit(newLimit);

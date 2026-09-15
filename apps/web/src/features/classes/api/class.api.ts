@@ -28,6 +28,8 @@ export const classKeys = {
 
 export const createClassApi = (client = apiClient) => ({
   getClasses: (params?: ClassQueryParams) => client.get<ClassItem[]>('/classes', { params }),
+  getClassesPaginated: (params?: ClassQueryParams) =>
+    client.getPaginated<ClassItem[]>('/classes', { params }),
   getClassById: (id: string) => client.get<ClassItem>(`/classes/${id}`),
   createClass: (data: CreateClassInput) => client.post<ClassItem>('/classes', data),
   updateClass: (id: string, data: UpdateClassInput) =>

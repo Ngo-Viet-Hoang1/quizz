@@ -10,7 +10,8 @@ export default async function QuizzesPage() {
   try {
     await queryClient.prefetchQuery({
       queryKey: quizKeys.list(DEFAULT_QUIZ_PARAMS),
-      queryFn: () => serverApiClient.get<QuizItem[]>('/quizzes', { params: DEFAULT_QUIZ_PARAMS }),
+      queryFn: () =>
+        serverApiClient.getPaginated<QuizItem[]>('/quizzes', { params: DEFAULT_QUIZ_PARAMS }),
     });
   } catch (error) {
     console.error('[QuizzesPage] Failed to prefetch quizzes on server:', error);

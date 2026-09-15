@@ -21,6 +21,7 @@ import { Model, Types } from 'mongoose';
 import { PaginationQueryDto } from '../../../common/dto/pagination-query.dto';
 import { paginate, PaginateResult } from '../../../common/utils/paginate.util';
 import { Quiz, QuizDocument } from '../../quiz/schemas/quiz.schema';
+import { QuizVisibility } from '../../quiz/enums';
 import { QuizVersion, QuizVersionDocument } from '../../quiz/schemas/quiz-version.schema';
 import { QuizVersionService } from '../../quiz/quiz-version.service';
 import { RoomGateway } from '../room.gateway';
@@ -53,32 +54,37 @@ export class RoomService {
     quizVersion?: number,
     timeLimitSec?: number,
   ): Promise<RoomCreatedResponse> {
-    const query: { quizId: Types.ObjectId; organizationId: string; version?: number } = {
-      quizId: new Types.ObjectId(quizId),
-      organizationId: orgId,
-    };
+    const quizObjectId = new Types.ObjectId(quizId);
+
+    // 1. Resolve target snapshot version if exists
+    let targetVersion = null;
     if (quizVersion) {
-      query.version = quizVersion;
+      targetVersion = await this.quizVersionModel
+        .findOne({
+          quizId: quizObjectId,
+          version: quizVersion,
+        })
+        .sort({ version: -1 })
+        .lean()
+        .exec();
     }
 
-    let targetVersion = await this.quizVersionModel
-      .findOne(query)
-      .sort({ version: -1 })
-      .lean()
-      .exec();
-
-    // If no snapshot exists yet (e.g. Draft quiz), automatically freeze a snapshot version 1
     if (!targetVersion) {
-      if (quizVersion) {
-        throw new BadRequestException(
-          `Quiz version ${quizVersion} does not exist or is not published`,
-        );
-      }
+      targetVersion = await this.quizVersionModel
+        .findOne({
+          quizId: quizObjectId,
+        })
+        .sort({ version: -1 })
+        .lean()
+        .exec();
+    }
 
+    // 2. If no snapshot exists yet (e.g. Draft quiz), fallback to live Quiz document and auto-freeze snapshot
+    if (!targetVersion) {
       const quizDoc = await this.quizModel
         .findOne({
-          _id: new Types.ObjectId(quizId),
-          organizationId: orgId,
+          _id: quizObjectId,
+          $or: [{ organizationId: orgId }, { visibility: QuizVisibility.PUBLIC }],
           deletedAt: null,
         })
         .lean<Quiz>()
@@ -92,13 +98,12 @@ export class RoomService {
         throw new BadRequestException('Quiz has no questions to host a live room');
       }
 
-      const versionToFreeze = quizDoc.version || 1;
+      const versionToFreeze = quizDoc.version || quizVersion || 1;
       await this.quizVersionService.freezeSnapshot(quizDoc, versionToFreeze);
 
       targetVersion = await this.quizVersionModel
         .findOne({
-          quizId: new Types.ObjectId(quizId),
-          organizationId: orgId,
+          quizId: quizObjectId,
           version: versionToFreeze,
         })
         .lean()
