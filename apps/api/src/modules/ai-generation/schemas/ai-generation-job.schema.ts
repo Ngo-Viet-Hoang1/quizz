@@ -26,6 +26,12 @@ export class AiGenerationJob {
   @Prop({ required: true, type: Number })
   questionCount!: number;
 
+  @Prop({ type: Number, default: 0 })
+  completedCount?: number;
+
+  @Prop({ type: [MongooseSchema.Types.Mixed], default: [] })
+  generatedQuestions?: Array<Record<string, unknown>>;
+
   @Prop({ required: true, trim: true })
   model!: string;
 

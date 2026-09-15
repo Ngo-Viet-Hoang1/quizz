@@ -6,6 +6,7 @@ import { QuestionType, QuizDifficulty, QuizSourceType, QuizStatus } from '../../
 import { Quiz } from '../../quiz/schemas/quiz.schema';
 import { AiGenerationJobStatus } from '../enums';
 import { AiGenerationJobPayload } from '../interfaces';
+import { AiGeneratedQuestion } from '../provider/ai-provider.interface';
 import { ClaudeAiProviderService } from '../provider/claude-ai-provider.service';
 import { AiGenerationJob } from '../schemas';
 import { AiGenerationQuotaService } from '../services/ai-generation-quota.service';
@@ -124,6 +125,16 @@ describe('AiGenerationProcessor', () => {
             { content: 'Variable', isCorrect: false },
           ],
         },
+        {
+          content: 'What is an Interface?',
+          type: QuestionType.SINGLE_CHOICE,
+          points: 1,
+          explanation: 'Interfaces define contracts.',
+          options: [
+            { content: 'Contract', isCorrect: true },
+            { content: 'Class', isCorrect: false },
+          ],
+        },
       ],
       rawResponse: { id: 'msg_123' },
       inputTokens: 100,
@@ -154,6 +165,7 @@ describe('AiGenerationProcessor', () => {
       difficulty: payload.difficulty,
       model: payload.model,
       signal: expect.any(AbortSignal),
+      avoidTopicsOrQuestions: undefined,
     });
 
     // Verify Quiz Draft creation
@@ -175,6 +187,7 @@ describe('AiGenerationProcessor', () => {
         $set: expect.objectContaining({
           quizId: mockQuizInstance._id,
           status: AiGenerationJobStatus.COMPLETED,
+          completedCount: 2,
           inputTokens: 100,
           outputTokens: 200,
           costUsd: 0.00088,
@@ -250,5 +263,100 @@ describe('AiGenerationProcessor', () => {
 
     // Verify quota is RETAINED (NOT refunded) on intentional safety violation
     expect(quotaService.refundQuota).not.toHaveBeenCalled();
+  });
+
+  it('should split larger question requests into sub-batches of 5 and update job progress iteratively', async () => {
+    const multiPayload: AiGenerationJobPayload = {
+      ...payload,
+      questionCount: 12, // 12 questions = 5 + 5 + 2
+    };
+    const multiJob = {
+      ...mockJob,
+      data: multiPayload,
+    } as unknown as Job<AiGenerationJobPayload>;
+
+    jobModel.findOneAndUpdate.mockResolvedValue({
+      _id: multiPayload.jobId,
+      status: AiGenerationJobStatus.PROCESSING,
+    });
+
+    const createMockQ = (title: string): AiGeneratedQuestion => ({
+      content: title,
+      type: QuestionType.SINGLE_CHOICE,
+      points: 1,
+      options: [
+        { content: 'A', isCorrect: true },
+        { content: 'B', isCorrect: false },
+      ],
+    });
+
+    // Batch 1 (5 questions)
+    aiProvider.generateQuiz.mockResolvedValueOnce({
+      questions: [
+        createMockQ('Q1'),
+        createMockQ('Q2'),
+        createMockQ('Q3'),
+        createMockQ('Q4'),
+        createMockQ('Q5'),
+      ],
+      rawResponse: {},
+      inputTokens: 50,
+      outputTokens: 100,
+      costUsd: 0.0004,
+    });
+
+    // Batch 2 (5 questions)
+    aiProvider.generateQuiz.mockResolvedValueOnce({
+      questions: [
+        createMockQ('Q6'),
+        createMockQ('Q7'),
+        createMockQ('Q8'),
+        createMockQ('Q9'),
+        createMockQ('Q10'),
+      ],
+      rawResponse: {},
+      inputTokens: 50,
+      outputTokens: 100,
+      costUsd: 0.0004,
+    });
+
+    // Batch 3 (2 questions)
+    aiProvider.generateQuiz.mockResolvedValueOnce({
+      questions: [createMockQ('Q11'), createMockQ('Q12')],
+      rawResponse: {},
+      inputTokens: 20,
+      outputTokens: 40,
+      costUsd: 0.0002,
+    });
+
+    await processor.process(multiJob);
+
+    // AI should be called 3 times (5, 5, 2)
+    expect(aiProvider.generateQuiz).toHaveBeenCalledTimes(3);
+
+    // Final quiz should have 12 questions
+    expect(quizModel).toHaveBeenCalledWith(
+      expect.objectContaining({
+        questionCount: 12,
+        questions: expect.arrayContaining([
+          expect.objectContaining({ content: 'Q1' }),
+          expect.objectContaining({ content: 'Q12' }),
+        ]),
+      }),
+    );
+
+    // Final job update with completedCount: 12 and accumulated metrics
+    expect(jobModel.updateOne).toHaveBeenCalledWith(
+      { _id: multiPayload.jobId },
+      expect.objectContaining({
+        $set: expect.objectContaining({
+          status: AiGenerationJobStatus.COMPLETED,
+          completedCount: 12,
+          inputTokens: 120,
+          outputTokens: 240,
+          costUsd: 0.001,
+        }),
+      }),
+    );
   });
 });

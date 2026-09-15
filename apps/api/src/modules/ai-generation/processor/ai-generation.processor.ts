@@ -9,6 +9,7 @@ import { QuizDifficulty, QuizSourceType, QuizStatus, QuizVisibility } from '../.
 import { Quiz, QuizDocument } from '../../quiz/schemas/quiz.schema';
 import { AiGenerationJobStatus } from '../enums';
 import { AiGenerationJobPayload } from '../interfaces';
+import { AiGeneratedQuestion } from '../provider/ai-provider.interface';
 import { ClaudeAiProviderService } from '../provider/claude-ai-provider.service';
 import { AiGenerationJob, AiGenerationJobDocument } from '../schemas';
 import { AiGenerationQuotaService } from '../services/ai-generation-quota.service';
@@ -48,15 +49,54 @@ export class AiGenerationProcessor extends BullMqWorkerBase {
     }
 
     try {
-      // 2. Call AI Provider using Parameter Object Pattern
-      const aiResult = await this.aiProvider.generateQuiz({
-        topic,
-        questionCount,
-        questionType,
-        difficulty,
-        model,
-        signal,
-      });
+      const BATCH_SIZE = 5;
+      const targetCount = questionCount > 0 ? questionCount : 5;
+      const accumulatedQuestions: AiGeneratedQuestion[] = [];
+      let totalInputTokens = 0;
+      let totalOutputTokens = 0;
+      let totalCostUsd = 0;
+      let lastRawResponse: Record<string, unknown> | null = null;
+
+      while (accumulatedQuestions.length < targetCount) {
+        if (signal?.aborted) {
+          throw new Error('Claude API request was aborted (job timeout or cancellation)');
+        }
+
+        const remainingCount = targetCount - accumulatedQuestions.length;
+        const currentBatchCount = Math.min(BATCH_SIZE, remainingCount);
+        const avoidList = accumulatedQuestions.map((q) => q.content);
+
+        this.logger.log(
+          `Job ${jobId}: generating batch of ${currentBatchCount} questions (${accumulatedQuestions.length}/${targetCount} completed)...`,
+        );
+
+        const aiResult = await this.aiProvider.generateQuiz({
+          topic,
+          questionCount: currentBatchCount,
+          questionType,
+          difficulty,
+          model,
+          signal,
+          avoidTopicsOrQuestions: avoidList.length > 0 ? avoidList : undefined,
+        });
+
+        accumulatedQuestions.push(...aiResult.questions);
+        totalInputTokens += aiResult.inputTokens ?? 0;
+        totalOutputTokens += aiResult.outputTokens ?? 0;
+        totalCostUsd += aiResult.costUsd ?? 0;
+        lastRawResponse = aiResult.rawResponse ?? null;
+
+        // Progressive update so client polling reflects real-time status & preview
+        await this.jobModel.updateOne(
+          { _id: jobId },
+          {
+            $set: {
+              completedCount: accumulatedQuestions.length,
+              generatedQuestions: accumulatedQuestions,
+            },
+          },
+        );
+      }
 
       const quizDoc = new this.quizModel({
         organizationId,
@@ -66,8 +106,8 @@ export class AiGenerationProcessor extends BullMqWorkerBase {
         sourceType: QuizSourceType.AI_GENERATED,
         visibility: QuizVisibility.PRIVATE,
         status: QuizStatus.DRAFT,
-        questions: aiResult.questions,
-        questionCount: aiResult.questions?.length ?? 0,
+        questions: accumulatedQuestions,
+        questionCount: accumulatedQuestions.length,
       });
       const savedQuiz = await quizDoc.save();
 
@@ -78,16 +118,20 @@ export class AiGenerationProcessor extends BullMqWorkerBase {
           $set: {
             quizId: savedQuiz._id,
             status: AiGenerationJobStatus.COMPLETED,
-            rawResponse: aiResult.rawResponse,
-            inputTokens: aiResult.inputTokens,
-            outputTokens: aiResult.outputTokens,
-            costUsd: aiResult.costUsd,
+            completedCount: accumulatedQuestions.length,
+            generatedQuestions: accumulatedQuestions,
+            rawResponse: lastRawResponse,
+            inputTokens: totalInputTokens,
+            outputTokens: totalOutputTokens,
+            costUsd: totalCostUsd,
             completedAt: new Date(),
           },
         },
       );
 
-      this.logger.log(`Job ${jobId} completed successfully. Created quiz draft ${savedQuiz._id}`);
+      this.logger.log(
+        `Job ${jobId} completed successfully with ${accumulatedQuestions.length} questions. Created quiz draft ${savedQuiz._id}`,
+      );
     } catch (err: unknown) {
       const errorMsg = err instanceof Error ? err.message : String(err);
       this.logger.error(`Job ${jobId} failed: ${errorMsg}`);

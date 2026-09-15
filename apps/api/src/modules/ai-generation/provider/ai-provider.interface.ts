@@ -28,6 +28,7 @@ export interface GenerateQuizOptions {
   difficulty: QuizDifficulty;
   model?: string;
   signal?: AbortSignal;
+  avoidTopicsOrQuestions?: string[];
 }
 
 export interface IAiProvider {
