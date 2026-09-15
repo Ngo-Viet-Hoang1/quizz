@@ -50,7 +50,7 @@ services:
 
   # Optional - auto create "quiz-assets" bucket on first `docker compose up`.
   minio-init:
-    image: minio/mc:latest
+    image: quay.io/minio/mc:latest
     container_name: quiz-minio-init
     depends_on:
       minio:
@@ -63,7 +63,26 @@ services:
       echo 'MinIO bucket quiz-assets ready.'
       "
 
+  prometheus:
+    image: prom/prometheus:v2.54.0
+    ports: ['9090:9090']
+    volumes:
+      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.retention.time=7d'
+
+  grafana:
+    image: grafana/grafana:11.2.0
+    ports: ['3001:3000']
+    environment:
+      GF_SECURITY_ADMIN_PASSWORD: admin
+      GF_AUTH_ANONYMOUS_ENABLED: 'true'
+    volumes:
+      - grafana_data:/var/lib/grafana
+
 volumes:
   mongo_data:
   redis_data:
   minio_data:
+  grafana_data:

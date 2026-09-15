@@ -26,7 +26,9 @@ async function bootstrap(): Promise<void> {
   });
   app.getHttpAdapter().getInstance().set('trust proxy', 1);
 
-  app.setGlobalPrefix('api/v1');
+  app.setGlobalPrefix('api/v1', {
+    exclude: ['metrics'],
+  });
 
   const logger = app.get(Logger);
   app.useLogger(logger);
