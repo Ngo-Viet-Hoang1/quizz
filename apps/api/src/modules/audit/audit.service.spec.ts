@@ -8,6 +8,7 @@ describe('AuditService', () => {
   let service: AuditService;
   let mockAuditLogModel: {
     create: jest.Mock;
+    insertMany: jest.Mock;
     find: jest.Mock;
     countDocuments: jest.Mock;
   };
@@ -28,6 +29,7 @@ describe('AuditService', () => {
   beforeEach(async () => {
     mockAuditLogModel = {
       create: jest.fn(),
+      insertMany: jest.fn().mockResolvedValue([]),
       find: jest.fn().mockReturnValue(mockQueryChain),
       countDocuments: jest.fn().mockReturnValue(mockCountExec),
     };
@@ -45,13 +47,17 @@ describe('AuditService', () => {
     service = module.get<AuditService>(AuditService);
   });
 
+  afterEach(async () => {
+    await service.onModuleDestroy();
+  });
+
   it('should be defined', () => {
     expect(service).toBeDefined();
   });
 
   describe('log', () => {
-    it('should create audit log with derived resourceType and timestamp', async () => {
-      mockAuditLogModel.create.mockResolvedValueOnce({});
+    it('should buffer audit log and flush to insertMany with derived resourceType and timestamp', async () => {
+      mockAuditLogModel.insertMany.mockResolvedValueOnce([]);
 
       await service.log({
         action: 'quiz.delete',
@@ -64,27 +70,36 @@ describe('AuditService', () => {
         statusCode: 200,
       });
 
-      expect(mockAuditLogModel.create).toHaveBeenCalledWith({
-        action: 'quiz.delete',
-        resourceType: 'quiz',
-        resourceId: 'quiz_123',
-        userId: 'user_456',
-        orgId: 'org_789',
-        ip: '127.0.0.1',
-        userAgent: 'Mozilla/5.0',
-        traceId: 'trace_abc',
-        statusCode: 200,
-        timestamp: expect.any(Date),
-      });
+      await (service as unknown as { flushBuffer: () => Promise<void> }).flushBuffer();
+
+      expect(mockAuditLogModel.insertMany).toHaveBeenCalledWith(
+        [
+          expect.objectContaining({
+            action: 'quiz.delete',
+            resourceType: 'quiz',
+            resourceId: 'quiz_123',
+            userId: 'user_456',
+            orgId: 'org_789',
+            ip: '127.0.0.1',
+            userAgent: 'Mozilla/5.0',
+            traceId: 'trace_abc',
+            statusCode: 200,
+            timestamp: expect.any(Date),
+          }),
+        ],
+        { ordered: false },
+      );
     });
 
-    it('should catch error and not throw when model.create fails', async () => {
-      mockAuditLogModel.create.mockRejectedValueOnce(new Error('DB connection failed'));
+    it('should catch error and not throw when model.insertMany fails', async () => {
+      mockAuditLogModel.insertMany.mockRejectedValueOnce(new Error('DB connection failed'));
+
+      await service.log({
+        action: 'quiz.delete',
+      });
 
       await expect(
-        service.log({
-          action: 'quiz.delete',
-        }),
+        (service as unknown as { flushBuffer: () => Promise<void> }).flushBuffer(),
       ).resolves.not.toThrow();
     });
   });

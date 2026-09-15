@@ -1,5 +1,8 @@
 import { getModelToken } from '@nestjs/mongoose';
 import { Test, TestingModule } from '@nestjs/testing';
+import { CLERK_CLIENT } from '../../common/clerk/clerk-client.provider';
+import { OrganizationMembersService } from '../organization-members/organization-members.service';
+import { UsersService } from '../users/users.service';
 import { OrganizationsService } from './organizations.service';
 import { Organization } from './schemas/organization.schema';
 
@@ -8,12 +11,41 @@ describe('OrganizationsService', () => {
   let mockOrganizationModel: {
     findOne: jest.Mock;
     findOneAndUpdate: jest.Mock;
+    find: jest.Mock;
+  };
+  let mockClerkClient: {
+    organizations: {
+      getOrganizationList: jest.Mock;
+      createOrganizationMembership: jest.Mock;
+    };
+  };
+  let mockOrgMembersService: {
+    syncMember: jest.Mock;
+  };
+  let mockUsersService: {
+    addOrganization: jest.Mock;
   };
 
   beforeEach(async () => {
     mockOrganizationModel = {
       findOne: jest.fn(),
       findOneAndUpdate: jest.fn(),
+      find: jest.fn(),
+    };
+
+    mockClerkClient = {
+      organizations: {
+        getOrganizationList: jest.fn(),
+        createOrganizationMembership: jest.fn(),
+      },
+    };
+
+    mockOrgMembersService = {
+      syncMember: jest.fn(),
+    };
+
+    mockUsersService = {
+      addOrganization: jest.fn(),
     };
 
     const module: TestingModule = await Test.createTestingModule({
@@ -22,6 +54,18 @@ describe('OrganizationsService', () => {
         {
           provide: getModelToken(Organization.name),
           useValue: mockOrganizationModel,
+        },
+        {
+          provide: CLERK_CLIENT,
+          useValue: mockClerkClient,
+        },
+        {
+          provide: OrganizationMembersService,
+          useValue: mockOrgMembersService,
+        },
+        {
+          provide: UsersService,
+          useValue: mockUsersService,
         },
       ],
     }).compile();
@@ -77,7 +121,7 @@ describe('OrganizationsService', () => {
           deletedAt: null,
         },
       },
-      { upsert: true, returnDocument: 'after', setDefaultsOnInsert: true },
+      { upsert: true, new: true, setDefaultsOnInsert: true },
     );
   });
 
