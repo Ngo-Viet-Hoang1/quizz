@@ -36,11 +36,19 @@ export default function StudentClassesPage() {
   const allClasses: IClass[] = allResponse?.data ?? [];
   const browseTotalPages = allResponse?.meta?.totalPages ?? 1;
 
+  const [joiningClassId, setJoiningClassId] = useState<string | null>(null);
   const joinMutation = useJoinClass();
   const handleJoin = (classId: string) => {
+    setJoiningClassId(classId);
     joinMutation.mutate(classId, {
-      onSuccess: () => toast.success('Join request sent! Waiting for teacher approval.'),
-      onError: (err) => toast.error(err.message || 'Failed to send join request.'),
+      onSuccess: () => {
+        toast.success('Yêu cầu tham gia đã được gửi! Đang chờ giáo viên duyệt.');
+        setJoiningClassId(null);
+      },
+      onError: (err) => {
+        toast.error(err.message || 'Không thể gửi yêu cầu tham gia.');
+        setJoiningClassId(null);
+      },
     });
   };
 
@@ -165,7 +173,7 @@ export default function StudentClassesPage() {
                   cls={cls}
                   enrolledClasses={enrolledClasses}
                   onJoin={handleJoin}
-                  isJoining={joinMutation.isPending}
+                  isJoining={joiningClassId === cls._id}
                 />
               ))}
             </div>

@@ -12,6 +12,7 @@ interface DashboardEnrolledClassesProps {
   isLoading: boolean;
   onJoinClass?: (classId: string) => void;
   isJoining?: boolean;
+  joiningClassId?: string | null;
 }
 
 export function DashboardEnrolledClasses({
@@ -19,6 +20,7 @@ export function DashboardEnrolledClasses({
   isLoading,
   onJoinClass,
   isJoining,
+  joiningClassId,
 }: DashboardEnrolledClassesProps) {
   return (
     <div className="space-y-4">
@@ -57,7 +59,12 @@ export function DashboardEnrolledClasses({
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
           {classes.slice(0, 3).map((cls) => (
-            <ClassCard key={cls._id} cls={cls} onJoin={onJoinClass} isJoining={isJoining} />
+            <ClassCard
+              key={cls._id}
+              cls={cls}
+              onJoin={onJoinClass}
+              isJoining={isJoining || joiningClassId === cls._id}
+            />
           ))}
         </div>
       )}

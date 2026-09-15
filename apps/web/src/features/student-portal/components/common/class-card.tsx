@@ -1,10 +1,11 @@
 'use client';
 
+import * as React from 'react';
 import type { IClass } from '@/features/student-portal/types';
 import { Badge } from '@/shared/ui/badge';
 import { Button } from '@/shared/ui/button';
 import { Card, CardContent } from '@/shared/ui/card';
-import { CheckCircle2 } from 'lucide-react';
+import { CheckCircle2, Clock, Loader2 } from 'lucide-react';
 import Link from 'next/link';
 
 interface ClassCardProps {
@@ -16,6 +17,8 @@ interface ClassCardProps {
 }
 
 export function ClassCard({ cls, enrolledClasses = [], onJoin, isJoining }: ClassCardProps) {
+  const [hasRequestedJoin, setHasRequestedJoin] = React.useState(false);
+
   const isEnrolled =
     cls.membershipStatus === 'active' ||
     enrolledClasses.some(
@@ -25,10 +28,17 @@ export function ClassCard({ cls, enrolledClasses = [], onJoin, isJoining }: Clas
     );
 
   const isPending =
+    hasRequestedJoin ||
     cls.membershipStatus === 'pending' ||
     enrolledClasses.some(
       (e) => String(e._id) === String(cls._id) && e.membershipStatus === 'pending',
     );
+
+  const handleJoinClick = () => {
+    if (isPending || isEnrolled || isJoining) return;
+    setHasRequestedJoin(true);
+    onJoin?.(cls._id);
+  };
 
   return (
     <Card className="rounded-2xl border border-border/70 hover:border-sky-500/40 hover:shadow-sm transition-all overflow-hidden flex flex-col group p-0 bg-card">
@@ -42,8 +52,8 @@ export function ClassCard({ cls, enrolledClasses = [], onJoin, isJoining }: Clas
           </Badge>
         )}
         {isPending && !isEnrolled && (
-          <Badge className="bg-amber-500/15 text-amber-700 dark:text-amber-400 border-amber-500/30 text-[10px] font-bold">
-            Pending
+          <Badge className="bg-amber-500/15 text-amber-700 dark:text-amber-400 border-amber-500/30 text-[10px] font-bold flex items-center gap-1">
+            <Clock className="size-3" /> Đang chờ duyệt
           </Badge>
         )}
       </div>
@@ -69,24 +79,32 @@ export function ClassCard({ cls, enrolledClasses = [], onJoin, isJoining }: Clas
 
         {/* Action button */}
         <div className="pt-3 border-t border-border/50">
-          {isPending ? (
-            <Button
-              disabled
-              className="w-full h-9 rounded-xl font-semibold text-xs opacity-60 bg-muted text-muted-foreground"
-            >
-              Pending Approval
-            </Button>
-          ) : isEnrolled ? (
+          {isEnrolled ? (
             <Link href={`/student/classes/${cls._id}`} className="block w-full">
-              <Button className="w-full h-9 rounded-xl font-semibold text-xs bg-sky-600 hover:bg-sky-700 text-white shadow-xs transition-all">
+              <Button className="w-full h-9 rounded-xl font-semibold text-xs bg-sky-600 hover:bg-sky-700 text-white shadow-xs transition-all cursor-pointer">
                 Open Class
               </Button>
             </Link>
+          ) : isPending ? (
+            <Button
+              disabled
+              className="w-full h-9 rounded-xl font-semibold text-xs bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/30 cursor-not-allowed flex items-center justify-center gap-1.5 opacity-90"
+            >
+              <Clock className="size-3.5" />
+              <span>Đang chờ duyệt</span>
+            </Button>
+          ) : isJoining ? (
+            <Button
+              disabled
+              className="w-full h-9 rounded-xl font-semibold text-xs bg-sky-600/70 text-white shadow-xs transition-all cursor-not-allowed flex items-center justify-center gap-1.5"
+            >
+              <Loader2 className="size-3.5 animate-spin" />
+              <span>Đang gửi yêu cầu...</span>
+            </Button>
           ) : (
             <Button
-              disabled={isJoining}
-              onClick={() => onJoin?.(cls._id)}
-              className="w-full h-9 rounded-xl font-semibold text-xs bg-sky-600 hover:bg-sky-700 text-white shadow-xs transition-all"
+              onClick={handleJoinClick}
+              className="w-full h-9 rounded-xl font-semibold text-xs bg-sky-600 hover:bg-sky-700 text-white shadow-xs transition-all cursor-pointer"
             >
               Join Class
             </Button>

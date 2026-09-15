@@ -17,6 +17,7 @@ import {
 } from '@/features/student-portal/components/dashboard';
 import type { IClass, IExamAttempt, IPublishedQuiz } from '@/features/student-portal/types';
 import { calculateScorePercentage } from '@/features/student-portal/utils/exam.utils';
+import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
 
@@ -30,19 +31,23 @@ export default function StudentDashboardPage() {
   });
   const { data: historyData } = useMyExamHistory({ limit: 5 });
 
+  const [joiningClassId, setJoiningClassId] = useState<string | null>(null);
   const joinClassMutation = useJoinClass();
   const startPracticeMutation = useStartPracticeQuiz();
 
   const handleJoinClass = async (code: string) => {
+    setJoiningClassId(code);
     try {
       await joinClassMutation.mutateAsync(code);
-      toast.success('Join request sent! Waiting for teacher approval.');
+      toast.success('Yêu cầu tham gia đã được gửi! Đang chờ giáo viên duyệt.');
     } catch (err: unknown) {
       const errorMsg =
         err instanceof Error
           ? err.message
-          : 'Invalid class code or you have already requested to join this class.';
+          : 'Mã lớp không hợp lệ hoặc bạn đã gửi yêu cầu tham gia lớp này rồi.';
       toast.error(errorMsg);
+    } finally {
+      setJoiningClassId(null);
     }
   };
 
@@ -88,7 +93,7 @@ export default function StudentDashboardPage() {
         classes={orgClasses.length > 0 ? orgClasses : enrolledClasses}
         isLoading={isAllClassesLoading}
         onJoinClass={handleJoinClass}
-        isJoining={joinClassMutation.isPending}
+        joiningClassId={joiningClassId}
       />
 
       <DashboardPublishedQuizzes
