@@ -41,6 +41,10 @@ export class AuditService implements OnModuleDestroy {
         this.logger.warn('Failed periodic audit log flush', err);
       });
     }, FLUSH_INTERVAL_MS);
+
+    if (this.flushTimer?.unref) {
+      this.flushTimer.unref();
+    }
   }
 
   async onModuleDestroy(): Promise<void> {
