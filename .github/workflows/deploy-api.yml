@@ -1,29 +1,47 @@
-name: Deploy API
+name: CD - Deploy to AWS EC2
+
 on:
   push:
-    branches: [main]
+    branches: [dev1, main]
+
+concurrency:
+  group: deploy-ec2-${{ github.ref }}
+  cancel-in-progress: false
 
 jobs:
-  migrate-then-deploy:
-    name: Deploy API to Render
+  deploy:
+    name: Fast Zero-Downtime Deploy to EC2
     runs-on: ubuntu-latest
-    timeout-minutes: 15
-    environment: production
+    timeout-minutes: 10
     steps:
-      - uses: actions/checkout@v4
-      - uses: pnpm/action-setup@v4
-      - uses: actions/setup-node@v4
-        with: { node-version: '20', cache: 'pnpm' }
-      - run: pnpm install --frozen-lockfile
+      - name: Configure SSH Key
+        uses: webfactory/ssh-agent@v0.9.0
+        with:
+          ssh-private-key: ${{ secrets.EC2_SSH_KEY }}
 
-      - name: Run migration (production)
-        run: pnpm --filter @repo/api migrate:up
-        env:
-          MONGODB_URI: ${{ secrets.MONGO_PROD_URI }}
-
-      - name: Trigger Render Deploy
+      - name: Execute Remote Deploy on EC2
         run: |
-          curl -f -X POST "https://api.render.com/v1/services/${{ secrets.RENDER_SERVICE_ID }}/deploys" \
-            -H "Authorization: Bearer ${{ secrets.RENDER_API_KEY }}" \
-            -H "Accept: application/json" \
-            -H "Content-Type: application/json"
+          ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null ${{ secrets.EC2_USER || 'ubuntu' }}@${{ secrets.EC2_HOST }} '
+            set -e
+            export PATH=$PATH:/home/ubuntu/.local/share/pnpm:/usr/local/bin:/usr/bin:/bin
+            export NVM_DIR="$HOME/.nvm"
+            [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
+
+            echo "🚀 [1/5] Moving to project directory..."
+            cd /home/ubuntu/quizz-app
+
+            echo "📥 [2/5] Fetching latest changes for branch: ${{ github.ref_name }}..."
+            git fetch origin ${{ github.ref_name }}
+            git reset --hard origin/${{ github.ref_name }}
+
+            echo "📦 [3/5] Installing dependencies with cached store..."
+            pnpm install --frozen-lockfile --prefer-offline
+
+            echo "⚡ [4/5] Building applications with Turborepo..."
+            pnpm turbo run build
+
+            echo "🔄 [5/5] Performing Zero-Downtime PM2 reload..."
+            pm2 reload ecosystem.config.js --update-env || pm2 restart ecosystem.config.js --update-env
+
+            echo "✅ Deployment completed successfully!"
+          '
