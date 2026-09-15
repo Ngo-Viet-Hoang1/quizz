@@ -20,7 +20,9 @@ import {
 import { Model, Types } from 'mongoose';
 import { PaginationQueryDto } from '../../../common/dto/pagination-query.dto';
 import { paginate, PaginateResult } from '../../../common/utils/paginate.util';
+import { Quiz, QuizDocument } from '../../quiz/schemas/quiz.schema';
 import { QuizVersion, QuizVersionDocument } from '../../quiz/schemas/quiz-version.schema';
+import { QuizVersionService } from '../../quiz/quiz-version.service';
 import { RoomGateway } from '../room.gateway';
 import { LeaderboardEntry, RoomResult, RoomResultDocument } from '../schemas/room-result.schema';
 
@@ -33,7 +35,9 @@ export class RoomService {
   constructor(
     @Inject(CACHE_SERVICE) private readonly cacheService: ICacheService,
     @InjectModel(QuizVersion.name) private readonly quizVersionModel: Model<QuizVersionDocument>,
+    @InjectModel(Quiz.name) private readonly quizModel: Model<QuizDocument>,
     @InjectModel(RoomResult.name) private readonly roomResultModel: Model<RoomResultDocument>,
+    private readonly quizVersionService: QuizVersionService,
     @Inject(forwardRef(() => RoomGateway))
     @Optional()
     private readonly roomGateway?: RoomGateway,
@@ -57,18 +61,52 @@ export class RoomService {
       query.version = quizVersion;
     }
 
-    const targetVersion = await this.quizVersionModel
+    let targetVersion = await this.quizVersionModel
       .findOne(query)
       .sort({ version: -1 })
       .lean()
       .exec();
 
+    // If no snapshot exists yet (e.g. Draft quiz), automatically freeze a snapshot version 1
     if (!targetVersion) {
-      throw new BadRequestException(
-        quizVersion
-          ? `Quiz version ${quizVersion} does not exist or is not published`
-          : 'Quiz has no published versions',
-      );
+      if (quizVersion) {
+        throw new BadRequestException(
+          `Quiz version ${quizVersion} does not exist or is not published`,
+        );
+      }
+
+      const quizDoc = await this.quizModel
+        .findOne({
+          _id: new Types.ObjectId(quizId),
+          organizationId: orgId,
+          deletedAt: null,
+        })
+        .lean<Quiz>()
+        .exec();
+
+      if (!quizDoc) {
+        throw new NotFoundException(`Quiz with ID ${quizId} not found`);
+      }
+
+      if (!quizDoc.questions || quizDoc.questions.length === 0) {
+        throw new BadRequestException('Quiz has no questions to host a live room');
+      }
+
+      const versionToFreeze = quizDoc.version || 1;
+      await this.quizVersionService.freezeSnapshot(quizDoc, versionToFreeze);
+
+      targetVersion = await this.quizVersionModel
+        .findOne({
+          quizId: new Types.ObjectId(quizId),
+          organizationId: orgId,
+          version: versionToFreeze,
+        })
+        .lean()
+        .exec();
+    }
+
+    if (!targetVersion) {
+      throw new BadRequestException('Failed to initialize live room quiz snapshot');
     }
 
     let pin = this.generatePin();

@@ -1,11 +1,13 @@
-import { BadRequestException } from '@nestjs/common';
+import { BadRequestException, NotFoundException } from '@nestjs/common';
 import { getModelToken } from '@nestjs/mongoose';
 import { Test, TestingModule } from '@nestjs/testing';
 import { CACHE_SERVICE, ICacheService } from '@repo/cache';
 import { Types } from 'mongoose';
 import { PaginationQueryDto } from '../../../common/dto/pagination-query.dto';
 import { paginate } from '../../../common/utils/paginate.util';
+import { Quiz } from '../../quiz/schemas/quiz.schema';
 import { QuizVersion } from '../../quiz/schemas/quiz-version.schema';
+import { QuizVersionService } from '../../quiz/quiz-version.service';
 import { RoomResult } from '../schemas/room-result.schema';
 import { RoomService } from './room.service';
 
@@ -16,6 +18,12 @@ describe('RoomService', () => {
   let mockCacheService: jest.Mocked<ICacheService>;
   let mockQuizVersionModel: {
     findOne: jest.Mock;
+  };
+  let mockQuizModel: {
+    findOne: jest.Mock;
+  };
+  let mockQuizVersionService: {
+    freezeSnapshot: jest.Mock;
   };
   let mockRoomResultModel: {
     updateOne: jest.Mock;
@@ -40,6 +48,14 @@ describe('RoomService', () => {
       findOne: jest.fn(),
     };
 
+    mockQuizModel = {
+      findOne: jest.fn(),
+    };
+
+    mockQuizVersionService = {
+      freezeSnapshot: jest.fn().mockResolvedValue(undefined),
+    };
+
     mockRoomResultModel = {
       updateOne: jest.fn().mockResolvedValue({ acknowledged: true }),
       find: jest.fn(),
@@ -59,6 +75,14 @@ describe('RoomService', () => {
           useValue: mockQuizVersionModel,
         },
         {
+          provide: getModelToken(Quiz.name),
+          useValue: mockQuizModel,
+        },
+        {
+          provide: QuizVersionService,
+          useValue: mockQuizVersionService,
+        },
+        {
           provide: getModelToken(RoomResult.name),
           useValue: mockRoomResultModel,
         },
@@ -69,7 +93,7 @@ describe('RoomService', () => {
   });
 
   describe('createRoom', () => {
-    it('throws BadRequestException if quiz has no published version', async () => {
+    it('throws NotFoundException if quiz does not exist when auto-freezing draft', async () => {
       mockQuizVersionModel.findOne.mockReturnValue({
         sort: jest.fn().mockReturnValue({
           lean: jest.fn().mockReturnValue({
@@ -78,9 +102,103 @@ describe('RoomService', () => {
         }),
       });
 
+      mockQuizModel.findOne.mockReturnValue({
+        lean: jest.fn().mockReturnValue({
+          exec: jest.fn().mockResolvedValue(null),
+        }),
+      });
+
+      await expect(service.createRoom(mockUserId, mockOrgId, mockQuizId)).rejects.toThrow(
+        NotFoundException,
+      );
+    });
+
+    it('throws BadRequestException if draft quiz has no questions', async () => {
+      mockQuizVersionModel.findOne.mockReturnValue({
+        sort: jest.fn().mockReturnValue({
+          lean: jest.fn().mockReturnValue({
+            exec: jest.fn().mockResolvedValue(null),
+          }),
+        }),
+      });
+
+      mockQuizModel.findOne.mockReturnValue({
+        lean: jest.fn().mockReturnValue({
+          exec: jest.fn().mockResolvedValue({
+            _id: new Types.ObjectId(mockQuizId),
+            title: 'Empty Quiz',
+            questions: [],
+          }),
+        }),
+      });
+
       await expect(service.createRoom(mockUserId, mockOrgId, mockQuizId)).rejects.toThrow(
         BadRequestException,
       );
+    });
+
+    it('auto-freezes snapshot and creates room for a DRAFT quiz with questions', async () => {
+      const qId = new Types.ObjectId();
+      const optId = new Types.ObjectId();
+
+      // 1. Initial version query returns null
+      mockQuizVersionModel.findOne.mockReturnValueOnce({
+        sort: jest.fn().mockReturnValue({
+          lean: jest.fn().mockReturnValue({
+            exec: jest.fn().mockResolvedValue(null),
+          }),
+        }),
+      });
+
+      // 2. Draft quiz query returns draft quiz with questions
+      mockQuizModel.findOne.mockReturnValue({
+        lean: jest.fn().mockReturnValue({
+          exec: jest.fn().mockResolvedValue({
+            _id: new Types.ObjectId(mockQuizId),
+            title: 'Draft Science Quiz',
+            timeLimitSec: 40,
+            version: 1,
+            questions: [
+              {
+                _id: qId,
+                content: 'Water is H2O?',
+                type: 'true_false',
+                options: [{ _id: optId, content: 'True', isCorrect: true }],
+              },
+            ],
+          }),
+        }),
+      });
+
+      // 3. Second version query after freezeSnapshot returns the frozen snapshot
+      mockQuizVersionModel.findOne.mockReturnValueOnce({
+        lean: jest.fn().mockReturnValue({
+          exec: jest.fn().mockResolvedValue({
+            version: 1,
+            snapshot: {
+              title: 'Draft Science Quiz',
+              timeLimitSec: 40,
+              questions: [
+                {
+                  _id: qId,
+                  content: 'Water is H2O?',
+                  type: 'true_false',
+                  options: [{ _id: optId, content: 'True', isCorrect: true }],
+                },
+              ],
+            },
+          }),
+        }),
+      });
+
+      mockCacheService.get.mockResolvedValue(null);
+      mockCacheService.set.mockResolvedValue(undefined);
+
+      const { pin } = await service.createRoom(mockUserId, mockOrgId, mockQuizId);
+
+      expect(pin).toHaveLength(6);
+      expect(mockQuizVersionService.freezeSnapshot).toHaveBeenCalledTimes(1);
+      expect(mockCacheService.set).toHaveBeenCalledTimes(1);
     });
 
     it('creates a room successfully and stores in cache', async () => {
