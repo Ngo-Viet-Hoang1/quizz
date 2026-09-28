@@ -108,7 +108,7 @@ export function HeaderUserMenu() {
         {/* Logout Action */}
         <DropdownMenuItem
           variant="destructive"
-          onClick={() => signOut({ redirectUrl: '/' })}
+          onClick={() => signOut({ redirectUrl: '/sign-in' })}
           className="cursor-pointer gap-2 px-2.5 py-1.5 text-xs"
         >
           <LogOut className="size-4" />

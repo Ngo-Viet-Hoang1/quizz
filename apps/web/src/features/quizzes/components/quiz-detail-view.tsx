@@ -150,8 +150,13 @@ export function QuizDetailView({ quizId }: QuizDetailViewProps) {
         toast.success(`Live room launched with PIN: ${res.pin}`);
         router.push(`/room/host?pin=${res.pin}`);
       }
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Failed to create live room:', error);
+      const msg =
+        error instanceof Error
+          ? error.message
+          : (error as { message?: string })?.message || 'Failed to create live room';
+      toast.error(msg);
     } finally {
       setIsHostingRoom(false);
     }

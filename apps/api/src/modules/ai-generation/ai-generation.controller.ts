@@ -10,6 +10,7 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
+import { Throttle } from '@nestjs/throttler';
 import { CurrentOrg } from '../../common/decorators/current-org.decorator';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { PaginationQueryDto } from '../../common/dto/pagination-query.dto';
@@ -29,6 +30,7 @@ export class AiGenerationController {
   constructor(private readonly aiGenerationService: AiGenerationService) {}
 
   @Post()
+  @Throttle({ default: { limit: 10, ttl: 60000 } })
   @HttpCode(HttpStatus.ACCEPTED)
   @ApiOperation({ summary: 'Enqueue a new AI quiz generation job' })
   enqueue(
@@ -49,6 +51,7 @@ export class AiGenerationController {
   }
 
   @Get(':id')
+  @Throttle({ default: { limit: 120, ttl: 60000 } })
   @ApiOperation({ summary: 'Get AI generation job status by ID' })
   getJobStatus(
     @CurrentOrg() orgId: string,

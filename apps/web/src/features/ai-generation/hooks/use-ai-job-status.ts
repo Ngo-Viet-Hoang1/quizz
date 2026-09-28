@@ -37,16 +37,24 @@ export function useAiJobStatus(
       return res;
     },
     enabled: isLoaded && Boolean(orgId) && Boolean(jobId) && (options?.enabled ?? true),
+    retry: (failureCount, error: unknown) => {
+      if (typeof error === 'object' && error !== null && 'response' in error) {
+        const err = error as { response?: { status?: number } };
+        if (err.response?.status === 429) return false;
+      }
+      return failureCount < 2;
+    },
     refetchInterval: (query) => {
+      if (query.state.error) return false;
       const data = query.state.data;
-      if (!data) return 1500; // Poll initially
+      if (!data) return 2000;
 
       // Keep polling while job is still pending or processing
       if (
         data.status === AiGenerationJobStatus.PENDING ||
         data.status === AiGenerationJobStatus.PROCESSING
       ) {
-        return 1500;
+        return 2000;
       }
 
       // Stop polling once reached terminal state

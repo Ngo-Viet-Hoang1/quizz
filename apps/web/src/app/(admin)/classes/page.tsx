@@ -19,7 +19,7 @@ export default async function ClassesPage() {
       await queryClient.prefetchQuery({
         queryKey: classKeys.list(DEFAULT_CLASS_PARAMS),
         queryFn: () =>
-          serverApiClient.get<ClassItem[]>('/classes', {
+          serverApiClient.getPaginated<ClassItem[]>('/classes', {
             params: DEFAULT_CLASS_PARAMS,
           }),
       });

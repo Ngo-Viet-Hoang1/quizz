@@ -41,6 +41,18 @@ export class GetJobStatusResponseDto {
   })
   quizId!: string | null;
 
+  @ApiPropertyOptional({ example: 20, description: 'Total question count requested' })
+  questionCount?: number;
+
+  @ApiPropertyOptional({ example: 5, description: 'Number of questions completed so far' })
+  completedCount?: number;
+
+  @ApiPropertyOptional({
+    description: 'Generated questions preview list so far',
+    type: [Object],
+  })
+  generatedQuestions?: Array<Record<string, unknown>>;
+
   @ApiPropertyOptional({
     example: null,
     nullable: true,

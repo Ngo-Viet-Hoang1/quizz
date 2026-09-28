@@ -43,7 +43,10 @@ export class QuizReportsService {
     dto: CreateQuizReportDto,
   ): Promise<QuizReport> {
     const quiz = await this.quizModel
-      .findOne({ _id: new Types.ObjectId(dto.quizId), organizationId: orgId, deletedAt: null })
+      .findOne({
+        _id: new Types.ObjectId(dto.quizId),
+        deletedAt: null,
+      })
       .lean()
       .exec();
 
@@ -52,7 +55,7 @@ export class QuizReportsService {
     }
 
     const report = new this.reportModel({
-      organizationId: orgId,
+      organizationId: quiz.organizationId || orgId,
       quizId: new Types.ObjectId(dto.quizId),
       quizTitle: quiz.title,
       quizVersion: dto.quizVersion,
@@ -117,7 +120,6 @@ export class QuizReportsService {
       this.quizVersionModel
         .findOne({
           quizId: new Types.ObjectId(report.quizId),
-          organizationId: orgId,
           version: report.quizVersion,
         })
         .lean()
@@ -125,7 +127,6 @@ export class QuizReportsService {
       this.quizVersionModel
         .findOne({
           quizId: new Types.ObjectId(report.quizId),
-          organizationId: orgId,
         })
         .sort({ version: -1 })
         .lean()

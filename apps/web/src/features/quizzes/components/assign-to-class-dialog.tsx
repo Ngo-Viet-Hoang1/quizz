@@ -3,15 +3,7 @@
 import * as React from 'react';
 import Link from 'next/link';
 import { toast } from 'sonner';
-import {
-  AlertCircle,
-  Calendar,
-  CheckCircle2,
-  Clock,
-  GraduationCap,
-  Info,
-  Users,
-} from 'lucide-react';
+import { AlertCircle, Calendar, CheckCircle2, Clock, GraduationCap, Info } from 'lucide-react';
 import { Button } from '@/shared/ui/button';
 import {
   Dialog,
@@ -185,18 +177,10 @@ export function AssignToClassDialog({ quiz, open, onOpenChange }: AssignToClassD
 
           {/* Target Classroom Selection */}
           <div className="space-y-2">
-            <Label
-              htmlFor="assign-class-select"
-              className="text-xs font-semibold flex items-center justify-between"
-            >
+            <Label htmlFor="assign-class-select" className="text-xs font-semibold">
               <span>
                 Target Classroom <span className="text-destructive">*</span>
               </span>
-              {selectedClass && (
-                <span className="text-[11px] text-muted-foreground font-normal">
-                  {selectedClass.memberCount || 0} students enrolled
-                </span>
-              )}
             </Label>
 
             {activeClasses.length === 0 && !isLoadingClasses ? (
@@ -238,18 +222,12 @@ export function AssignToClassDialog({ quiz, open, onOpenChange }: AssignToClassD
                     const id = cls.id || cls._id || '';
                     return (
                       <SelectItem key={id} value={id} className="py-2.5 cursor-pointer">
-                        <div className="flex items-center justify-between w-full min-w-0 gap-3 pr-2">
-                          <span
-                            className="font-medium text-xs text-foreground truncate min-w-0 flex-1"
-                            title={cls.name}
-                          >
-                            {cls.name}
-                          </span>
-                          <span className="text-[11px] text-muted-foreground flex items-center gap-1 shrink-0">
-                            <Users className="size-3" />
-                            {cls.memberCount || 0} students
-                          </span>
-                        </div>
+                        <span
+                          className="font-medium text-xs text-foreground truncate min-w-0"
+                          title={cls.name}
+                        >
+                          {cls.name}
+                        </span>
                       </SelectItem>
                     );
                   })}

@@ -11,9 +11,12 @@ interface GradebookTableProps {
 }
 
 export function GradebookTable({ assignmentId, onViewScorecard }: GradebookTableProps) {
+  const [page, setPage] = React.useState(1);
+  const [pageSize, setPageSize] = React.useState(10);
+
   const { data: response, isLoading } = useAssignmentGradebook(
     assignmentId,
-    undefined,
+    { page, limit: pageSize },
     Boolean(assignmentId),
   );
 
@@ -27,6 +30,11 @@ export function GradebookTable({ assignmentId, onViewScorecard }: GradebookTable
         columns={columns}
         data={attempts}
         isLoading={isLoading}
+        page={page}
+        pageSize={pageSize}
+        serverPagination={response?.meta}
+        onPageChange={setPage}
+        onPageSizeChange={setPageSize}
         searchColumnId="userId"
         searchPlaceholder="Search student submissions..."
         emptyMessage="No Submissions Yet"

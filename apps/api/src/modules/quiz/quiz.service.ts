@@ -281,7 +281,12 @@ export class QuizService {
       deletedAt: null,
       organizationId: orgId, // strictly enforced from auth context
       ...(ownerId && { ownerId }),
-      ...(category && { category }),
+      ...(category && {
+        category: {
+          $regex: category.trim().replace(/[-[\]{}()*+?.,\\^$|#\s]/g, '\\$&'),
+          $options: 'i',
+        },
+      }),
       ...(difficulty && { difficulty }),
       ...(sourceType && { sourceType }),
       ...(visibility && { visibility }),

@@ -74,6 +74,7 @@ export class ExamAttemptQueryService {
 
     return paginate<IExamAttempt, ExamAttemptDocument>(this.attemptModel, filter, query, {
       allowedSortFields: ['createdAt', 'score', 'startedAt', 'submittedAt', 'totalPoints'],
+      populate: 'quizId',
     });
   }
 
@@ -82,26 +83,53 @@ export class ExamAttemptQueryService {
     userId: string,
     attemptId: string,
   ): Promise<ExamAttemptDetailResponse> {
-    const attempt = await this.attemptModel
-      .findOne({ _id: new Types.ObjectId(attemptId), organizationId: orgId, userId })
-      .exec();
+    const attemptQuery = this.attemptModel.findOne({
+      _id: new Types.ObjectId(attemptId),
+      organizationId: orgId,
+      userId,
+    });
+    const attempt = await (typeof (attemptQuery as { lean?: unknown })?.lean === 'function'
+      ? attemptQuery.lean().exec()
+      : attemptQuery.exec());
 
     if (!attempt) {
       throw new NotFoundException('Exam attempt not found');
     }
 
-    const quiz = await this.quizModel
-      .findOne({ _id: attempt.quizId, organizationId: orgId, deletedAt: null })
-      .exec();
+    const quizIdStr =
+      typeof attempt.quizId === 'object' && attempt.quizId !== null && '_id' in attempt.quizId
+        ? String((attempt.quizId as { _id: unknown })._id)
+        : String(attempt.quizId);
+
+    const quizQuery = this.quizModel.findOne({
+      _id: new Types.ObjectId(quizIdStr),
+      organizationId: orgId,
+      deletedAt: null,
+    });
+    const quiz = await (typeof (quizQuery as { lean?: unknown })?.lean === 'function'
+      ? quizQuery.lean().exec()
+      : quizQuery.exec());
 
     if (!quiz) {
       throw new NotFoundException('Quiz not found');
     }
 
-    const questions: (SanitizedQuestion | Question)[] =
-      attempt.status === ExamAttemptStatus.IN_PROGRESS
-        ? buildSanitizedQuestions(quiz.questions, attempt.questionOrder)
-        : quiz.questions;
+    let questions: (SanitizedQuestion | Question)[];
+    if (attempt.status === ExamAttemptStatus.IN_PROGRESS) {
+      questions = buildSanitizedQuestions(quiz.questions, attempt.questionOrder);
+    } else {
+      if (attempt.questionOrder && attempt.questionOrder.length > 0) {
+        const questionMap = new Map(
+          quiz.questions.map((q) => [(q as { _id?: unknown })._id?.toString(), q]),
+        );
+        const ordered = attempt.questionOrder
+          .map((id) => questionMap.get(id.toString()))
+          .filter(Boolean) as Question[];
+        questions = ordered.length > 0 ? ordered : quiz.questions;
+      } else {
+        questions = quiz.questions;
+      }
+    }
 
     return {
       attempt: attempt as unknown as IExamAttempt,

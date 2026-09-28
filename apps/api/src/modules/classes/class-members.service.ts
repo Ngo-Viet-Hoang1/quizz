@@ -177,9 +177,23 @@ export class ClassMembersService {
       filter.name = { $regex: escaped, $options: 'i' };
     }
 
-    return paginate<IClass, ClassDocument>(this.classModel, filter, query, {
+    const result = await paginate<IClass, ClassDocument>(this.classModel, filter, query, {
       allowedSortFields: CLASS_SORT_FIELDS,
     });
+
+    return {
+      items: result.items.map((item) => {
+        const plain =
+          typeof item === 'object' && item !== null && 'toObject' in item
+            ? (item as { toObject: () => Record<string, unknown> }).toObject()
+            : item;
+        return {
+          ...plain,
+          membershipStatus: ClassMemberStatus.ACTIVE,
+        } as unknown as IClass;
+      }),
+      meta: result.meta,
+    };
   }
 
   async approveMember(

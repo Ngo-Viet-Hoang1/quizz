@@ -2,6 +2,7 @@
 
 import * as React from 'react';
 import Link from 'next/link';
+import { useAuth } from '@clerk/nextjs';
 import { createColumnHelper } from '@tanstack/react-table';
 import { Plus, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
@@ -43,6 +44,7 @@ export function ClassAssignmentsTab({
   isLoading = false,
   onAssignQuiz,
 }: ClassAssignmentsTabProps) {
+  const { userId } = useAuth();
   const [searchInput, setSearchInput] = React.useState('');
   const debouncedSearch = useDebounce(searchInput, 300);
 
@@ -52,6 +54,7 @@ export function ClassAssignmentsTab({
 
   const classId = classItem.id || classItem._id || '';
   const isArchived = classItem.status === ClassStatus.ARCHIVED;
+  const isOwner = Boolean(userId && classItem.ownerId === userId);
 
   // Retrieve quizzes to match titles
   const { data: quizzes = [] } = useQuizzes({ limit: 100 });
@@ -186,13 +189,13 @@ export function ClassAssignmentsTab({
         assignmentColumnHelper.display({
           id: 'actions',
           cell: ({ row }) =>
-            !isArchived ? (
+            isOwner && !isArchived ? (
               <div className="flex justify-end">
                 <Button
                   variant="ghost"
                   size="sm"
                   onClick={() => setAssignmentToRemove(row.original)}
-                  className="h-7 px-2 text-destructive hover:text-destructive hover:bg-destructive/10"
+                  className="h-7 px-2 text-destructive hover:text-destructive hover:bg-destructive/10 cursor-pointer"
                 >
                   <Trash2 className="h-3.5 w-3.5" />
                   <span className="sr-only">Unassign quiz</span>
@@ -201,7 +204,7 @@ export function ClassAssignmentsTab({
             ) : null,
         }),
       ]),
-    [isArchived, quizMap],
+    [isArchived, isOwner, quizMap],
   );
 
   return (
@@ -214,7 +217,7 @@ export function ClassAssignmentsTab({
           </p>
         </div>
 
-        {!isArchived && (
+        {isOwner && !isArchived && (
           <Button size="sm" onClick={onAssignQuiz} className="gap-1.5 h-8 text-xs shadow-2xs">
             <Plus className="h-3.5 w-3.5" />
             <span>Assign Quiz</span>

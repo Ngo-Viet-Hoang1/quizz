@@ -9,12 +9,14 @@ describe('UsersService', () => {
   let mockUserModel: {
     findOne: jest.Mock;
     findOneAndUpdate: jest.Mock;
+    deleteMany: jest.Mock;
   };
 
   beforeEach(async () => {
     mockUserModel = {
       findOne: jest.fn(),
       findOneAndUpdate: jest.fn(),
+      deleteMany: jest.fn().mockResolvedValue({ deletedCount: 0 }),
     };
 
     const module: TestingModule = await Test.createTestingModule({
@@ -153,7 +155,7 @@ describe('UsersService', () => {
           deletedAt: null,
         },
       },
-      { upsert: true, new: true, setDefaultsOnInsert: true },
+      { upsert: true, returnDocument: 'after', setDefaultsOnInsert: true },
     );
   });
 

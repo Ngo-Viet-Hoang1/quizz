@@ -22,10 +22,26 @@ export interface EnqueueJobResponse {
   quizId?: string | null;
 }
 
+export interface GeneratedQuestionOption {
+  content: string;
+  isCorrect: boolean;
+}
+
+export interface GeneratedQuestionPreview {
+  content: string;
+  type?: string;
+  points?: number;
+  explanation?: string;
+  options: GeneratedQuestionOption[];
+}
+
 export interface GetJobStatusResponse {
   jobId: string;
   status: AiGenerationJobStatus | string;
   quizId: string | null;
+  questionCount?: number;
+  completedCount?: number;
+  generatedQuestions?: GeneratedQuestionPreview[];
   errorMessage?: string | null;
   createdAt?: string;
   completedAt?: string | null;

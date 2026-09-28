@@ -24,6 +24,7 @@ export class ExamAttemptProgressService {
     const attempt = await this.findActiveAttempt(orgId, userId, attemptId);
     this.validateQuestionMembership(attempt, dto.questionId);
     this.upsertAnswer(attempt.answers, dto);
+    attempt.markModified?.('answers');
     const saved = await attempt.save();
     return saved as unknown as IExamAttempt;
   }
@@ -75,9 +76,15 @@ export class ExamAttemptProgressService {
   private upsertAnswer(answers: ExamAttemptAnswer[], dto: SubmitAnswerDto): void {
     const newAnswer: ExamAttemptAnswer = {
       questionId: new Types.ObjectId(dto.questionId),
-      selectedOptionIds: dto.selectedOptionIds?.map((id) => new Types.ObjectId(id)) ?? [],
+      selectedOptionIds:
+        dto.selectedOptionIds
+          ?.filter((id) => Boolean(id) && Types.ObjectId.isValid(id))
+          .map((id) => new Types.ObjectId(id)) ?? [],
       textAnswer: dto.textAnswer ?? null,
-      orderAnswer: dto.orderAnswer?.map((id) => new Types.ObjectId(id)) ?? [],
+      orderAnswer:
+        dto.orderAnswer
+          ?.filter((id) => Boolean(id) && Types.ObjectId.isValid(id))
+          .map((id) => new Types.ObjectId(id)) ?? [],
       isCorrect: null,
       timeSpentSec: dto.timeSpentSec ?? 0,
       answeredAt: new Date(),

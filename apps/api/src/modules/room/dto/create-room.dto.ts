@@ -1,4 +1,5 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { Type } from 'class-transformer';
 import { IsInt, IsMongoId, IsNotEmpty, IsOptional, Max, Min } from 'class-validator';
 
 export class CreateRoomDto {
@@ -16,6 +17,7 @@ export class CreateRoomDto {
       'Specific quiz version to launch. If omitted, defaults to the latest published version.',
   })
   @IsOptional()
+  @Type(() => Number)
   @IsInt()
   @Min(1)
   quizVersion?: number;
@@ -26,6 +28,7 @@ export class CreateRoomDto {
       'Custom time limit per question in seconds for this live session. Overrides the quiz default.',
   })
   @IsOptional()
+  @Type(() => Number)
   @IsInt()
   @Min(5)
   @Max(600)

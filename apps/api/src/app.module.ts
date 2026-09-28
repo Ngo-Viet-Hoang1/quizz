@@ -31,7 +31,7 @@ import { QuizReportsModule } from './modules/quiz-reports/quiz-reports.module';
     ThrottlerModule.forRoot([
       {
         ttl: 60000,
-        limit: 100,
+        limit: 3000,
       },
     ]),
     ScheduleModule.forRoot(),

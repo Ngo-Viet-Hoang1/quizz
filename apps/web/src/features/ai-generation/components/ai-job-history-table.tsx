@@ -18,7 +18,7 @@ import { Button } from '@/shared/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/shared/ui/card';
 import { formatAiErrorMessage } from '../constants';
 import { AiGenerationJobItem, AiGenerationJobStatus } from '../types';
-import { useAiJobsHistory } from '../hooks';
+import { useInfiniteAiJobsHistory } from '../hooks';
 
 interface AiJobHistoryTableProps {
   className?: string;
@@ -26,13 +26,53 @@ interface AiJobHistoryTableProps {
 }
 
 export function AiJobHistoryTable({ className, onSelectJob }: AiJobHistoryTableProps) {
-  const { data, isLoading, refetch, isRefetching } = useAiJobsHistory({
-    limit: 10,
-    sortBy: 'createdAt',
-    sortOrder: 'desc',
-  });
+  const scrollContainerRef = React.useRef<HTMLDivElement>(null);
+  const loadMoreRef = React.useRef<HTMLDivElement>(null);
 
-  const jobs = data?.items ?? [];
+  const { data, isLoading, refetch, isRefetching, fetchNextPage, hasNextPage, isFetchingNextPage } =
+    useInfiniteAiJobsHistory({
+      limit: 3,
+      sortBy: 'createdAt',
+      sortOrder: 'desc',
+    });
+
+  const jobs = React.useMemo(() => {
+    return data?.pages.flatMap((page) => page.data) ?? [];
+  }, [data]);
+
+  // Infinite scroll trigger via IntersectionObserver
+  React.useEffect(() => {
+    if (!loadMoreRef.current || !scrollContainerRef.current || !hasNextPage || isFetchingNextPage) {
+      return;
+    }
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0]?.isIntersecting && hasNextPage && !isFetchingNextPage) {
+          fetchNextPage();
+        }
+      },
+      {
+        root: scrollContainerRef.current,
+        threshold: 0.1,
+      },
+    );
+
+    observer.observe(loadMoreRef.current);
+    return () => observer.disconnect();
+  }, [hasNextPage, isFetchingNextPage, fetchNextPage, jobs.length]);
+
+  const handleContainerScroll = (e: React.UIEvent<HTMLDivElement>) => {
+    const { scrollTop, scrollHeight, clientHeight } = e.currentTarget;
+    if (
+      scrollTop > 10 &&
+      scrollHeight - scrollTop <= clientHeight + 40 &&
+      hasNextPage &&
+      !isFetchingNextPage
+    ) {
+      fetchNextPage();
+    }
+  };
 
   const renderStatusBadge = (status: AiGenerationJobStatus) => {
     switch (status) {
@@ -98,7 +138,11 @@ export function AiJobHistoryTable({ className, onSelectJob }: AiJobHistoryTableP
       </CardHeader>
 
       <CardContent className="p-0">
-        <div className="divide-y divide-border/60">
+        <div
+          ref={scrollContainerRef}
+          onScroll={handleContainerScroll}
+          className="max-h-90 overflow-y-auto divide-y divide-border/60 scroll-smooth pr-0.5"
+        >
           {isLoading ? (
             Array.from({ length: 3 }).map((_, i) => (
               <div
@@ -115,71 +159,84 @@ export function AiJobHistoryTable({ className, onSelectJob }: AiJobHistoryTableP
               <p>No AI generation jobs yet.</p>
             </div>
           ) : (
-            jobs.map((job) => (
-              <div
-                key={job._id}
-                className="p-3.5 hover:bg-muted/40 transition-colors flex flex-col gap-2"
-              >
-                <div className="flex items-start justify-between gap-2">
-                  <div className="space-y-1 min-w-0 flex-1">
-                    <p
-                      className="text-xs font-medium text-foreground line-clamp-2 leading-relaxed"
-                      title={job.prompt}
-                    >
-                      {job.prompt}
-                    </p>
-                    <div className="flex flex-wrap items-center gap-2 text-[11px] text-muted-foreground font-mono">
-                      <span>{job.questionCount} Qs</span>
-                      <span>•</span>
-                      <span>{formatDate(job.createdAt, 'MMM dd, HH:mm')}</span>
-                      {job.costUsd !== undefined && job.costUsd > 0 && (
-                        <>
-                          <span>•</span>
-                          <span className="flex items-center gap-0.5 text-emerald-500">
-                            <Coins className="size-2.5" />
-                            <span>${job.costUsd.toFixed(5)}</span>
-                          </span>
-                        </>
-                      )}
+            <>
+              {jobs.map((job) => (
+                <div
+                  key={job._id}
+                  className="p-3.5 hover:bg-muted/40 transition-colors flex flex-col gap-2"
+                >
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="space-y-1 min-w-0 flex-1">
+                      <p
+                        className="text-xs font-medium text-foreground line-clamp-2 leading-relaxed"
+                        title={job.prompt}
+                      >
+                        {job.prompt}
+                      </p>
+                      <div className="flex flex-wrap items-center gap-2 text-[11px] text-muted-foreground font-mono">
+                        <span>{job.questionCount} Qs</span>
+                        <span>•</span>
+                        <span>{formatDate(job.createdAt, 'MMM dd, HH:mm')}</span>
+                        {job.costUsd !== undefined && job.costUsd > 0 && (
+                          <>
+                            <span>•</span>
+                            <span className="flex items-center gap-0.5 text-emerald-500">
+                              <Coins className="size-2.5" />
+                              <span>${job.costUsd.toFixed(5)}</span>
+                            </span>
+                          </>
+                        )}
+                      </div>
                     </div>
+                    <div className="shrink-0">{renderStatusBadge(job.status)}</div>
                   </div>
-                  <div className="shrink-0">{renderStatusBadge(job.status)}</div>
-                </div>
 
-                {job.status === AiGenerationJobStatus.FAILED && (
-                  <p className="text-[11px] text-destructive bg-destructive/10 rounded px-2 py-1 line-clamp-2">
-                    {formatAiErrorMessage(job.errorMessage)}
-                  </p>
-                )}
-
-                <div className="flex items-center justify-end gap-2 pt-1">
-                  {job.quizId && job.status === AiGenerationJobStatus.COMPLETED ? (
-                    <Link href={`/quizzes/${job.quizId}`}>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="h-7 px-2.5 gap-1 text-xs text-primary font-medium hover:text-primary hover:bg-primary/10"
-                      >
-                        <span>Open Quiz</span>
-                        <ExternalLink className="size-3" />
-                      </Button>
-                    </Link>
-                  ) : (
-                    (job.status === AiGenerationJobStatus.PROCESSING ||
-                      job.status === AiGenerationJobStatus.PENDING) && (
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => onSelectJob?.(job)}
-                        className="h-7 px-2.5 text-xs text-primary hover:bg-primary/10"
-                      >
-                        Track Status
-                      </Button>
-                    )
+                  {job.status === AiGenerationJobStatus.FAILED && (
+                    <p className="text-[11px] text-destructive bg-destructive/10 rounded px-2 py-1 line-clamp-2">
+                      {formatAiErrorMessage(job.errorMessage)}
+                    </p>
                   )}
+
+                  <div className="flex items-center justify-end gap-2 pt-1">
+                    {job.quizId && job.status === AiGenerationJobStatus.COMPLETED ? (
+                      <Link href={`/quizzes/${job.quizId}`}>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-7 px-2.5 gap-1 text-xs text-primary font-medium hover:text-primary hover:bg-primary/10"
+                        >
+                          <span>Open Quiz</span>
+                          <ExternalLink className="size-3" />
+                        </Button>
+                      </Link>
+                    ) : (
+                      (job.status === AiGenerationJobStatus.PROCESSING ||
+                        job.status === AiGenerationJobStatus.PENDING) && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => onSelectJob?.(job)}
+                          className="h-7 px-2.5 text-xs text-primary hover:bg-primary/10"
+                        >
+                          Track Status
+                        </Button>
+                      )
+                    )}
+                  </div>
                 </div>
-              </div>
-            ))
+              ))}
+
+              {/* Intersection observer anchor */}
+              <div ref={loadMoreRef} className="h-1" />
+
+              {/* Fetching more indicator */}
+              {isFetchingNextPage && (
+                <div className="p-3 flex items-center justify-center gap-2 text-xs text-muted-foreground bg-muted/20">
+                  <Loader2 className="size-3.5 animate-spin text-primary" />
+                  <span>Loading more history...</span>
+                </div>
+              )}
+            </>
           )}
         </div>
       </CardContent>

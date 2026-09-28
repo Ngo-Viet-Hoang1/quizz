@@ -10,7 +10,10 @@ interface AttemptHistoryTableProps {
 }
 
 export function AttemptHistoryTable({ onViewScorecard }: AttemptHistoryTableProps) {
-  const { data: response, isLoading } = useMyExamHistory();
+  const [page, setPage] = React.useState(1);
+  const [pageSize, setPageSize] = React.useState(10);
+
+  const { data: response, isLoading } = useMyExamHistory({ page, limit: pageSize });
   const attempts = response?.data ?? [];
 
   const columns = React.useMemo(
@@ -24,6 +27,11 @@ export function AttemptHistoryTable({ onViewScorecard }: AttemptHistoryTableProp
         columns={columns}
         data={attempts}
         isLoading={isLoading}
+        page={page}
+        pageSize={pageSize}
+        serverPagination={response?.meta}
+        onPageChange={setPage}
+        onPageSizeChange={setPageSize}
         searchColumnId="status"
         searchPlaceholder="Search attempts by status..."
         emptyMessage="No Examination History"
