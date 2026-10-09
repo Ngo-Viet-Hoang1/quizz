@@ -1,11 +1,10 @@
-import { apiClient, useApiClient } from '@/shared/lib/api-client';
+import { apiClient, useApiClient, PaginatedResponse } from '@/shared/lib/api-client';
 import {
   AiGenerationJobItem,
   AiGenerationQueryParams,
   EnqueueAiGenerationJobInput,
   EnqueueJobResponse,
   GetJobStatusResponse,
-  PaginatedResult,
 } from '../types';
 
 export const aiGenerationKeys = {
@@ -22,8 +21,8 @@ export const createAiGenerationApi = (client = apiClient) => ({
 
   getJobStatus: (id: string) => client.get<GetJobStatusResponse>(`/ai-generation-jobs/${id}`),
 
-  getJobs: (params?: AiGenerationQueryParams) =>
-    client.get<PaginatedResult<AiGenerationJobItem>>('/ai-generation-jobs', {
+  getJobs: (params?: AiGenerationQueryParams): Promise<PaginatedResponse<AiGenerationJobItem[]>> =>
+    client.getPaginated<AiGenerationJobItem[]>('/ai-generation-jobs', {
       params,
     }),
 });

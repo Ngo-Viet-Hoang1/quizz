@@ -5,6 +5,7 @@ import { useUser } from '@clerk/nextjs';
 import { toast } from 'sonner';
 import { Input } from '@/shared/ui/input';
 import { Button } from '@/shared/ui/button';
+import { Loader2 } from 'lucide-react';
 
 interface PlayerJoinViewProps {
   initialPin?: string;
@@ -15,6 +16,7 @@ export function PlayerJoinView({ initialPin = '', onJoin }: PlayerJoinViewProps)
   const { user } = useUser();
   const [pin, setPin] = useState(initialPin);
   const [nickname, setNickname] = useState('');
+  const [isJoining, setIsJoining] = useState(false);
 
   // Auto-populate nickname if student is logged into Clerk
   useEffect(() => {
@@ -27,6 +29,8 @@ export function PlayerJoinView({ initialPin = '', onJoin }: PlayerJoinViewProps)
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    if (isJoining) return;
+
     const cleanPin = pin.trim().replace(/\s+/g, '');
     const cleanName = nickname.trim();
 
@@ -39,7 +43,13 @@ export function PlayerJoinView({ initialPin = '', onJoin }: PlayerJoinViewProps)
       return;
     }
 
+    setIsJoining(true);
     onJoin(cleanPin, cleanName);
+
+    // Auto-reset joining flag after timeout if connection fails
+    setTimeout(() => {
+      setIsJoining(false);
+    }, 4000);
   };
 
   return (
@@ -64,6 +74,7 @@ export function PlayerJoinView({ initialPin = '', onJoin }: PlayerJoinViewProps)
             className="bg-background border-input text-center font-mono text-xl tracking-widest uppercase h-12 text-foreground focus-visible:ring-emerald-500"
             maxLength={10}
             required
+            disabled={isJoining}
           />
         </div>
 
@@ -79,15 +90,24 @@ export function PlayerJoinView({ initialPin = '', onJoin }: PlayerJoinViewProps)
             className="bg-background border-input text-center text-base h-12 text-foreground focus-visible:ring-emerald-500"
             maxLength={24}
             required
+            disabled={isJoining}
           />
         </div>
 
         <Button
           type="submit"
           size="lg"
-          className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-semibold h-12 shadow-xs cursor-pointer"
+          disabled={isJoining}
+          className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-semibold h-12 shadow-xs cursor-pointer disabled:opacity-60"
         >
-          Join Room
+          {isJoining ? (
+            <span className="flex items-center justify-center gap-2">
+              <Loader2 className="size-4 animate-spin" />
+              <span>Đang vào phòng...</span>
+            </span>
+          ) : (
+            'Join Room'
+          )}
         </Button>
       </form>
     </div>

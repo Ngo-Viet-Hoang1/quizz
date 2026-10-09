@@ -23,6 +23,17 @@ export function useClasses(params?: ClassQueryParams) {
   });
 }
 
+export function useClassesPaginated(params?: ClassQueryParams) {
+  const { isLoaded, orgId } = useAuth();
+  const api = useClassApi();
+
+  return useQuery({
+    queryKey: classKeys.list(params),
+    queryFn: () => api.getClassesPaginated(params),
+    enabled: isLoaded && Boolean(orgId),
+  });
+}
+
 export function useClass(id: string, initialData?: ClassItem) {
   const { isLoaded, orgId } = useAuth();
   const api = useClassApi();

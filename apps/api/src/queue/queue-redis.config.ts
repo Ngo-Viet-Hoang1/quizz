@@ -1,7 +1,7 @@
 import { ConnectionOptions } from 'bullmq';
 
 /**
- * Parses a Redis URL (redis:// hoặc rediss://) to BullMQ ConnectionOptions.
+ * Parses a Redis URL (redis:// or rediss://) to BullMQ ConnectionOptions.
  * maxRetriesPerRequest: null is COMPULSORY — worker will crash when Redis reconnect.
  */
 export function parseRedisConnectionOptions(redisUrl?: string): ConnectionOptions {

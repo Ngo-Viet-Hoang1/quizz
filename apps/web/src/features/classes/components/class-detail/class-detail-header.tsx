@@ -2,7 +2,8 @@
 
 import * as React from 'react';
 import Link from 'next/link';
-import { ArrowLeft, Plus } from 'lucide-react';
+import { useAuth } from '@clerk/nextjs';
+import { ArrowLeft, Eye, Plus } from 'lucide-react';
 import { Badge } from '@/shared/ui/badge';
 import { Button, buttonVariants } from '@/shared/ui/button';
 import { UserAvatarCell } from '@/shared/components/user-avatar-cell';
@@ -24,7 +25,9 @@ export function ClassDetailHeader({
   onAddMember,
   onAssignQuiz,
 }: ClassDetailHeaderProps) {
+  const { userId } = useAuth();
   const isArchived = classItem.status === ClassStatus.ARCHIVED;
+  const isOwner = Boolean(userId && classItem.ownerId === userId);
 
   return (
     <div className="space-y-4 border-b border-border pb-5 pt-1">
@@ -60,6 +63,16 @@ export function ClassDetailHeader({
             >
               {classItem.status}
             </Badge>
+
+            {!isOwner && (
+              <Badge
+                variant="secondary"
+                className="gap-1 text-xs py-0.5 px-2 bg-muted/80 text-muted-foreground border border-border/80 font-medium"
+              >
+                <Eye className="size-3 text-sky-600 dark:text-sky-400" />
+                <span>View Only</span>
+              </Badge>
+            )}
           </div>
 
           <div className="flex items-center gap-2">
@@ -68,41 +81,43 @@ export function ClassDetailHeader({
           </div>
         </div>
 
-        {/* Header Action Buttons */}
-        <div className="flex flex-wrap items-center gap-2">
-          {!isArchived && (
-            <>
+        {/* Header Action Buttons (Only visible to class owner) */}
+        {isOwner ? (
+          <div className="flex flex-wrap items-center gap-2">
+            {!isArchived && (
+              <>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={onAssignQuiz}
+                  className="gap-1.5 text-xs shadow-2xs"
+                >
+                  <Plus className="h-3.5 w-3.5" />
+                  <span>Assign Quiz</span>
+                </Button>
+                <Button size="sm" onClick={onAddMember} className="gap-1.5 text-xs shadow-2xs">
+                  <Plus className="h-3.5 w-3.5" />
+                  <span>Add Member</span>
+                </Button>
+              </>
+            )}
+
+            <Button variant="outline" size="sm" onClick={onEdit} className="text-xs">
+              Edit
+            </Button>
+
+            {!isArchived && (
               <Button
                 variant="outline"
                 size="sm"
-                onClick={onAssignQuiz}
-                className="gap-1.5 text-xs shadow-2xs"
+                onClick={onArchive}
+                className="text-xs text-destructive hover:text-destructive hover:bg-destructive/10"
               >
-                <Plus className="h-3.5 w-3.5" />
-                <span>Assign Quiz</span>
+                Archive
               </Button>
-              <Button size="sm" onClick={onAddMember} className="gap-1.5 text-xs shadow-2xs">
-                <Plus className="h-3.5 w-3.5" />
-                <span>Add Member</span>
-              </Button>
-            </>
-          )}
-
-          <Button variant="outline" size="sm" onClick={onEdit} className="text-xs">
-            Edit
-          </Button>
-
-          {!isArchived && (
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={onArchive}
-              className="text-xs text-destructive hover:text-destructive hover:bg-destructive/10"
-            >
-              Archive
-            </Button>
-          )}
-        </div>
+            )}
+          </div>
+        ) : null}
       </div>
     </div>
   );

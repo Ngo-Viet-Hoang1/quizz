@@ -52,8 +52,23 @@ export function AiJobProgressModal({
   const isCompleted = status === AiGenerationJobStatus.COMPLETED;
   const isFailed = status === AiGenerationJobStatus.FAILED;
 
-  // Calculate animated progress bar percentage based on status
-  const progressPercent = isCompleted ? 100 : isProcessing ? 65 : 25;
+  const totalCount = jobStatus?.questionCount || 0;
+  const questionsList = jobStatus?.generatedQuestions ?? [];
+  const completedCount = jobStatus?.completedCount ?? questionsList.length;
+
+  // Calculate animated progress bar percentage based on status & completed batches
+  let progressPercent = 10;
+  if (isCompleted) {
+    progressPercent = 100;
+  } else if (isProcessing) {
+    if (totalCount > 0 && completedCount > 0) {
+      progressPercent = Math.max(20, Math.min(95, Math.round((completedCount / totalCount) * 100)));
+    } else {
+      progressPercent = 25;
+    }
+  } else if (isPending) {
+    progressPercent = 10;
+  }
 
   const handleOpenQuizEditor = () => {
     if (jobStatus?.quizId) {
@@ -69,7 +84,7 @@ export function AiJobProgressModal({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-lg">
+      <DialogContent className="sm:max-w-xl max-h-[90vh] flex flex-col overflow-hidden">
         <DialogHeader>
           <div className="flex items-center gap-2 mb-1">
             <div className="flex size-8 items-center justify-center rounded-lg bg-primary/10 text-primary">
@@ -82,7 +97,7 @@ export function AiJobProgressModal({
           </DialogDescription>
         </DialogHeader>
 
-        <div className="space-y-6 py-2">
+        <div className="space-y-4 py-2 flex-1 overflow-y-auto pr-1">
           {/* Progress bar */}
           <div className="space-y-2">
             <div className="flex items-center justify-between text-xs text-muted-foreground">
@@ -93,15 +108,72 @@ export function AiJobProgressModal({
                   : isFailed
                     ? 'Failed'
                     : isProcessing
-                      ? 'AI Generating...'
+                      ? totalCount > 0
+                        ? `Generating (${completedCount}/${totalCount} questions)`
+                        : 'AI Generating...'
                       : 'Queued'}
               </span>
             </div>
-            <Progress value={progressPercent} className="h-2" />
+            <Progress value={progressPercent} className="h-2 transition-all duration-500" />
           </div>
 
+          {/* Live Questions Preview (when batches are generated) */}
+          {questionsList.length > 0 && (
+            <div className="space-y-2 rounded-lg border border-primary/20 bg-primary/5 p-3 text-xs">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-1.5 font-semibold text-primary">
+                  <Sparkles className="size-3.5 animate-spin text-primary" />
+                  <span>
+                    Generated Preview ({completedCount}
+                    {totalCount > 0 ? ` / ${totalCount}` : ''} Questions)
+                  </span>
+                </div>
+                {!isCompleted && !isFailed && (
+                  <span className="inline-flex items-center rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-medium text-primary animate-pulse">
+                    Streaming in batches...
+                  </span>
+                )}
+              </div>
+
+              <div className="max-h-56 overflow-y-auto space-y-2 pr-1 pt-1">
+                {questionsList.map((q, idx) => (
+                  <div
+                    key={idx}
+                    className="rounded-md border bg-card p-2.5 shadow-sm space-y-1.5 text-foreground"
+                  >
+                    <div className="flex items-start gap-2">
+                      <span className="inline-flex size-5 shrink-0 items-center justify-center rounded-full bg-primary/10 text-[10px] font-bold text-primary">
+                        {idx + 1}
+                      </span>
+                      <p className="font-medium text-xs flex-1 leading-snug">{q.content}</p>
+                    </div>
+                    {q.options && q.options.length > 0 && (
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5 pl-7 pt-1">
+                        {q.options.map((opt, optIdx) => (
+                          <div
+                            key={optIdx}
+                            className={`px-2 py-1 rounded text-[11px] flex items-center gap-1.5 ${
+                              opt.isCorrect
+                                ? 'bg-emerald-500/10 text-emerald-600 font-medium border border-emerald-500/20'
+                                : 'bg-muted/50 text-muted-foreground'
+                            }`}
+                          >
+                            <span className="font-mono text-[10px] opacity-70">
+                              {String.fromCharCode(65 + optIdx)}.
+                            </span>
+                            <span className="truncate">{opt.content}</span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
           {/* Step Timeline */}
-          <div className="space-y-3 rounded-lg border bg-muted/30 p-3.5 text-xs">
+          <div className="space-y-3 rounded-lg border bg-muted/30 p-3 text-xs">
             {/* Step 1: Queued */}
             <div className="flex items-start gap-3">
               <div className="mt-0.5">
@@ -136,9 +208,11 @@ export function AiJobProgressModal({
                 <p className="font-semibold text-foreground">2. Claude AI Generation</p>
                 <p className="text-muted-foreground text-[11px]">
                   {isProcessing
-                    ? 'Crafting questions, distractors, and explanations...'
+                    ? totalCount > 0
+                      ? `Generated ${completedCount}/${totalCount} questions (batching in progress)...`
+                      : 'Crafting questions, distractors, and explanations...'
                     : isCompleted
-                      ? 'Questions and answer keys generated successfully.'
+                      ? `Successfully generated ${completedCount || totalCount} questions.`
                       : 'Waiting for AI processor.'}
                 </p>
               </div>
@@ -182,7 +256,7 @@ export function AiJobProgressModal({
             <div className="p-3 rounded-lg bg-emerald-500/10 border border-emerald-500/25 text-emerald-500 text-xs space-y-1.5">
               <div className="flex items-center gap-1.5 font-semibold">
                 <FileCheck2 className="size-4 shrink-0" />
-                <span>Quiz Ready to Review!</span>
+                <span>Quiz Ready to Review! ({completedCount || totalCount} Questions)</span>
               </div>
               <p className="text-[11px] text-muted-foreground">
                 Your AI quiz draft has been generated. You can now edit questions, adjust time
