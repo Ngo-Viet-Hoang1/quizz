@@ -1,5 +1,6 @@
 'use client';
 
+import { PricingModal } from '@/features/subscriptions';
 import { cn } from '@/shared/lib/utils';
 import { useUIStore } from '@/shared/stores/ui-store';
 import type { ReactNode } from 'react';
@@ -12,6 +13,8 @@ interface DashboardShellProps {
 
 export function DashboardShell({ children }: DashboardShellProps) {
   const sidebarOpen = useUIStore((s) => s.sidebarOpen);
+  const pricingModalOpen = useUIStore((s) => s.pricingModalOpen);
+  const setPricingModalOpen = useUIStore((s) => s.setPricingModalOpen);
 
   return (
     <div className="flex min-h-screen bg-background text-foreground">
@@ -37,6 +40,8 @@ export function DashboardShell({ children }: DashboardShellProps) {
           <div className="mx-auto max-w-7xl space-y-6">{children}</div>
         </main>
       </div>
+
+      <PricingModal open={pricingModalOpen} onOpenChange={setPricingModalOpen} />
     </div>
   );
 }

@@ -8,6 +8,10 @@ interface UIState {
   commandPaletteOpen: boolean;
   setCommandPaletteOpen: (open: boolean) => void;
   toggleCommandPalette: () => void;
+
+  pricingModalOpen: boolean;
+  setPricingModalOpen: (open: boolean) => void;
+  openPricingModal: () => void;
 }
 
 export const useUIStore = create<UIState>((set) => ({
@@ -18,4 +22,8 @@ export const useUIStore = create<UIState>((set) => ({
   commandPaletteOpen: false,
   setCommandPaletteOpen: (open: boolean) => set({ commandPaletteOpen: open }),
   toggleCommandPalette: () => set((state) => ({ commandPaletteOpen: !state.commandPaletteOpen })),
+
+  pricingModalOpen: false,
+  setPricingModalOpen: (open: boolean) => set({ pricingModalOpen: open }),
+  openPricingModal: () => set({ pricingModalOpen: true }),
 }));

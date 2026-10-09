@@ -8,20 +8,40 @@ import { Env } from '../config/env.schema';
   imports: [
     PinoLoggerModule.forRootAsync({
       inject: [ConfigService],
-      useFactory: (config: ConfigService<Env>) => ({
-        pinoHttp: {
-          level: config.get('NODE_ENV') === 'production' ? 'info' : 'debug',
-          transport:
-            config.get('NODE_ENV') !== 'production'
-              ? { target: 'pino-pretty', options: { colorize: true } }
+      useFactory: (config: ConfigService<Env>) => {
+        const isProd = config.get('NODE_ENV') === 'production';
+        return {
+          pinoHttp: {
+            level: isProd ? 'info' : 'debug',
+            transport: !isProd
+              ? {
+                  target: 'pino-pretty',
+                  options: {
+                    colorize: true,
+                    singleLine: true,
+                    translateTime: 'SYS:HH:MM:ss.l',
+                    ignore: 'pid,hostname',
+                  },
+                }
               : undefined,
-          redact: {
-            paths: ['req.headers.authorization', 'req.body.password', 'req.body.token'],
-            censor: '[Redacted]',
+            serializers: {
+              req: (req: { id?: string; method?: string; url?: string }) => ({
+                id: req.id,
+                method: req.method,
+                url: req.url,
+              }),
+              res: (res: { statusCode?: number }) => ({
+                statusCode: res.statusCode,
+              }),
+            },
+            redact: {
+              paths: ['req.headers.authorization', 'req.body.password', 'req.body.token'],
+              censor: '[Redacted]',
+            },
+            genReqId: () => randomUUID(),
           },
-          genReqId: () => randomUUID(),
-        },
-      }),
+        };
+      },
     }),
   ],
 })

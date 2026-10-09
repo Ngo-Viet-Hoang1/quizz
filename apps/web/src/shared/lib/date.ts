@@ -52,3 +52,67 @@ export const formatDuration = (seconds: number): string => {
   const s = (seconds % 60).toString().padStart(2, '0');
   return `${m}:${s}`;
 };
+
+/**
+ * Formats a Date or ISO string to HTML datetime-local input format (YYYY-MM-DDTHH:mm).
+ *
+ * @param date - The date to format (defaults to current date).
+ * @returns Local datetime string compatible with `<input type="datetime-local" />`.
+ */
+export const toLocalDatetimeInput = (date: Date | string = new Date()): string => {
+  const d = typeof date === 'string' ? parseISO(date) : date;
+  if (!isValid(d)) return '';
+  const pad = (n: number) => String(n).padStart(2, '0');
+  const year = d.getFullYear();
+  const month = pad(d.getMonth() + 1);
+  const day = pad(d.getDate());
+  const hours = pad(d.getHours());
+  const minutes = pad(d.getMinutes());
+  return `${year}-${month}-${day}T${hours}:${minutes}`;
+};
+
+/**
+ * Calculates the minimum allowed due date string for datetime-local input
+ * based on start time and quiz duration (in seconds).
+ */
+export const getMinDueDatetimeInput = (startAt?: string, durationSec: number = 0): string => {
+  const baseDate = startAt ? new Date(startAt) : new Date();
+  const durationMs = (durationSec || 0) * 1000;
+  return toLocalDatetimeInput(new Date(baseDate.getTime() + durationMs));
+};
+
+/**
+ * Validates startAt and dueAt against current time and quiz duration.
+ * Returns an error string if invalid, or null if valid.
+ */
+export const validateAssignmentDates = (
+  startAt?: string,
+  dueAt?: string,
+  durationSec: number = 0,
+): string | null => {
+  const now = new Date();
+  const nowWithBuffer = new Date(now.getTime() - 2 * 60 * 1000); // 2 mins buffer for network delay
+
+  if (startAt) {
+    const startDate = new Date(startAt);
+    if (startDate < nowWithBuffer) {
+      return 'Start time cannot be set in the past';
+    }
+  }
+
+  if (dueAt) {
+    const effectiveStart = startAt ? new Date(startAt) : now;
+    const timeLimitMs = (durationSec || 0) * 1000;
+    const minDue = new Date(effectiveStart.getTime() + timeLimitMs);
+
+    if (new Date(dueAt) < minDue) {
+      const timeLimitMins = Math.round((durationSec || 0) / 60);
+      if (timeLimitMins > 0) {
+        return `Due date must be at least ${timeLimitMins} minute(s) after start time to allow full quiz completion`;
+      }
+      return 'Due date must be after start time';
+    }
+  }
+
+  return null;
+};

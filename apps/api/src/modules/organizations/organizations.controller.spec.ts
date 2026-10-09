@@ -7,16 +7,25 @@ import { ClerkClient } from '@clerk/backend';
 import { CLERK_CLIENT } from '../../common/clerk/clerk-client.provider';
 import { ConfigService } from '@nestjs/config';
 import { UsersService } from '../users/users.service';
+import { OrganizationMembersService } from '../organization-members/organization-members.service';
+import { OrganizationMemberDetail } from '../organization-members/types/organization-member-detail.type';
 
 describe('OrganizationsController', () => {
   let controller: OrganizationsController;
   let organizationsService: {
     findById: jest.Mock;
   };
+  let orgMembersService: {
+    findMembersByOrgId: jest.Mock;
+  };
 
   beforeEach(async () => {
     organizationsService = {
       findById: jest.fn(),
+    };
+
+    orgMembersService = {
+      findMembersByOrgId: jest.fn(),
     };
 
     const module: TestingModule = await Test.createTestingModule({
@@ -25,6 +34,10 @@ describe('OrganizationsController', () => {
         {
           provide: OrganizationsService,
           useValue: organizationsService,
+        },
+        {
+          provide: OrganizationMembersService,
+          useValue: orgMembersService,
         },
         {
           provide: CLERK_CLIENT,
@@ -62,5 +75,29 @@ describe('OrganizationsController', () => {
     organizationsService.findById.mockResolvedValueOnce(null);
 
     await expect(controller.getMyOrg('org_nonexistent')).rejects.toThrow(NotFoundException);
+    expect(organizationsService.findById).toHaveBeenCalledWith('org_nonexistent');
+  });
+
+  it('should return list of organization members with profiles', async () => {
+    const mockMembers: OrganizationMemberDetail[] = [
+      {
+        _id: 'mem_1',
+        userId: 'user_1',
+        organizationId: 'org_123',
+        role: 'org:admin',
+        permissions: ['quizzes:create'],
+        status: 'active',
+        fullName: 'Admin User',
+        email: 'admin@school.edu.vn',
+        avatarUrl: null,
+        joinedAt: new Date(),
+      },
+    ];
+
+    orgMembersService.findMembersByOrgId.mockResolvedValueOnce(mockMembers);
+
+    const result = await controller.getMyOrgMembers('org_123');
+    expect(result).toEqual(mockMembers);
+    expect(orgMembersService.findMembersByOrgId).toHaveBeenCalledWith('org_123');
   });
 });

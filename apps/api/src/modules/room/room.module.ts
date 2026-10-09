@@ -1,23 +1,24 @@
 import { Module } from '@nestjs/common';
 import { MongooseModule } from '@nestjs/mongoose';
-import { QuizModule } from '../quiz/quiz.module';
-import { UsersModule } from '../users/users.module';
+import { Quiz, QuizSchema } from '../quiz/schemas/quiz.schema';
+import { QuizVersion, QuizVersionSchema } from '../quiz/schemas/quiz-version.schema';
+import { QuizVersionService } from '../quiz/quiz-version.service';
 import { RoomController } from './room.controller';
-import { RoomService } from './room.service';
-import { Room, RoomSchema } from './schemas/room.schema';
-import { RoomAttempt, RoomAttemptSchema } from './schemas/room-attempt.schema';
+import { RoomGateway } from './room.gateway';
+import { RoomResult, RoomResultSchema } from './schemas/room-result.schema';
+import { RoomGameplayService, RoomService } from './services';
+import { RoomScheduler } from './tasks/room.scheduler';
 
 @Module({
   imports: [
     MongooseModule.forFeature([
-      { name: Room.name, schema: RoomSchema },
-      { name: RoomAttempt.name, schema: RoomAttemptSchema },
+      { name: RoomResult.name, schema: RoomResultSchema },
+      { name: QuizVersion.name, schema: QuizVersionSchema },
+      { name: Quiz.name, schema: QuizSchema },
     ]),
-    QuizModule,
-    UsersModule,
   ],
   controllers: [RoomController],
-  providers: [RoomService],
-  exports: [RoomService],
+  providers: [RoomService, RoomGameplayService, RoomGateway, RoomScheduler, QuizVersionService],
+  exports: [RoomService, RoomGameplayService],
 })
 export class RoomModule {}

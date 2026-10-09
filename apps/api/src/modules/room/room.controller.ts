@@ -1,119 +1,104 @@
+import { Body, Controller, Get, Param, Post, Query, UseGuards } from '@nestjs/common';
+import { ApiBearerAuth, ApiOperation, ApiParam, ApiTags } from '@nestjs/swagger';
 import {
-  Body,
-  Controller,
-  Get,
-  HttpCode,
-  HttpStatus,
-  Param,
-  Post,
-  UseGuards,
-} from '@nestjs/common';
-import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
+  HostRoomsStatsResponse,
+  RoomCreatedResponse,
+  RoomPublicStatusResponse,
+} from '@repo/shared-types';
 import { Audit } from '../../common/decorators/audit.decorator';
 import { CurrentOrg } from '../../common/decorators/current-org.decorator';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
+import { PaginationQueryDto } from '../../common/dto/pagination-query.dto';
 import { ClerkAuthGuard } from '../../common/guards/clerk-auth.guard';
-import { ParseObjectIdPipe } from '../../common/pipes/parse-object-id.pipe';
+import { OrgContextGuard } from '../../common/guards/org-context.guard';
+import { ApiResponse } from '../../common/response/api-response';
 import { CreateRoomDto } from './dto/create-room.dto';
-import { JoinRoomDto } from './dto/join-room.dto';
-import { SubmitAttemptDto } from './dto/submit-attempt.dto';
-import { LeaderboardEntry, RoomService } from './room.service';
-import { Room } from './schemas/room.schema';
-import { RoomAttempt } from './schemas/room-attempt.schema';
+import { RoomResult } from './schemas/room-result.schema';
+import { RoomService } from './services/room.service';
 
 @ApiTags('rooms')
 @Controller('rooms')
-@UseGuards(ClerkAuthGuard)
-@ApiBearerAuth('clerk-auth')
 export class RoomController {
   constructor(private readonly roomService: RoomService) {}
 
   @Post()
-  @HttpCode(HttpStatus.CREATED)
+  @UseGuards(ClerkAuthGuard, OrgContextGuard)
+  @ApiBearerAuth('clerk-auth')
   @Audit('room.create')
-  @ApiOperation({ summary: 'Create a new quiz room' })
-  create(
-    @CurrentOrg() orgId: string,
+  @ApiOperation({ summary: 'Create a live quiz room' })
+  async createRoom(
     @CurrentUser('_id') userId: string,
+    @CurrentOrg() orgId: string,
     @Body() dto: CreateRoomDto,
-  ): Promise<Room> {
-    return this.roomService.create(orgId, userId, dto);
+  ): Promise<ApiResponse<RoomCreatedResponse>> {
+    const result = await this.roomService.createRoom(
+      userId,
+      orgId,
+      dto.quizId,
+      dto.quizVersion,
+      dto.timeLimitSec,
+    );
+    return ApiResponse.success(result);
   }
 
-  @Get(':id')
-  @ApiOperation({ summary: 'Get room by ID' })
-  findOne(@CurrentOrg() orgId: string, @Param('id', ParseObjectIdPipe) id: string): Promise<Room> {
-    return this.roomService.findOne(id, orgId);
-  }
-
-  @Post(':id/join')
-  @HttpCode(HttpStatus.OK)
-  @Audit('room.join')
-  @ApiOperation({ summary: 'Join a room as participant' })
-  join(
-    @CurrentOrg() orgId: string,
+  @Get('stats/host')
+  @UseGuards(ClerkAuthGuard, OrgContextGuard)
+  @ApiBearerAuth('clerk-auth')
+  @ApiOperation({ summary: 'Get hosted rooms aggregate stats' })
+  async getHostStats(
     @CurrentUser('_id') userId: string,
-    @Param('id', ParseObjectIdPipe) id: string,
-    @Body() dto: JoinRoomDto,
-  ): Promise<Room> {
-    return this.roomService.join(id, orgId, userId, dto);
+    @CurrentOrg() orgId: string,
+  ): Promise<ApiResponse<HostRoomsStatsResponse>> {
+    const stats = await this.roomService.getHostRoomsStats(userId, orgId);
+    return ApiResponse.success(stats);
   }
 
-  @Post(':id/leave')
-  @HttpCode(HttpStatus.OK)
-  @Audit('room.leave')
-  @ApiOperation({ summary: 'Leave a room' })
-  leave(
-    @CurrentOrg() orgId: string,
+  @Get('history/host')
+  @UseGuards(ClerkAuthGuard, OrgContextGuard)
+  @ApiBearerAuth('clerk-auth')
+  @ApiOperation({ summary: 'Get hosted rooms history' })
+  async getHostHistory(
     @CurrentUser('_id') userId: string,
-    @Param('id', ParseObjectIdPipe) id: string,
-  ): Promise<{ left: boolean }> {
-    return this.roomService.leave(id, orgId, userId);
+    @CurrentOrg() orgId: string,
+    @Query() query: PaginationQueryDto,
+  ): Promise<ApiResponse<RoomResult[]>> {
+    const result = await this.roomService.getHostRoomsHistory(userId, orgId, query);
+    return ApiResponse.success(result.items, result.meta);
   }
 
-  @Post(':id/start')
-  @HttpCode(HttpStatus.OK)
-  @Audit('room.start')
-  @ApiOperation({ summary: 'Start the quiz session (host only)' })
-  start(
-    @CurrentOrg() orgId: string,
+  @Get('history/student')
+  @UseGuards(ClerkAuthGuard, OrgContextGuard)
+  @ApiBearerAuth('clerk-auth')
+  @ApiOperation({ summary: 'Get student live quiz history' })
+  async getStudentHistory(
     @CurrentUser('_id') userId: string,
-    @Param('id', ParseObjectIdPipe) id: string,
-  ): Promise<Room> {
-    return this.roomService.start(id, orgId, userId);
+    @CurrentOrg() orgId: string,
+    @Query() query: PaginationQueryDto,
+  ): Promise<ApiResponse<RoomResult[]>> {
+    const result = await this.roomService.getStudentLiveHistory(userId, orgId, query);
+    return ApiResponse.success(result.items, result.meta);
   }
 
-  @Post(':id/end')
-  @HttpCode(HttpStatus.OK)
-  @Audit('room.end')
-  @ApiOperation({ summary: 'End the quiz session (host only)' })
-  end(
-    @CurrentOrg() orgId: string,
+  @Get(':pin/check')
+  @ApiOperation({ summary: 'Check live room status by PIN' })
+  @ApiParam({ name: 'pin', example: '123456', description: '6-digit room PIN' })
+  async checkPin(@Param('pin') pin: string): Promise<ApiResponse<RoomPublicStatusResponse>> {
+    const status = await this.roomService.getRoomPublicStatus(pin);
+    return ApiResponse.success(status);
+  }
+
+  @Post(':pin/close')
+  @UseGuards(ClerkAuthGuard, OrgContextGuard)
+  @ApiBearerAuth('clerk-auth')
+  @Audit('room.close')
+  @ApiOperation({ summary: 'Close and terminate an active live quiz room session' })
+  @ApiParam({ name: 'pin', example: '123456', description: '6-digit room PIN to close' })
+  async closeRoom(
+    @Param('pin') pin: string,
     @CurrentUser('_id') userId: string,
-    @Param('id', ParseObjectIdPipe) id: string,
-  ): Promise<Room> {
-    return this.roomService.end(id, orgId, userId);
-  }
-
-  @Post(':id/attempt')
-  @HttpCode(HttpStatus.CREATED)
-  @Audit('room.attempt')
-  @ApiOperation({ summary: 'Submit an answer for a question' })
-  submitAttempt(
     @CurrentOrg() orgId: string,
-    @CurrentUser('_id') userId: string,
-    @Param('id', ParseObjectIdPipe) id: string,
-    @Body() dto: SubmitAttemptDto,
-  ): Promise<RoomAttempt> {
-    return this.roomService.submitAttempt(id, orgId, userId, dto);
-  }
-
-  @Get(':id/leaderboard')
-  @ApiOperation({ summary: 'Get room leaderboard' })
-  getLeaderboard(
-    @CurrentOrg() orgId: string,
-    @Param('id', ParseObjectIdPipe) id: string,
-  ): Promise<LeaderboardEntry[]> {
-    return this.roomService.getLeaderboard(id, orgId);
+  ): Promise<ApiResponse<{ success: boolean; message?: string }>> {
+    const result = await this.roomService.closeRoom(pin, userId, orgId);
+    return ApiResponse.success(result);
   }
 }

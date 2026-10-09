@@ -6,6 +6,7 @@ import {
   HttpCode,
   HttpStatus,
   Param,
+  ParseIntPipe,
   Patch,
   Post,
   Query,
@@ -21,9 +22,12 @@ import { ParseObjectIdPipe } from '../../common/pipes/parse-object-id.pipe';
 import { ApiResponse } from '../../common/response/api-response';
 import { CreateQuizDto } from './dto/create-quiz.dto';
 import { QueryQuizDto } from './dto/query-quiz.dto';
+import { QueryQuizVersionDto } from './dto/query-quiz-version.dto';
 import { UpdateQuizDto } from './dto/update-quiz.dto';
 import { IQuiz } from './interfaces/quiz.interface';
+import { QuizVersionService } from './quiz-version.service';
 import { QuizService } from './quiz.service';
+import { QuizVersion } from './schemas/quiz-version.schema';
 import { Quiz } from './schemas/quiz.schema';
 
 @ApiTags('quizzes')
@@ -31,7 +35,10 @@ import { Quiz } from './schemas/quiz.schema';
 @UseGuards(ClerkAuthGuard, OrgContextGuard)
 @ApiBearerAuth('clerk-auth')
 export class QuizController {
-  constructor(private readonly quizService: QuizService) {}
+  constructor(
+    private readonly quizService: QuizService,
+    private readonly quizVersionService: QuizVersionService,
+  ) {}
 
   @Post()
   @HttpCode(HttpStatus.CREATED)
@@ -53,6 +60,29 @@ export class QuizController {
   ): Promise<ApiResponse<IQuiz[]>> {
     const { items, meta } = await this.quizService.findAll(orgId, query);
     return ApiResponse.success(items, meta);
+  }
+
+  @Get(':id/versions')
+  @ApiOperation({ summary: 'Get all frozen versions of a quiz' })
+  async getVersions(
+    @CurrentOrg() orgId: string,
+    @Param('id', ParseObjectIdPipe) id: string,
+    @Query() query: QueryQuizVersionDto,
+  ): Promise<ApiResponse<QuizVersion[]>> {
+    await this.quizService.findOne(id, orgId);
+    const { items, meta } = await this.quizVersionService.getVersions(id, orgId, query);
+    return ApiResponse.success(items, meta);
+  }
+
+  @Get(':id/versions/:version')
+  @ApiOperation({ summary: 'Get detail of a specific frozen quiz version' })
+  async getVersionDetail(
+    @CurrentOrg() orgId: string,
+    @Param('id', ParseObjectIdPipe) id: string,
+    @Param('version', ParseIntPipe) version: number,
+  ): Promise<QuizVersion> {
+    await this.quizService.findOne(id, orgId);
+    return this.quizVersionService.getVersionDetail(id, version, orgId);
   }
 
   @Get(':id')

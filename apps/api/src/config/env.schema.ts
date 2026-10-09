@@ -11,6 +11,8 @@ export const envSchema = z.object({
 
   PORT: z.preprocess(emptyToUndefined, z.coerce.number().int().positive().default(4000)),
 
+  ENABLE_SWAGGER: booleanString,
+
   // Database
   MONGODB_URI: z.string().url(),
 
@@ -33,6 +35,21 @@ export const envSchema = z.object({
 
   // CORS / Frontend URL
   FRONTEND_URL: z.preprocess(emptyToUndefined, z.url().default('http://localhost:3000')),
+
+  // AI Provider
+  ANTHROPIC_API_KEY: z.preprocess(emptyToUndefined, z.string().min(1).optional()),
+  CLAUDE_MODEL: z.preprocess(emptyToUndefined, z.string().optional()),
+
+  // BullBoard Admin UI
+  BULL_BOARD_USER: z.preprocess(emptyToUndefined, z.string().default('admin')),
+  BULL_BOARD_PASSWORD: z.preprocess(emptyToUndefined, z.string().default('changeme')),
+
+  // SePay Payment Gateway
+  SEPAY_API_KEY: z.preprocess(emptyToUndefined, z.string().optional()),
+  SEPAY_WEBHOOK_SECRET: z.preprocess(emptyToUndefined, z.string().optional()),
+  SEPAY_BANK_ID: z.preprocess(emptyToUndefined, z.string().default('MBBank')),
+  SEPAY_ACCOUNT_NUMBER: z.preprocess(emptyToUndefined, z.string().default('0000000001')),
+  SEPAY_ACCOUNT_NAME: z.preprocess(emptyToUndefined, z.string().default('LE PHI VU')),
 });
 
 export type Env = z.infer<typeof envSchema>;

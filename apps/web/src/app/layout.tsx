@@ -13,6 +13,10 @@ const inter = Inter({
 export const metadata: Metadata = {
   title: 'HKT Quizz LMS',
   description: 'AI-Powered Enterprise Examination & Quiz Platform',
+  icons: {
+    icon: '/logo.svg',
+    apple: '/logo.svg',
+  },
 };
 
 export default function RootLayout({
@@ -22,8 +26,8 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" className={`${inter.variable} font-sans antialiased`} suppressHydrationWarning>
-      <body className="min-h-screen bg-background text-foreground">
-        <ClerkProvider>
+      <body className="min-h-screen bg-background text-foreground" suppressHydrationWarning>
+        <ClerkProvider afterSignOutUrl="/sign-in">
           <ThemeProvider
             attribute="class"
             defaultTheme="system"

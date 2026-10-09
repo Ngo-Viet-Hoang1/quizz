@@ -11,7 +11,7 @@ import { ApiResponse } from '../response/api-response';
 import { FieldValidationError } from '../response/field-validation-error';
 import { ErrorCode, HTTP_STATUS_TO_ERROR_CODE } from '../constants/error-code';
 
-interface CustomExceptionBody {
+interface CustomValidationBody {
   code: string;
   message: string;
   errors: FieldValidationError[];
@@ -30,17 +30,13 @@ export class GlobalExceptionFilter implements ExceptionFilter {
       const status = exception.getStatus();
       const body = exception.getResponse();
 
-      if (typeof body === 'object' && body !== null && 'errors' in body) {
-        const { code, message, errors } = body as CustomExceptionBody;
-        response.status(status).json(ApiResponse.error(code, message, errors));
+      if (this.isCustomValidationBody(body)) {
+        response.status(status).json(ApiResponse.error(body.code, body.message, body.errors));
         return;
       }
 
       const errorCode = HTTP_STATUS_TO_ERROR_CODE[status] ?? ErrorCode.BAD_REQUEST;
-      const message =
-        typeof body === 'string'
-          ? body
-          : ((body as { message?: string }).message ?? exception.message);
+      const message = this.extractMessage(body, exception.message);
 
       this.logger.warn(`[HTTP ${status}] ${request.method} ${request.url} — ${message}`);
       response.status(status).json(ApiResponse.error(errorCode, message));
@@ -53,17 +49,28 @@ export class GlobalExceptionFilter implements ExceptionFilter {
       exception instanceof Error ? exception.stack : String(exception),
     );
 
+    const message = isProduction
+      ? 'Internal server error'
+      : exception instanceof Error
+        ? exception.message
+        : 'Unexpected error';
+
     response
       .status(HttpStatus.INTERNAL_SERVER_ERROR)
-      .json(
-        ApiResponse.error(
-          ErrorCode.INTERNAL_ERROR,
-          isProduction
-            ? 'Internal server error'
-            : exception instanceof Error
-              ? exception.message
-              : 'Unexpected error',
-        ),
-      );
+      .json(ApiResponse.error(ErrorCode.INTERNAL_ERROR, message));
+  }
+
+  private isCustomValidationBody(body: unknown): body is CustomValidationBody {
+    return typeof body === 'object' && body !== null && 'errors' in body;
+  }
+
+  private extractMessage(body: unknown, fallback: string): string {
+    const raw =
+      typeof body === 'string'
+        ? body
+        : ((body as { message?: string | string[] })?.message ?? fallback);
+
+    const formatted = Array.isArray(raw) ? raw.join(', ') : raw;
+    return formatted.replace(/^ThrottlerException:\s*/i, '');
   }
 }

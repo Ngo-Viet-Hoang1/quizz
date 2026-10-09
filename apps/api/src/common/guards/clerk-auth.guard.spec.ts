@@ -31,6 +31,7 @@ describe('ClerkAuthGuard', () => {
     usersService = {
       findById: jest.fn(),
       syncFromClerk: jest.fn(),
+      addOrganization: jest.fn(),
     } as unknown as UsersService;
 
     mockClerkClient = {

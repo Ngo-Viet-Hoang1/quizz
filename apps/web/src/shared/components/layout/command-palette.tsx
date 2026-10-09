@@ -20,12 +20,10 @@ import {
   CornerDownLeft,
   CreditCard,
   FileSpreadsheet,
-  GraduationCap,
   Laptop,
   LayoutDashboard,
   Moon,
   Radio,
-  Settings,
   ShieldCheck,
   Sparkles,
   Sun,
@@ -39,7 +37,7 @@ import { useCallback, useEffect, useState } from 'react';
 export function CommandPalette() {
   const router = useRouter();
   const { setTheme } = useTheme();
-  const { commandPaletteOpen, setCommandPaletteOpen } = useUIStore();
+  const { commandPaletteOpen, setCommandPaletteOpen, openPricingModal } = useUIStore();
   const [search, setSearch] = useState('');
 
   // Reset search when modal opens/closes
@@ -152,9 +150,9 @@ export function CommandPalette() {
 
           <CommandSeparator className="my-1.5" />
 
-          {/* 2. Classes & Candidates */}
+          {/* 2. Classes & Results */}
           <CommandGroup
-            heading="Classes & Candidates"
+            heading="Classes & Results"
             className="text-xs font-semibold text-muted-foreground px-2 py-1"
           >
             <CommandItem
@@ -163,13 +161,6 @@ export function CommandPalette() {
             >
               <Users2 className="size-4 text-muted-foreground" />
               <span className="font-medium">Classes & Exam Groups</span>
-            </CommandItem>
-            <CommandItem
-              onSelect={() => runCommand(() => router.push('/candidates'))}
-              className="cursor-pointer gap-2 px-3 py-2 rounded-lg text-xs"
-            >
-              <GraduationCap className="size-4 text-muted-foreground" />
-              <span className="font-medium">Candidates & Students</span>
             </CommandItem>
             <CommandItem
               onSelect={() => runCommand(() => router.push('/results'))}
@@ -189,11 +180,18 @@ export function CommandPalette() {
 
           <CommandSeparator className="my-1.5" />
 
-          {/* 3. System & Settings */}
+          {/* 3. Administration */}
           <CommandGroup
-            heading="System & Preferences"
+            heading="Administration"
             className="text-xs font-semibold text-muted-foreground px-2 py-1"
           >
+            <CommandItem
+              onSelect={() => runCommand(() => router.push('/quiz-reports'))}
+              className="cursor-pointer gap-2 px-3 py-2 rounded-lg text-xs"
+            >
+              <ShieldCheck className="size-4 text-muted-foreground" />
+              <span className="font-medium">Quiz Reports</span>
+            </CommandItem>
             <CommandItem
               onSelect={() => runCommand(() => router.push('/audit-logs'))}
               className="cursor-pointer gap-2 px-3 py-2 rounded-lg text-xs"
@@ -202,14 +200,7 @@ export function CommandPalette() {
               <span className="font-medium">Security & Audit Logs</span>
             </CommandItem>
             <CommandItem
-              onSelect={() => runCommand(() => router.push('/settings'))}
-              className="cursor-pointer gap-2 px-3 py-2 rounded-lg text-xs"
-            >
-              <Settings className="size-4 text-muted-foreground" />
-              <span className="font-medium">System Settings</span>
-            </CommandItem>
-            <CommandItem
-              onSelect={() => runCommand(() => router.push('/settings/billing'))}
+              onSelect={() => runCommand(() => openPricingModal())}
               className="cursor-pointer gap-2 px-3 py-2 rounded-lg text-xs"
             >
               <CreditCard className="size-4 text-muted-foreground" />

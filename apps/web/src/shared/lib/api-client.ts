@@ -1,6 +1,5 @@
 import { useAuth } from '@clerk/nextjs';
-import { auth } from '@clerk/nextjs/server';
-import { ApiError, ApiResponse } from '@repo/shared-types';
+import { ApiError, ApiResponse, PaginationMeta } from '@repo/shared-types';
 import axios, { AxiosInstance, AxiosRequestConfig, AxiosResponse } from 'axios';
 import * as React from 'react';
 import { toast } from 'sonner';
@@ -9,10 +8,15 @@ export interface CustomRequestConfig extends AxiosRequestConfig {
   skipToast?: boolean;
 }
 
+export interface PaginatedResponse<T> {
+  data: T;
+  meta?: PaginationMeta;
+}
+
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4000/api/v1';
 
 // Create axios instance that have ability to bring Clerk jwt token
-function createApiClientInstance(getToken?: () => Promise<string | null>) {
+export function createApiClientInstance(getToken?: () => Promise<string | null>) {
   const instance: AxiosInstance = axios.create({
     baseURL: API_BASE_URL,
     timeout: 15_000,
@@ -36,8 +40,24 @@ function createApiClientInstance(getToken?: () => Promise<string | null>) {
           if (token) {
             config.headers.Authorization = `Bearer ${token}`;
           }
-        } catch {
-          // Token fetch failed
+        } catch (error) {
+          console.warn('[apiClient] Failed to retrieve token from getToken callback:', error);
+        }
+      } else if (typeof window !== 'undefined') {
+        try {
+          const clerk = (
+            window as unknown as {
+              Clerk?: { session?: { getToken: () => Promise<string | null> } };
+            }
+          )?.Clerk;
+          if (clerk?.session) {
+            const token = await clerk.session.getToken();
+            if (token) {
+              config.headers.Authorization = `Bearer ${token}`;
+            }
+          }
+        } catch (error) {
+          console.warn('[apiClient] Failed to retrieve token from window.Clerk:', error);
         }
       }
 
@@ -91,6 +111,16 @@ function createApiClientInstance(getToken?: () => Promise<string | null>) {
       const res = await instance.get<ApiResponse<T>>(url, config);
       return res.data.data as T;
     },
+    getPaginated: async <T>(
+      url: string,
+      config?: CustomRequestConfig,
+    ): Promise<PaginatedResponse<T>> => {
+      const res = await instance.get<ApiResponse<T>>(url, config);
+      return {
+        data: res.data.data as T,
+        meta: res.data.meta,
+      };
+    },
     post: async <T>(url: string, body?: unknown, config?: CustomRequestConfig): Promise<T> => {
       const res = await instance.post<ApiResponse<T>>(url, body, config);
       return res.data.data as T;
@@ -118,9 +148,3 @@ export function useApiClient() {
   const { getToken } = useAuth();
   return React.useMemo(() => createApiClientInstance(getToken), [getToken]);
 }
-
-// Used for Server Component & Route Hanlder ( Runs on Node.js SSR)
-export const serverApiClient = createApiClientInstance(async () => {
-  const { getToken } = await auth();
-  return getToken();
-});
